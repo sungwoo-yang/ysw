@@ -1,29 +1,41 @@
-# author Rudy Castan
-# date 2025 Fall
-# CS200 Computer Graphics I
-# copyright DigiPen Institute of Technology
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.16)
 
+project(JobSystem)
+
+find_package(Threads REQUIRED)
+
+# Set a default build type if none was specified
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(
+    STATUS "Setting build type to 'RelWithDebInfo' as none was specified.")
+  set(CMAKE_BUILD_TYPE
+      RelWithDebInfo
+      CACHE STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui, ccmake
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
+                                               "MinSizeRel" "RelWithDebInfo")
+endif()
+
+# Generate compile_commands.json to make it easier to work with clang based
+# tools
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# specify the C++ standard
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# #  Helper to print out all environment variables
-# get_cmake_property(_variableNames VARIABLES)
-# list (SORT _variableNames)
-# foreach (_variableName ${_variableNames})
-#     message(STATUS "${_variableName}=${${_variableName}}")
-# endforeach()
+# Link this 'library' to use the warnings specified in CompilerWarnings.cmake
+add_library(project_warnings INTERFACE)
 
-project(cs200_Fun)
+# standard compiler warnings
+include(CompilerWarnings.cmake)
+set_project_warnings(project_warnings)
 
-include(cmake/StandardProjectSettings.cmake)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dist/$<CONFIG>/)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dist/$<CONFIG>/)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dist/$<CONFIG>/)
 
-include(cmake/CompilerWarnings.cmake)
-add_library(project_options INTERFACE)
-target_compile_features(project_options INTERFACE cxx_std_20)
-set_project_warnings(project_options)
-
-include(cmake/Dependencies.cmake)
+include_directories(source)
 
 add_subdirectory(source)
-
+add_subdirectory(driver)
