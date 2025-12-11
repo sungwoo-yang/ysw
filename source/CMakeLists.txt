@@ -62,6 +62,7 @@ set(SOURCE_CODE
     Game/Mode1.hpp Game/Mode1.cpp
     Game/Mode2.hpp Game/Mode2.cpp
     Game/Player.hpp Game/Player.cpp
+    Game/PushableMirror.hpp Game/PushableMirror.cpp
     Game/RedLaser.hpp Game/RedLaser.cpp
     Game/Shield.hpp Game/Shield.cpp
     Game/Sign.hpp Game/Sign.cpp

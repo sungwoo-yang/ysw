@@ -10,10 +10,11 @@
 #include "Engine/Logger.hpp"
 #include "Engine/MapManager.h"
 #include "Engine/ShowCollision.hpp"
-#include "Engine/TextureManager.hpp" 
+#include "Engine/TextureManager.hpp"
 #include "Engine/Window.hpp"
 #include "MiniMap.hpp"
 #include "Player.hpp"
+#include "PushableMirror.hpp"
 #include "Sign.hpp"
 #include "Star.hpp"
 #include "TargetStar.hpp"
@@ -81,28 +82,51 @@ void Mode1::InitGame()
 
     targetStars.clear();
 
-    double t1_x = 4500.0; double t1_y = 750.0;
-    double t2_x = 4800.0; double t2_y = 1000.0;
+    double t1_x = 4500.0;
+    double t1_y = 750.0;
+    double t2_x = 4800.0;
+    double t2_y = 1000.0;
     double t3_x = 5200.0;
     double t4_x = 5500.0;
     double t5_x = 6500.0;
     double t6_x = 7500.0;
 
-    TargetStar* t1 = new TargetStar({ t1_x, t1_y }); gom->Add(t1); targetStars.push_back(t1);
-    TargetStar* t2 = new TargetStar({ t2_x, t2_y }); gom->Add(t2); targetStars.push_back(t2);
-    TargetStar* t3 = new TargetStar({ t3_x, t2_y }); gom->Add(t3); targetStars.push_back(t3);
-    TargetStar* t4 = new TargetStar({ t4_x, t1_y }); gom->Add(t4); targetStars.push_back(t4);
-    TargetStar* t5 = new TargetStar({ t5_x, t1_y }); gom->Add(t5); targetStars.push_back(t5);
-    TargetStar* t6 = new TargetStar({ t6_x, t1_y }); gom->Add(t6); targetStars.push_back(t6);
+    TargetStar* t1 = new TargetStar({ t1_x, t1_y });
+    gom->Add(t1);
+    targetStars.push_back(t1);
+    TargetStar* t2 = new TargetStar({ t2_x, t2_y });
+    gom->Add(t2);
+    targetStars.push_back(t2);
+    TargetStar* t3 = new TargetStar({ t3_x, t2_y });
+    gom->Add(t3);
+    targetStars.push_back(t3);
+    TargetStar* t4 = new TargetStar({ t4_x, t1_y });
+    gom->Add(t4);
+    targetStars.push_back(t4);
+    TargetStar* t5 = new TargetStar({ t5_x, t1_y });
+    gom->Add(t5);
+    targetStars.push_back(t5);
+    TargetStar* t6 = new TargetStar({ t6_x, t1_y });
+    gom->Add(t6);
+    targetStars.push_back(t6);
 
-    double y1_x = 5000.0; double y1_y = 750.0;
-    double r1_x = 7000.0; double r1_y = 750.0;
+    double y1_x = 5000.0;
+    double y1_y = 750.0;
+    double r1_x = 7000.0;
+    double r1_y = 750.0;
+    double y2_x = 9000.0;
+    double y2_y = 250.0;
 
-    Star* yellowStar = new Star({ y1_x, y1_y }, player, targetStars, StarType::Yellow); gom->Add(yellowStar);
-    Star* redStar = new Star({ r1_x, r1_y }, player, targetStars, StarType::Red); gom->Add(redStar);
+    Star* yellowStar = new Star({ y1_x, y1_y }, player, targetStars, StarType::Yellow);
+    gom->Add(yellowStar);
+    Star* redStar = new Star({ r1_x, r1_y }, player, targetStars, StarType::Red);
+    gom->Add(redStar);
+    Star* yellowStar2 = new Star({ y2_x, y2_y }, player, targetStars, StarType::Yellow);
+    gom->Add(yellowStar2);
 
-    double platformY = 200; double platformY2 = 500.0;
-    Math::vec2 signSize = { 50.0, 25.0 };
+    double     platformY  = 200;
+    double     platformY2 = 500.0;
+    Math::vec2 signSize   = { 50.0, 25.0 };
 
     gom->Add(new Sign({ 0.0, platformY + 12.5 }, signSize, "A/D to Move"));
     gom->Add(new Sign({ 200.0, platformY + 12.5 }, signSize, "W or Space to Jump"));
@@ -121,7 +145,10 @@ void Mode1::InitGame()
     gom->Add(new Bonfire({ 7800.0, platformY + 12.5 }, bonfireSize));
 
     Math::vec2 doorSize = { 80, 120 };
-    gom->Add(new Door({ 8000.0, platformY + 60.0 }, doorSize));
+    gom->Add(new Door({ 10000.0, platformY + 60.0 }, doorSize));
+
+    PushableMirror* box = new PushableMirror({ 9000.0, 300.0 }, { 80.0, 80.0 });
+    gom->Add(box);
 }
 
 void Mode1::Update(double dt)
@@ -141,24 +168,28 @@ void Mode1::Update(double dt)
 
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::M))
     {
-        if (miniMap) miniMap->ToggleMode();
+        if (miniMap)
+            miniMap->ToggleMode();
     }
 
     GetGSComponent<CS230::GameObjectManager>()->UpdateAll(dt);
     GetGSComponent<CS230::GameObjectManager>()->CollisionTest();
 
-    if (player != nullptr && player->interactionTarget == nullptr) player->isInteracting = false;
+    if (player != nullptr && player->interactionTarget == nullptr)
+        player->isInteracting = false;
 
     if (player != nullptr)
     {
-        Math::vec2 winSize = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
+        Math::vec2 winSize   = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
         Math::vec2 targetPos = player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.3 };
 
         double minX = level1_boundary.Left();
         double maxX = level1_boundary.Right() - winSize.x;
 
-        if (targetPos.x < minX) targetPos.x = minX;
-        if (targetPos.x > maxX) targetPos.x = maxX;
+        if (targetPos.x < minX)
+            targetPos.x = minX;
+        if (targetPos.x > maxX)
+            targetPos.x = maxX;
 
         camera->SetPosition(targetPos);
     }
@@ -184,9 +215,9 @@ void Mode1::Draw()
         auto         loadingTex = font.PrintToTexture("Loading Tutorial...", CS200::WHITE);
         if (loadingTex)
         {
-            Math::ivec2 texSize   = loadingTex->GetSize();
-            Math::vec2  centerPos = { display_size_int.x * 0.5, display_size_int.y * 0.5 };
-            Math::vec2  drawPos   = centerPos - Math::vec2{ texSize.x * 0.5, texSize.y * 0.5 };
+            Math::ivec2                texSize   = loadingTex->GetSize();
+            Math::vec2                 centerPos = { display_size_int.x * 0.5, display_size_int.y * 0.5 };
+            Math::vec2                 drawPos   = centerPos - Math::vec2{ texSize.x * 0.5, texSize.y * 0.5 };
             Math::TransformationMatrix transform = Math::TranslationMatrix(drawPos);
             loadingTex->Draw(transform);
         }
@@ -196,7 +227,7 @@ void Mode1::Draw()
 
     Engine::GetWindow().Clear(CS200::BLACK);
 
-    Math::vec2 camPos = camera->GetPosition();
+    Math::vec2 camPos  = camera->GetPosition();
     Math::vec2 winSize = static_cast<Math::vec2>(display_size_int);
 
     auto DrawParallaxLayer = [&](std::shared_ptr<CS230::Texture> texture, float parallaxSpeedX, float scale, float offsetX, float offsetY)
@@ -208,16 +239,16 @@ void Mode1::Draw()
 
             Math::vec2 texSize = static_cast<Math::vec2>(texture->GetSize());
 
-            double baseScale = winSize.y / texSize.y;
-            double finalScale = baseScale * scale; 
-            
+            double baseScale  = winSize.y / texSize.y;
+            double finalScale = baseScale * scale;
+
             double worldW = texSize.x * finalScale;
             double worldH = texSize.y * finalScale;
 
             double u_offset = (camPos.x * parallaxSpeedX - offsetX) / worldW;
-            
+
             double uv_height = 1.0 / scale;
-            
+
             double v_offset = (1.0 - uv_height) * 0.5 - (offsetY / worldH);
 
             double uv_width = winSize.x / worldW;
@@ -225,12 +256,11 @@ void Mode1::Draw()
             Math::vec2 uv_bl = { u_offset, v_offset };
             Math::vec2 uv_tr = { u_offset + uv_width, v_offset + uv_height };
 
-            Math::vec2 centerPos = { winSize.x * 0.5, winSize.y * 0.5 };
-            Math::TransformationMatrix bgTransform = 
-                Math::TranslationMatrix(centerPos) * Math::ScaleMatrix(winSize);
+            Math::vec2                 centerPos   = { winSize.x * 0.5, winSize.y * 0.5 };
+            Math::TransformationMatrix bgTransform = Math::TranslationMatrix(centerPos) * Math::ScaleMatrix(winSize);
 
             renderer.DrawQuad(bgTransform, texture->GetHandle(), uv_bl, uv_tr, CS200::WHITE);
-            
+
             renderer.EndScene();
         }
     };
@@ -259,20 +289,21 @@ void Mode1::Draw()
         int hitCount = 0;
         for (auto* star : targetStars)
         {
-            if (star && star->IsHit()) hitCount++;
+            if (star && star->IsHit())
+                hitCount++;
         }
 
         std::string  countText = "Stars: " + std::to_string(hitCount) + " / " + std::to_string(targetStars.size());
         CS230::Font& font      = Engine::GetFont(0);
-        CS200::RGBA textColor = (hitCount == targetStars.size()) ? 0x00FF00FF : CS200::WHITE;
+        CS200::RGBA  textColor = (hitCount == targetStars.size()) ? 0x00FF00FF : CS200::WHITE;
 
         auto textTex = font.PrintToTexture(countText, textColor);
         if (textTex)
         {
-            Math::vec2  scale     = { 0.8, 0.8 };
-            Math::ivec2 texSize   = textTex->GetSize();
-            double      textWidth = texSize.x * scale.x;
-            Math::vec2 drawPos = { static_cast<double>(display_size_int.x) - textWidth - 20.0, static_cast<double>(display_size_int.y) - 50.0 };
+            Math::vec2                 scale     = { 0.8, 0.8 };
+            Math::ivec2                texSize   = textTex->GetSize();
+            double                     textWidth = texSize.x * scale.x;
+            Math::vec2                 drawPos   = { static_cast<double>(display_size_int.x) - textWidth - 20.0, static_cast<double>(display_size_int.y) - 50.0 };
             Math::TransformationMatrix transform = Math::TranslationMatrix(drawPos) * Math::ScaleMatrix(scale);
             textTex->Draw(transform);
         }
@@ -297,12 +328,14 @@ void Mode1::DrawImGui()
     if (ImGui::CollapsingHeader("Object Inspector", ImGuiTreeNodeFlags_DefaultOpen))
     {
         auto gom = GetGSComponent<CS230::GameObjectManager>();
-        if (gom) gom->DrawAllImGui();
+        if (gom)
+            gom->DrawAllImGui();
     }
     ImGui::End();
 #endif
     ImGui::Begin("Mode1 Release");
-    if (miniMap) miniMap->DrawImGui();
+    if (miniMap)
+        miniMap->DrawImGui();
     ImGui::End();
 }
 

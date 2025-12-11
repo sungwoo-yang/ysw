@@ -42,7 +42,7 @@
          id="wall1" />
       <path
          style="fill:#000000;stroke:#ffffff;stroke-width:7"
-         d="M -500,0 H 10000 v 200 H -500 Z"
+         d="M -500,0 H 12000 v 200 H -500 Z"
          id="path1" />
       <path
          style="fill:#000000;stroke:#ffffff;stroke-width:7"
@@ -82,7 +82,7 @@
          id="platform4" />
       <path
          style="fill:#000000;stroke:#ffffff;stroke-width:7"
-         d="M 10000,0 H 10050 v 2000 H 10000 Z"
+         d="M 12000,0 H 12050 v 2000 H 12000 Z"
          id="wall2" />
     </g>
   </g>

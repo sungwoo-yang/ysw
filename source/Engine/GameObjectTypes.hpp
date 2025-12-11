@@ -18,5 +18,6 @@ enum class GameObjectTypes
     Bonfire,
     Particle,
     Door,
+    PushableMirror,
     Count
 };
