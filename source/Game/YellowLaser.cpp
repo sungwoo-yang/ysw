@@ -1,9 +1,12 @@
 #include "YellowLaser.hpp"
 #include "CS200/IRenderer2D.hpp"
 #include "Engine/Engine.hpp"
+#include "Engine/GameObjectManager.hpp"
+#include "Engine/GameStateManager.hpp"
 #include "Engine/Logger.hpp"
 #include "Engine/Physics/Reflection.hpp"
 #include "Player.hpp"
+#include "PushableMirror.hpp"
 #include "Shield.hpp"
 #include "TargetStar.hpp"
 #include <algorithm>
@@ -86,67 +89,50 @@ void YellowLaser::UpdateDirection(double dt)
 
 void YellowLaser::CalculateLaserPath()
 {
-    pathPoints.clear();
-    pathPoints.push_back(startPos);
+    std::vector<std::pair<Math::vec2, Math::vec2>> reflectSegments;
 
-    Math::vec2 rayOrigin         = startPos;
-    Math::vec2 rayDir            = currentDir;
-    double     remainingDistance = maxLaserLength;
-
-    int       bounces    = 0;
-    const int maxBounces = 5;
-
-    while (bounces < maxBounces && remainingDistance > 0)
+    if (player != nullptr)
     {
-        Math::vec2 closestIntersection;
-        double     closestT  = remainingDistance;
-        bool       hitShield = false;
-        Math::vec2 normal    = { 0, 0 };
-
-        if (player != nullptr)
+        Shield* shield = player->GetShield();
+        if (shield && shield->IsGuardUp())
         {
-            Shield* shield = player->GetShield();
+            auto shieldSegments = shield->GetSegments();
+            reflectSegments.insert(reflectSegments.end(), shieldSegments.begin(), shieldSegments.end());
+        }
+    }
 
-            if (shield && shield->IsGuardUp())
+    auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
+    if (gom)
+    {
+        for (auto obj : gom->GetObjects())
+        {
+            if (obj->Type() == GameObjectTypes::PushableMirror)
             {
-                auto segments = shield->GetSegments();
-                for (const auto& seg : segments)
-                {
-                    Math::vec2 intersection;
-                    double     t;
-                    if (Physics::RaySegmentIntersection(rayOrigin, rayDir, seg.first, seg.second, intersection, t))
-                    {
-                        if (t > 0.1 && t < closestT)
-                        {
-                            closestT            = t;
-                            closestIntersection = intersection;
-                            hitShield           = true;
+                auto mirror         = static_cast<PushableMirror*>(obj);
+                auto mirrorSegments = mirror->GetSegments();
 
-                            Math::vec2 wallVec = seg.second - seg.first;
-                            normal             = Math::vec2{ -wallVec.y, wallVec.x }.Normalize();
-                            if (Math::dot(rayDir, normal) > 0)
-                            {
-                                normal = -normal;
-                            }
-                        }
-                    }
-                }
+                reflectSegments.insert(reflectSegments.end(), mirrorSegments.begin(), mirrorSegments.end());
             }
         }
+    }
 
-        if (hitShield)
+    auto calculatedPath = Physics::CalculateLaserPath(startPos, currentDir, reflectSegments, 5, maxLaserLength);
+
+    pathPoints.clear();
+
+    if (!calculatedPath.empty())
+    {
+        pathPoints.push_back(calculatedPath[0].first);
+
+        for (const auto& segment : calculatedPath)
         {
-            pathPoints.push_back(closestIntersection);
-            rayOrigin = closestIntersection + normal * 0.1;
-            rayDir    = Physics::CalculateReflection(rayDir, normal);
-            remainingDistance -= closestT;
-            bounces++;
+            pathPoints.push_back(segment.second);
         }
-        else
-        {
-            pathPoints.push_back(rayOrigin + rayDir * remainingDistance);
-            break;
-        }
+    }
+    else
+    {
+        pathPoints.push_back(startPos);
+        pathPoints.push_back(startPos + currentDir * maxLaserLength);
     }
 }
 

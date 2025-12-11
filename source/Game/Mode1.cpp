@@ -90,6 +90,7 @@ void Mode1::InitGame()
     double t4_x = 5500.0;
     double t5_x = 6500.0;
     double t6_x = 7500.0;
+    double t7_x = 8800.0;
 
     TargetStar* t1 = new TargetStar({ t1_x, t1_y });
     gom->Add(t1);
@@ -109,6 +110,9 @@ void Mode1::InitGame()
     TargetStar* t6 = new TargetStar({ t6_x, t1_y });
     gom->Add(t6);
     targetStars.push_back(t6);
+    TargetStar* t7 = new TargetStar({ t7_x, t1_y });
+    gom->Add(t7);
+    targetStars.push_back(t7);
 
     double y1_x = 5000.0;
     double y1_y = 750.0;
@@ -147,7 +151,7 @@ void Mode1::InitGame()
     Math::vec2 doorSize = { 80, 120 };
     gom->Add(new Door({ 10000.0, platformY + 60.0 }, doorSize));
 
-    PushableMirror* box = new PushableMirror({ 9000.0, 300.0 }, { 80.0, 80.0 });
+    PushableMirror* box = new PushableMirror({ 8500.0, 300.0 }, { 80.0, 80.0 });
     gom->Add(box);
 }
 

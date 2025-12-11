@@ -29,6 +29,11 @@ namespace CS230
         void CollisionTest();
         void DrawAllImGui();
 
+        const std::list<GameObject*>& GetObjects() const
+        {
+            return objects;
+        }
+
     private:
         std::list<GameObject*> objects;
     };
