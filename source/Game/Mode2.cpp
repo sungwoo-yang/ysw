@@ -10,8 +10,12 @@
 #include "Engine/ShowCollision.hpp"
 #include "Engine/Window.hpp"
 #include "Game/Sign.hpp"
+#include "Gate.hpp"
 #include "Player.hpp"
+#include "Star.hpp"
+#include "TargetStar.hpp"
 #include "WorldTextManager.hpp"
+#include "YellowLaser.hpp"
 #include <imgui.h>
 
 void Mode2::Load()
@@ -44,18 +48,19 @@ void Mode2::Load()
 
 void Mode2::InitGame()
 {
-    worldTextManager = new WorldTextManager();
-    worldTextManager->SetCamera(camera);
-    AddGSComponent(worldTextManager);
-
-    player = new Player({ 0.0, 800.0 });
-    GetGSComponent<CS230::GameObjectManager>()->Add(player);
-
-    Math::ivec2 winSize = Engine::GetWindow().GetSize();
-    camera->SetPosition(player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.5 });
-
     auto gom = GetGSComponent<CS230::GameObjectManager>();
-    gom->Add(new Sign({ 350.0, 200.0 }, { 50.0, 25.0 }, "BOSS STAGE START!"));
+
+    player = new Player({ 0.0, 400.0 });
+    gom->Add(player);
+
+    puzzleTarget = new TargetStar({ 500.0, 400.0 });
+    gom->Add(puzzleTarget);
+
+    std::vector<TargetStar*> targets     = { puzzleTarget };
+    Star*                    laserSource = new Star({ 300.0, 600.0 }, player, targets, StarType::Yellow);
+    gom->Add(laserSource);
+
+    gom->Add(new Sign({ 200.0, 250.0 }, { 80.0, 40.0 }, "Hit Target -> Open Gate"));
 }
 
 void Mode2::Update(double dt)
@@ -71,6 +76,29 @@ void Mode2::Update(double dt)
             currentState = State::Playing;
         }
         return;
+    }
+    auto gom = GetGSComponent<CS230::GameObjectManager>();
+    gom->UpdateAll(dt);
+    gom->CollisionTest();
+
+    if (puzzleGate == nullptr)
+    {
+        for (auto obj : gom->GetObjects())
+        {
+            if (obj->TypeName() == "Gate")
+            {
+                puzzleGate = static_cast<Gate*>(obj);
+                break;
+            }
+        }
+    }
+
+    if (puzzleTarget != nullptr && puzzleTarget->IsHit())
+    {
+        if (puzzleGate != nullptr && !puzzleGate->IsOpen())
+        {
+            puzzleGate->Open();
+        }
     }
 
     GetGSComponent<CS230::GameObjectManager>()->UpdateAll(dt);

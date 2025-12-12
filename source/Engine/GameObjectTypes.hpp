@@ -19,5 +19,6 @@ enum class GameObjectTypes
     Particle,
     Door,
     PushableMirror,
+    Gate,
     Count
 };

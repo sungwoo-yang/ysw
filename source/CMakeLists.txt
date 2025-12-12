@@ -57,6 +57,7 @@ set(SOURCE_CODE
 
     Game/Bonfire.hpp Game/Bonfire.cpp
     Game/Door.hpp Game/Door.cpp
+    Game/Gate.hpp Game/Gate.cpp
     Game/MainMenu.hpp Game/MainMenu.cpp
     Game/MiniMap.hpp Game/MiniMap.cpp
     Game/Mode1.hpp Game/Mode1.cpp

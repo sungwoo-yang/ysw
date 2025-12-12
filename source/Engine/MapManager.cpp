@@ -6,6 +6,7 @@
 #include "Engine/Logger.hpp"
 #include "Engine/MapElement.h"
 #include "Engine/Path.hpp"
+#include "Game/Gate.hpp"
 
 namespace CS230
 {
@@ -174,7 +175,6 @@ namespace CS230
 
         if (std::regex_search(currentTag, match, pathRegex))
         {
-            Engine::GetLogger().LogDebug("");
             std::string pathData = match[1].str();
             std::replace(pathData.begin(), pathData.end(), ' ', ',');
             std::vector<Math::vec2> positions = parsePathData(pathData);
@@ -237,9 +237,39 @@ namespace CS230
                 v -= poly_center;
             }
 
-            MapElement* map_obj = new MapElement(poly_center, modified_poly);
+            // Gate
+            std::string objID = "";
+            if (std::regex_search(currentTag, match, pathIdRegex))
+            {
+                objID = match[1].str();
+            }
 
-            Engine::GetGameStateManager().GetGSComponent<GameObjectManager>()->Add(map_obj);
+            CS230::GameObject* newObj = nullptr;
+
+            if (objID.find("Gate") != std::string::npos)
+            {
+                Math::rect bounds   = modified_poly.FindBoundary();
+                Math::vec2 gateSize = bounds.Size();
+
+                newObj = new Gate(poly_center, gateSize);
+                Engine::GetLogger().LogEvent("Created Gate at: " + std::to_string(poly_center.x) + ", " + std::to_string(poly_center.y));
+            }
+            else
+            {
+                if (auto mapManager = Engine::GetGameStateManager().GetGSComponent<MapManager>())
+                {
+                    mapManager->AddPolygon(poly);
+                }
+                newObj = new MapElement(poly_center, modified_poly);
+            }
+
+            if (newObj != nullptr)
+            {
+                Engine::GetGameStateManager().GetGSComponent<GameObjectManager>()->Add(newObj);
+            }
+
+            // MapElement* map_obj = new MapElement(poly_center, modified_poly);
+            // Engine::GetGameStateManager().GetGSComponent<GameObjectManager>()->Add(map_obj);
 
 
             return;

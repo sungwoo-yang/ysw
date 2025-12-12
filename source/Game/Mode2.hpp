@@ -10,6 +10,8 @@ namespace CS230
 
 class Player;
 class WorldTextManager;
+class Gate;
+class TargetStar;
 
 class Mode2 : public CS230::GameState
 {
@@ -45,4 +47,7 @@ private:
         {    0.0,    0.0 },
         { 2560.0, 1440.0 }
     };
+
+    Gate*       puzzleGate   = nullptr;
+    TargetStar* puzzleTarget     = nullptr;
 };
