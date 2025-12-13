@@ -11,6 +11,7 @@ namespace CS230
 {
     class Camera;
     class MapManager;
+    class GameObjectManager;
 }
 
 struct MiniMapStyle
@@ -42,6 +43,7 @@ public:
     void AttachPlayer(Player* player_ptr);
     void AttachCamera(CS230::Camera* camera_ptr);
     void AttachMapManager(CS230::MapManager* map_manager_ptr);
+    void AttachGameObjectManager(CS230::GameObjectManager* gom_ptr);
 
     void SetStyle(const MiniMapStyle& style_config);
     void SetWindowTitle(std::string title_text);
@@ -61,14 +63,16 @@ private:
     void       DrawCameraFrustum(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
     void       DrawPlayerMarker(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
     void       DrawTerrainPolygons(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
+    void       DrawGameObjects(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
 
-    Math::rect         worldBounds;
-    MiniMapStyle       style;
-    std::string        windowTitle;
-    Player*            player;
-    CS230::Camera*     camera;
-    CS230::MapManager* mapManager;
-    bool               visible;
+    Math::rect                worldBounds;
+    MiniMapStyle              style;
+    std::string               windowTitle;
+    Player*                   player;
+    CS230::Camera*            camera;
+    CS230::MapManager*        mapManager;
+    CS230::GameObjectManager* gameObjectManager = nullptr;
+    bool                      visible;
 
     MiniMapMode currentMode   = MiniMapMode::Mini;
     Math::vec2  fullMapCamPos = { 0.0, 0.0 };

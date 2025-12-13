@@ -63,7 +63,7 @@ void RedLaser::Update(double dt)
                     {
                         normal = -normal;
                     }
-                    
+
                     if (Math::dot(dir, normal) < 0)
                     {
                         allSegments.push_back({ segStart, segEnd, true });
@@ -141,7 +141,8 @@ void RedLaser::Update(double dt)
                 double playerR2 = 40.0 * 40.0;
                 if (DistToSegmentSquared(player->GetPosition(), p1, p2) <= playerR2)
                 {
-                    player->ResetState();
+                    player->ApplyLaserDamage(4.0);
+
                     beams.push_back({ p1, player->GetPosition(), beamColor });
                     hitSomething = true;
                     Engine::GetLogger().LogEvent("Player Hit by Red Laser!");

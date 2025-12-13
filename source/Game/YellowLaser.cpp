@@ -187,6 +187,7 @@ void YellowLaser::CheckCollisions()
 
                 if (!safe)
                 {
+                    player->ApplyLaserDamage(1.0);
                     Engine::GetLogger().LogEvent("Player hit by continuous Laser!");
                     return;
                 }

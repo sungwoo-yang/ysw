@@ -1,4 +1,5 @@
 #include "Mode2.hpp"
+#include "BossStar.hpp"
 #include "CS200/IRenderer2D.hpp"
 #include "CS200/NDC.hpp"
 #include "Engine/Camera.hpp"
@@ -62,6 +63,11 @@ void Mode2::InitGame()
     gom->Add(laserSource);
     Mirror* reflectMirror = new Mirror({ 800.0, 300.0 }, { 120.0, 10.0 }, -0.785398f);
     gom->Add(reflectMirror);
+
+    std::vector<TargetStar*> bossTargets = { puzzleTarget }; // 보스도 타겟을 맞출 수 있게 전달
+
+    BossStar* boss = new BossStar({ 1500.0, 600.0 }, player, bossTargets);
+    gom->Add(boss);
 
     gom->Add(new Sign({ 200.0, 250.0 }, { 80.0, 40.0 }, "Hit Target -> Open Gate"));
 }

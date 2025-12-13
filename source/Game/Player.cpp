@@ -72,7 +72,9 @@ namespace
     }
 }
 
-Player::Player(Math::vec2 start_pos) : CS230::GameObject(start_pos), startPosition(start_pos), previousPosition(start_pos), shieldComponent(nullptr), isJumping(true), velocityY(0.0), faceRight(true)
+Player::Player(Math::vec2 start_pos)
+    : CS230::GameObject(start_pos), startPosition(start_pos), previousPosition(start_pos), shieldComponent(nullptr), isJumping(true), velocityY(0.0), faceRight(true), healthState(HealthState::Full),
+      playerHp(5.0), maxPlayerHp(5.0), recoverDelayTimer(0.0), tookDamageThisFrame(false), invincibilityTimer(0.0)
 {
     shieldComponent = new Shield(this);
     AddGOComponent(shieldComponent);
@@ -127,6 +129,11 @@ void Player::Update(double dt)
     interactionTarget = nullptr;
     previousPosition  = GetPosition();
 
+    if (invincibilityTimer > 0.0)
+    {
+        invincibilityTimer -= dt;
+    }
+
     if (jumpBufferTimer > 0.0)
         jumpBufferTimer -= dt;
     if (coyoteTimer > 0.0)
@@ -160,6 +167,8 @@ void Player::Update(double dt)
     {
         UpdateProceduralAnimation(dt);
     }
+
+    UpdateHealthState(dt);
 }
 
 void Player::UpdateProceduralAnimation(double dt)
@@ -414,6 +423,12 @@ void Player::ResetState()
     currentSpeedMultiplier = 1.0;
     interactionTarget      = nullptr;
     isInteracting          = false;
+
+    playerHp            = maxPlayerHp;
+    healthState         = HealthState::Full;
+    recoverDelayTimer   = 0.0;
+    tookDamageThisFrame = false;
+    invincibilityTimer  = 0.0;
 
     if (shieldComponent != nullptr)
     {
@@ -700,7 +715,28 @@ void Player::Draw(const Math::TransformationMatrix& camera_matrix)
     CS200::IRenderer2D&        renderer  = Engine::GetRenderer2D();
     Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix(PLAYER_COLLISION_SIZE);
 
-    renderer.DrawRectangle(transform, CS200::GREEN, CS200::CLEAR, 0.0);
+    CS200::RGBA playerColor = CS200::GREEN;
+
+    if (invincibilityTimer > 0.0)
+    {
+        if (static_cast<int>(invincibilityTimer * 10.0) % 2 == 0)
+        {
+            playerColor = (playerColor & 0xFFFFFF00) | 100;
+        }
+    }
+
+    switch (healthState)
+    {
+        case HealthState::Full: playerColor = CS200::GREEN; break;
+        case HealthState::Healthy: playerColor = CS200::CYAN; break;
+        case HealthState::Hurt: playerColor = CS200::YELLOW; break;
+        case HealthState::Critical: playerColor = 0xFFA500FF; break;
+        case HealthState::NearDeath: playerColor = CS200::RED; break;
+        case HealthState::Dead: playerColor = 0x8B0000FF; break;
+        default: playerColor = CS200::GREEN; break;
+    }
+
+    renderer.DrawRectangle(transform, playerColor, CS200::CLEAR, 0.0);
 
     if (shieldComponent)
     {
@@ -769,6 +805,51 @@ void Player::Draw(const Math::TransformationMatrix& camera_matrix)
     CS230::GameObject::Draw(camera_matrix);
 }
 
+void Player::ApplyLaserDamage(double damageAmount)
+{
+    if (healthState == HealthState::Dead) return;
+    if (damageAmount <= 0.0) return;
+    if (invincibilityTimer > 0.0) return;
+
+    tookDamageThisFrame = true;
+    recoverDelayTimer   = recoverDelayDuration;
+    invincibilityTimer  = invincibilityDuration;
+    
+    playerHp = std::max(0.0, playerHp - damageAmount);
+
+    if (playerHp <= 0.0)
+    {
+        playerHp    = 0.0;
+        healthState = HealthState::Dead;
+        Engine::GetLogger().LogEvent("Player died from laser damage.");
+    }
+}
+
+void Player::UpdateHealthState(double dt)
+{
+    if (healthState == HealthState::Dead) return;
+
+    if (recoverDelayTimer > 0.0)
+    {
+        recoverDelayTimer = std::max(0.0, recoverDelayTimer - dt);
+    }
+    else if (playerHp < maxPlayerHp)
+    {
+        playerHp = std::min(maxPlayerHp, playerHp + 1.0 * dt);
+
+    }
+
+    int hpInt = static_cast<int>(playerHp + 0.001);
+    if (hpInt >= 5)      healthState = HealthState::Full;
+    else if (hpInt == 4) healthState = HealthState::Healthy;
+    else if (hpInt == 3) healthState = HealthState::Hurt;
+    else if (hpInt == 2) healthState = HealthState::Critical;
+    else if (hpInt == 1) healthState = HealthState::NearDeath;
+    else                 healthState = HealthState::Dead;
+
+    tookDamageThisFrame = false;
+}
+
 void Player::DrawImGui()
 {
     ImGui::PushID(this);
@@ -788,6 +869,33 @@ void Player::DrawImGui()
             SetVelocity({ v[0], v[1] });
             velocityY = v[1];
         }
+
+        ImGui::Separator();
+        ImGui::Text("Player HP: %.2f / %.2f", playerHp, maxPlayerHp);
+
+        const char* stateItems[] = { "Dead", "Near Death", "Critical", "Hurt", "Healthy", "Full" };
+        int         currentItem  = 0;
+        int         hpInt        = static_cast<int>(playerHp + 0.001);
+
+        if (hpInt >= 5)
+            currentItem = 5;
+        else if (hpInt == 4)
+            currentItem = 4;
+        else if (hpInt == 3)
+            currentItem = 3;
+        else if (hpInt == 2)
+            currentItem = 2;
+        else if (hpInt == 1)
+            currentItem = 1;
+        else
+            currentItem = 0;
+
+        if (ImGui::Combo("Health State", &currentItem, stateItems, 6))
+        {
+            playerHp = static_cast<double>(currentItem);
+        }
+        ImGui::Text("Recover Timer: %.2f", recoverDelayTimer);
+        ImGui::Text("Invincibility Timer: %.2f", invincibilityTimer);
 
         ImGui::Separator();
         ImGui::Text("Movement State:");

@@ -1,6 +1,9 @@
 #include "Game/MiniMap.hpp"
 #include "Engine/Camera.hpp"
 #include "Engine/Engine.hpp"
+#include "Engine/GameObject.hpp"
+#include "Engine/GameObjectManager.hpp"
+#include "Engine/GameObjectTypes.hpp"
 #include "Engine/Logger.hpp"
 #include "Engine/MapManager.h"
 #include "Engine/Window.hpp"
@@ -42,6 +45,11 @@ void MiniMap::AttachCamera(CS230::Camera* camera_ptr)
 void MiniMap::AttachMapManager(CS230::MapManager* map_manager_ptr)
 {
     mapManager = map_manager_ptr;
+}
+
+void MiniMap::AttachGameObjectManager(CS230::GameObjectManager* gom_ptr)
+{
+    gameObjectManager = gom_ptr;
 }
 
 void MiniMap::SetStyle(const MiniMapStyle& style_config)
@@ -93,6 +101,9 @@ void MiniMap::DrawImGui()
     ImVec2 targetSize;
     ImVec2 targetPos;
 
+    ImVec2 viewportPos  = ImGui::GetMainViewport()->Pos;
+    ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+
     if (currentMode == MiniMapMode::Full)
     {
         targetSize = ImVec2(1280.0f, 720.0f);
@@ -101,7 +112,7 @@ void MiniMap::DrawImGui()
     else
     {
         targetSize = ImVec2(static_cast<float>(style.canvasSize.x) + 20.0f, static_cast<float>(style.canvasSize.y) + 20.0f);
-        targetPos  = ImVec2(20.0f, 20.0f);
+        targetPos  = ImVec2(viewportPos.x + 20.0f, viewportPos.y + 20.0f);
     }
 
     ImGui::SetNextWindowPos(targetPos, ImGuiCond_Always);
@@ -142,6 +153,8 @@ void MiniMap::DrawImGui()
             DrawGrid(draw_list, canvas_min, canvas_max);
         DrawLevelBounds(draw_list, canvas_min, canvas_max);
         DrawTerrainPolygons(draw_list, canvas_min, canvas_max);
+
+        DrawGameObjects(draw_list, canvas_min, canvas_max);
         DrawPlayerMarker(draw_list, canvas_min, canvas_max);
         if (style.showCameraFrustum)
             DrawCameraFrustum(draw_list, canvas_min, canvas_max);
@@ -155,11 +168,19 @@ Math::vec2 MiniMap::WorldToMapCanvas(const Math::vec2& world_position, const str
 {
     if (currentMode == MiniMapMode::Mini)
     {
-        const double level_width  = std::max(worldBounds.Right() - worldBounds.Left(), kEpsilon);
-        const double level_height = std::max(worldBounds.Top() - worldBounds.Bottom(), kEpsilon);
+        if (!camera)
+            return { 0.0, 0.0 };
 
-        double u = (world_position.x - worldBounds.Left()) / level_width;
-        double v = (world_position.y - worldBounds.Bottom()) / level_height;
+        Math::vec2 camPos = camera->GetPosition();
+
+        Math::ivec2 winSize = Engine::GetWindow().GetSize();
+        Math::vec2  camSize = { static_cast<double>(winSize.x), static_cast<double>(winSize.y) };
+
+        double relX = world_position.x - camPos.x;
+        double relY = world_position.y - camPos.y;
+
+        double u = relX / camSize.x;
+        double v = relY / camSize.y;
 
         return { u * canvas_size.x, (1.0 - v) * canvas_size.y };
     }
@@ -206,7 +227,9 @@ void MiniMap::DrawLevelBounds(ImDrawList* draw_list, const ImVec2& canvas_min, c
 
     if (currentMode == MiniMapMode::Mini)
     {
-        draw_list->AddRect(canvas_min, canvas_max, IM_COL32(150, 150, 150, 255));
+        ImVec2 p1 = ImVec2(canvas_min.x + (float)tl.x, canvas_min.y + (float)tl.y);
+        ImVec2 p3 = ImVec2(canvas_min.x + (float)br.x, canvas_min.y + (float)br.y);
+        draw_list->AddRect(p1, p3, IM_COL32(150, 150, 150, 255));
     }
     else
     {
@@ -294,5 +317,71 @@ void MiniMap::DrawTerrainPolygons(ImDrawList* draw_list, const ImVec2& canvas_mi
 
             draw_list->AddLine(v1, v2, IM_COL32(120, 200, 255, 190), style.terrainLineWidth);
         }
+    }
+}
+
+void MiniMap::DrawGameObjects(ImDrawList* draw_list, const ImVec2& canvas_min, const ImVec2& canvas_max) const
+{
+    if (gameObjectManager == nullptr)
+        return;
+
+    ImVec2 canvas_size = ImVec2(canvas_max.x - canvas_min.x, canvas_max.y - canvas_min.y);
+
+    for (CS230::GameObject* obj : gameObjectManager->GetObjects())
+    {
+        // Player, Floor, Particle은 제외
+        if (obj->Type() == GameObjectTypes::Player || obj->Type() == GameObjectTypes::Floor || obj->Type() == GameObjectTypes::Particle)
+            continue;
+
+        Math::vec2  pos = WorldToMapCanvas(obj->GetPosition(), canvas_size);
+        const float px  = canvas_min.x + static_cast<float>(pos.x);
+        const float py  = canvas_min.y + static_cast<float>(pos.y);
+
+        ImU32 color  = IM_COL32(255, 255, 255, 255);
+        float radius = 3.0f;
+
+        // 오브젝트 타입별 색상 및 모양
+        switch (obj->Type())
+        {
+            case GameObjectTypes::Bonfire:
+                color  = IM_COL32(255, 140, 0, 255); // Dark Orange
+                radius = 4.0f;
+                draw_list->AddTriangleFilled(ImVec2(px, py - radius), ImVec2(px - radius, py + radius), ImVec2(px + radius, py + radius), color);
+                continue; // 원 대신 삼각형 그림
+
+            case GameObjectTypes::Door:
+                color = IM_COL32(139, 69, 19, 255); // Brown
+                draw_list->AddRectFilled(ImVec2(px - 3, py - 5), ImVec2(px + 3, py + 5), color);
+                continue;
+
+            case GameObjectTypes::Gate:
+                color = IM_COL32(148, 0, 211, 255); // Violet
+                draw_list->AddRectFilled(ImVec2(px - 6, py - 2), ImVec2(px + 6, py + 2), color);
+                continue;
+
+            case GameObjectTypes::Mirror:
+            case GameObjectTypes::PushableMirror:
+                color = IM_COL32(0, 255, 255, 255); // Cyan
+                break;
+
+            case GameObjectTypes::Star:
+                color = IM_COL32(255, 0, 0, 255);
+                break;
+
+            case GameObjectTypes::Target:
+                color = IM_COL32(255, 215, 0, 255);
+                break;
+
+            case GameObjectTypes::Sign:
+                color  = IM_COL32(200, 200, 200, 255);
+                radius = 2.0f;
+                break;
+
+            default:
+                radius = 2.0f;
+                break;
+        }
+
+        draw_list->AddCircleFilled(ImVec2(px, py), radius, color);
     }
 }

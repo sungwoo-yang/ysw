@@ -6,6 +6,7 @@
 #include "Engine/Engine.hpp"
 #include "Engine/Font.hpp"
 #include "Engine/GameObjectManager.hpp"
+#include "Engine/GameStateManager.hpp"
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
 #include "Engine/MapManager.h"
@@ -75,6 +76,7 @@ void Mode1::InitGame()
         miniMap->AttachPlayer(player);
         miniMap->AttachCamera(camera);
         miniMap->AttachMapManager(mapManager);
+        miniMap->AttachGameObjectManager(gom);
     }
 
     Math::ivec2 winSize = Engine::GetWindow().GetSize();
@@ -201,6 +203,12 @@ void Mode1::Update(double dt)
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
     {
         player->SetPosition({ 8000, 300 });
+    }
+
+    if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))
+    {
+        Engine::GetGameStateManager().Clear();
+        Engine::GetGameStateManager().PushState<Mode1>();
     }
 }
 
