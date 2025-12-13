@@ -1,7 +1,7 @@
 #pragma once
+#include "CS200/RGBA.hpp"
 #include "Engine/GameObject.hpp"
 #include "Engine/GameObjectTypes.hpp"
-#include "CS200/RGBA.hpp"
 #include <vector>
 
 class Player;
@@ -14,9 +14,17 @@ public:
 
     void Update(double dt) override;
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
+    void TakeDamage(double damage);
 
-    GameObjectTypes Type() override { return GameObjectTypes::Boss; }
-    std::string TypeName() override { return "BossStar"; }
+    GameObjectTypes Type() override
+    {
+        return GameObjectTypes::Boss;
+    }
+
+    std::string TypeName() override
+    {
+        return "BossStar";
+    }
 
 private:
     enum class State
@@ -32,17 +40,16 @@ private:
         Yellow
     };
 
-    State currentState;
-    NextLaser nextLaserType; // 다음에 쏠 레이저 종류
+    State     currentState;
+    NextLaser nextLaserType;
 
-    Player* player;
+    Player*                  player;
     std::vector<TargetStar*> targets;
 
     double timer;
-    
-    // 보스 설정값
-    const double detectionRadius  = 800.0; // 인식 범위 (일반 별보다 넓게)
-    const double warningDuration  = 1.5;   // 경고 시간
-    const double cooldownDuration = 2.0;   // 발사 후 대기 시간
-    const double size             = 80.0;  // 크기 (일반 별의 2배)
+
+    const double detectionRadius  = 800.0;
+    const double warningDuration  = 1.5;
+    const double cooldownDuration = 5.0;
+    const double size             = 80.0;
 };

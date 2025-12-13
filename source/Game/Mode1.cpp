@@ -13,6 +13,7 @@
 #include "Engine/ShowCollision.hpp"
 #include "Engine/TextureManager.hpp"
 #include "Engine/Window.hpp"
+#include "MainMenu.hpp"
 #include "MiniMap.hpp"
 #include "Player.hpp"
 #include "PushableMirror.hpp"
@@ -208,8 +209,10 @@ void Mode1::Update(double dt)
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))
     {
         Engine::GetGameStateManager().Clear();
-        Engine::GetGameStateManager().PushState<Mode1>();
+        Engine::GetGameStateManager().PushState<MainMenu>();
     }
+
+    miniMap->Update(dt);
 }
 
 void Mode1::Draw()

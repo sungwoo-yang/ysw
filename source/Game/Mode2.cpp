@@ -64,7 +64,7 @@ void Mode2::InitGame()
     Mirror* reflectMirror = new Mirror({ 800.0, 300.0 }, { 120.0, 10.0 }, -0.785398f);
     gom->Add(reflectMirror);
 
-    std::vector<TargetStar*> bossTargets = { puzzleTarget }; // 보스도 타겟을 맞출 수 있게 전달
+    std::vector<TargetStar*> bossTargets = { puzzleTarget };
 
     BossStar* boss = new BossStar({ 1500.0, 600.0 }, player, bossTargets);
     gom->Add(boss);
@@ -180,7 +180,6 @@ void Mode2::DrawImGui()
         }
         ImGui::Text("Current State: %s", stateStr);
 
-        // 카메라 정보
         if (camera)
         {
             Math::vec2 camPos = camera->GetPosition();

@@ -9,13 +9,13 @@
 #include "Game/Gate.hpp"
 #include "Game/Mirror.hpp"
 #include "Player.hpp"
-#include "PushableMirror.hpp" // [추가] 이 헤더가 빠져서 오류가 발생했습니다.
+#include "PushableMirror.hpp"
 #include "RedLaser.hpp"
 #include "Shield.hpp"
 #include "YellowLaser.hpp"
 
 BossStar::BossStar(Math::vec2 position, Player* player, const std::vector<TargetStar*>& targets)
-    : CS230::GameObject(position), player(player), targets(targets), currentState(State::Idle), nextLaserType(NextLaser::Red), timer(0.0)
+    : CS230::GameObject(position), player(player), targets(targets), currentState(State::Idle), nextLaserType(NextLaser::Yellow), timer(0.0)
 {
 }
 
@@ -38,14 +38,13 @@ void BossStar::Update(double dt)
             break;
 
         case State::Warning:
-            // 플레이어가 너무 멀어지면 취소 (선택 사항)
             if (distance > detectionRadius * 1.5)
             {
                 currentState = State::Idle;
-                timer        = 0.0;
+                timer = 0.0;
                 return;
             }
-
+            
             timer -= dt;
             if (timer <= 0.0)
             {
@@ -54,14 +53,12 @@ void BossStar::Update(double dt)
 
                 if (nextLaserType == NextLaser::Red)
                 {
-                    // 레드 레이저 발사 -> 다음은 옐로우
                     gom->Add(new RedLaser(GetPosition(), dir, player, targets));
                     nextLaserType = NextLaser::Yellow;
                     Engine::GetLogger().LogEvent("Boss Fired Red Laser!");
                 }
                 else
                 {
-                    // 옐로우 레이저 발사 -> 다음은 레드
                     gom->Add(new YellowLaser(GetPosition(), dir, player, targets));
                     nextLaserType = NextLaser::Red;
                     Engine::GetLogger().LogEvent("Boss Fired Yellow Laser!");
@@ -76,7 +73,15 @@ void BossStar::Update(double dt)
             timer -= dt;
             if (timer <= 0.0)
             {
-                currentState = State::Idle; // 다시 대기 상태로
+                if (distance <= detectionRadius)
+                {
+                    currentState = State::Warning;
+                    timer        = warningDuration;
+                }
+                else
+                {
+                    currentState = State::Idle;
+                }
             }
             break;
     }
@@ -88,29 +93,24 @@ void BossStar::Draw(const Math::TransformationMatrix& camera_matrix)
 {
     auto& renderer = Engine::GetRenderer2D();
 
-    // 보스 외형 (크고, 다음 레이저 색상으로 빛남)
     CS200::RGBA bossColor;
     if (nextLaserType == NextLaser::Red)
-        bossColor = 0xFF0000FF; // Red
+        bossColor = 0xFF0000FF;
     else
-        bossColor = 0xFFFF00FF; // Yellow
+        bossColor = 0xFFFF00FF;
 
     Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix({ size, size });
     renderer.DrawCircle(transform, bossColor);
 
-    // 경고선 그리기 (Warning 상태일 때만)
     if (currentState == State::Warning && player != nullptr)
     {
-        // 경고선 색상 (깜빡임 효과)
         CS200::RGBA lineColor = bossColor;
         if (static_cast<int>(timer * 10) % 2 == 0)
-            lineColor = CS200::WHITE;                // 깜빡깜빡
-        lineColor = (lineColor & 0xFFFFFF00) | 0x80; // 반투명
+            lineColor = CS200::WHITE;
+        lineColor = (lineColor & 0xFFFFFF00) | 0x80;
 
-        // 예상 경로 계산 (Reflection 로직 재사용)
         std::vector<Physics::LineSegment> allSegments;
 
-        // (1) 쉴드
         Shield* shield = player->GetShield();
         if (shield && shield->IsGuardUp())
         {
@@ -118,7 +118,7 @@ void BossStar::Draw(const Math::TransformationMatrix& camera_matrix)
             for (auto& s : segs)
                 allSegments.push_back({ s.first, s.second, true });
         }
-        // (2) 맵 오브젝트
+
         auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
         for (auto obj : gom->GetObjects())
         {
@@ -128,7 +128,6 @@ void BossStar::Draw(const Math::TransformationMatrix& camera_matrix)
             }
             else if (obj->Type() == GameObjectTypes::PushableMirror)
             {
-                // [수정된 부분] PushableMirror 인식
                 auto mirror = static_cast<PushableMirror*>(obj);
                 auto segs   = mirror->GetSegments();
                 for (auto& s : segs)

@@ -35,6 +35,7 @@ set(SOURCE_CODE
     Engine/GameState.hpp
     Engine/GameStateManager.hpp Engine/GameStateManager.cpp
     Engine/Input.hpp Engine/Input.cpp
+    Engine/InputMapper.hpp Engine/InputMapper.cpp
     Engine/Logger.hpp Engine/Logger.cpp
     Engine/MapManager.h Engine/MapManager.cpp
     Engine/MapElement.h Engine/MapElement.cpp
@@ -44,6 +45,7 @@ set(SOURCE_CODE
     Engine/Polygon.h
     Engine/Random.hpp Engine/Random.cpp
     Engine/Rect.hpp
+    Engine/SettingsManager.hpp Engine/SettingsManager.cpp
     Engine/ShowCollision.hpp Engine/ShowCollision.cpp
     Engine/Sprite.hpp Engine/Sprite.cpp
     Engine/Texture.hpp Engine/Texture.cpp

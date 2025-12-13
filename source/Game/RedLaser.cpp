@@ -25,7 +25,7 @@ static double DistToSegmentSquared(Math::vec2 p, Math::vec2 v, Math::vec2 w)
 }
 
 RedLaser::RedLaser(Math::vec2 startPos, Math::vec2 direction, Player* player, const std::vector<TargetStar*>& targets)
-    : CS230::GameObject(startPos), start(startPos), dir(direction.Normalize()), player(player), targets(targets)
+    : CS230::GameObject(startPos), start(startPos), dir(direction.Normalize()), player(player), targets(targets), lifeTime(0.5)
 {
 }
 

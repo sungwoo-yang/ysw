@@ -1,9 +1,9 @@
-
 #pragma once
 
 #include "Engine/Rect.hpp"
 #include "Engine/Vec2.hpp"
 #include <string>
+#include <vector>
 
 class Player;
 
@@ -26,6 +26,11 @@ struct MiniMapStyle
     bool       showGrid           = true;
     bool       showTerrain        = true;
     float      terrainLineWidth   = 1.2f;
+
+    bool  enableFog    = true;     
+    float fogTileSize  = 50.0f;    
+    float visionRadius = 400.0f;   
+    float fogOpacity   = 1.0f;
 };
 
 enum class MiniMapMode
@@ -38,6 +43,8 @@ class MiniMap
 {
 public:
     MiniMap();
+
+    void Update(double dt);
 
     void SetWorldBounds(Math::rect bounds);
     void AttachPlayer(Player* player_ptr);
@@ -54,29 +61,37 @@ public:
     MiniMapMode GetMode() const;
     void        ToggleMode();
 
+    void ResetFog();
     void DrawImGui();
 
 private:
     Math::vec2 WorldToMapCanvas(const Math::vec2& world_position, const struct ImVec2& canvas_size) const;
-    void       DrawGrid(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
-    void       DrawLevelBounds(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
-    void       DrawCameraFrustum(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
-    void       DrawPlayerMarker(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
-    void       DrawTerrainPolygons(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
-    void       DrawGameObjects(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
+    
+    void DrawGrid(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
+    void DrawLevelBounds(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
+    void DrawCameraFrustum(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
+    void DrawPlayerMarker(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
+    void DrawTerrainPolygons(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
+    void DrawGameObjects(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
+    
+    void ResizeFogGrid();
+    void UpdateFogVisibility();
+    void DrawFog(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
 
     Math::rect                worldBounds;
     MiniMapStyle              style;
     std::string               windowTitle;
-    Player*                   player;
-    CS230::Camera*            camera;
-    CS230::MapManager*        mapManager;
+    Player* player;
+    CS230::Camera* camera;
+    CS230::MapManager* mapManager;
     CS230::GameObjectManager* gameObjectManager = nullptr;
     bool                      visible;
 
     MiniMapMode currentMode   = MiniMapMode::Mini;
     Math::vec2  fullMapCamPos = { 0.0, 0.0 };
     double      fullMapScale  = 0.5;
-    bool        isDraggingMap = false;
-    Math::vec2  lastMousePos  = { 0.0, 0.0 };
+    
+    std::vector<std::vector<bool>> fogVisited; 
+    int                            fogRows = 0;
+    int                            fogCols = 0;
 };
