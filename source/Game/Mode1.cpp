@@ -53,7 +53,7 @@ void Mode1::Load()
 
     textureLayer1_Atmosphere = Engine::GetTextureManager().Load("Assets/textures/layer1_atmosphere.png");
     textureLayer2_Trees      = Engine::GetTextureManager().Load("Assets/textures/layer2_trees.png");
-    textureLayer3_Silhouette = Engine::GetTextureManager().Load("Assets/textures/layer3_silhouette.png");
+    // textureLayer3_Silhouette = Engine::GetTextureManager().Load("Assets/textures/layer3_silhouette.png");
 
     miniMap = new MiniMap();
     miniMap->SetWorldBounds(level1_boundary);

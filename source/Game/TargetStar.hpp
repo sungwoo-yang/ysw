@@ -8,6 +8,7 @@ class TargetStar : public CS230::GameObject
 public:
     TargetStar(Math::vec2 position);
 
+    void Update(double dt) override;
     void Draw([[maybe_unused]] const Math::TransformationMatrix& camera_matrix) override;
     void OnHit();
 
@@ -28,4 +29,8 @@ private:
     CS200::RGBA color;
     double      radius = 40.0;
     bool        isHit  = false;
+
+    double       hitTimer       = 0.0;
+    bool         isBeingHit     = false;
+    const double activationTime = 3.0;
 };

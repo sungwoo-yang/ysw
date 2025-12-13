@@ -21,17 +21,13 @@ void Gate::Update(double dt)
 
 void Gate::Draw(const Math::TransformationMatrix& camera_matrix)
 {
-    if (isOpen)
-    {
-    }
-    else
+    if (!isOpen)
     {
         auto&                      renderer  = Engine::GetRenderer2D();
         Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix(size);
         renderer.DrawRectangle(transform, color, CS200::WHITE, 2.0);
+        CS230::GameObject::Draw(camera_matrix);
     }
-
-    CS230::GameObject::Draw(camera_matrix);
 }
 
 bool Gate::CanCollideWith(GameObjectTypes other_object_type)
@@ -49,6 +45,7 @@ void Gate::Open()
     if (!isOpen)
     {
         isOpen = true;
+        RemoveGOComponent<CS230::RectCollision>();
         Engine::GetLogger().LogEvent("Gate Opened!");
     }
 }
@@ -58,6 +55,12 @@ void Gate::Close()
     if (isOpen)
     {
         isOpen = false;
+        Math::irect collision_box{
+            { static_cast<int>(-size.x / 2.0), static_cast<int>(-size.y / 2.0) },
+            {  static_cast<int>(size.x / 2.0),  static_cast<int>(size.y / 2.0) }
+        };
+        AddGOComponent(new CS230::RectCollision(collision_box, this));
+
         Engine::GetLogger().LogEvent("Gate Closed!");
     }
 }

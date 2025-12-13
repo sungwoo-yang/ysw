@@ -43,6 +43,7 @@ namespace CS200
     constexpr RGBA BLUE   = 0x0000ffff;
     constexpr RGBA CYAN   = 0x00ffffff;
     constexpr RGBA YELLOW = 0xffff00ff;
+    constexpr RGBA GREY   = 0xff9e9e9e;
     constexpr RGBA CLEAR  = 0x00000000;
 
     /**

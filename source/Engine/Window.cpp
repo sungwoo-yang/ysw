@@ -13,6 +13,7 @@
 #include "Engine.hpp"
 #include "Error.hpp"
 #include "Logger.hpp"
+#include "OpenGL/GL.hpp"
 #include <GL/glew.h>
 #include <SDL.h>
 #include <functional>
@@ -64,6 +65,7 @@ namespace CS230
                     {
                         size.x = event.window.data1;
                         size.y = event.window.data2;
+                        GL::Viewport(0, 0, size.x, size.y);
                     }
                     break;
             }
@@ -89,8 +91,27 @@ namespace CS230
     void Window::ForceResize(int desired_width, int desired_height)
     {
         SDL_SetWindowSize(sdlWindow, desired_width, desired_height);
+        SDL_SetWindowPosition(sdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
         size.x = desired_width;
         size.y = desired_height;
+        GL::Viewport(0, 0, size.x, size.y);
+    }
+
+    void Window::SetFullscreen(bool fullscreen)
+    {
+        if (fullscreen)
+        {
+            SDL_SetWindowFullscreen(sdlWindow, SDL_WINDOW_FULLSCREEN);
+        }
+        else
+        {
+            SDL_SetWindowFullscreen(sdlWindow, 0);
+        }
+    }
+
+    void Window::SetBordered(bool bordered)
+    {
+        SDL_SetWindowBordered(sdlWindow, bordered ? SDL_TRUE : SDL_FALSE);
     }
 
     SDL_Window* Window::GetSDLWindow() const

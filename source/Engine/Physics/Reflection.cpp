@@ -50,50 +50,54 @@ namespace Physics
         return reflection.Normalize();
     }
 
-    std::vector<std::pair<Math::vec2, Math::vec2>>
-        CalculateLaserPath(Math::vec2 startPos, Math::vec2 initialDir, const std::vector<std::pair<Math::vec2, Math::vec2>>& segments, int maxBounces, double maxLength)
+    std::vector<std::pair<Math::vec2, Math::vec2>> CalculateLaserPath(Math::vec2 startPos, Math::vec2 initialDir, const std::vector<LineSegment>& segments, int maxBounces, double maxLength)
     {
         std::vector<std::pair<Math::vec2, Math::vec2>> path;
-        Math::vec2                                     currentPos        = startPos;
-        Math::vec2                                     currentDir        = initialDir.Normalize();
-        const double                                   verySmallDistance = 1e-6;
+        Math::vec2                                     currentPos = startPos;
+        Math::vec2                                     currentDir = initialDir.Normalize();
+        const double                                   epsilon    = 0.1;
 
         for (int bounce = 0; bounce <= maxBounces; ++bounce)
         {
             double     closestT = std::numeric_limits<double>::infinity();
             Math::vec2 closestIntersection;
             Math::vec2 surfaceNormal;
-            int        intersectedSegmentIndex = -1;
+            int        intersectedIndex = -1;
 
             for (size_t i = 0; i < segments.size(); ++i)
             {
                 Math::vec2 intersectionPoint;
                 double     t;
-                if (RaySegmentIntersection(currentPos, currentDir, segments[i].first, segments[i].second, intersectionPoint, t))
+                if (RaySegmentIntersection(currentPos, currentDir, segments[i].p1, segments[i].p2, intersectionPoint, t))
                 {
-                    if (t > verySmallDistance && t < closestT)
+                    if (t > epsilon && t < closestT)
                     {
-                        closestT                = t;
-                        closestIntersection     = intersectionPoint;
-                        intersectedSegmentIndex = static_cast<int>(i);
+                        closestT            = t;
+                        closestIntersection = intersectionPoint;
+                        intersectedIndex    = static_cast<int>(i);
 
-                        Math::vec2 segmentVec = segments[i].second - segments[i].first;
+                        Math::vec2 segmentVec = segments[i].p2 - segments[i].p1;
                         Math::vec2 normal     = perpendicular(segmentVec).Normalize();
-
                         if (dot(normal, -currentDir) < 0)
-                        {
                             normal = -normal;
-                        }
                         surfaceNormal = normal;
                     }
                 }
             }
 
-            if (intersectedSegmentIndex != -1)
+            if (intersectedIndex != -1)
             {
                 path.push_back({ currentPos, closestIntersection });
-                currentPos = closestIntersection + surfaceNormal * verySmallDistance;
-                currentDir = CalculateReflection(currentDir, surfaceNormal);
+
+                if (segments[intersectedIndex].isReflective)
+                {
+                    currentPos = closestIntersection + surfaceNormal * epsilon;
+                    currentDir = CalculateReflection(currentDir, surfaceNormal);
+                }
+                else
+                {
+                    break;
+                }
             }
             else
             {

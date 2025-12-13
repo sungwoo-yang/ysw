@@ -4,7 +4,10 @@
 #include "Engine/GameObjectManager.hpp"
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Logger.hpp"
+#include "Engine/MapElement.h"
 #include "Engine/Physics/Reflection.hpp"
+#include "Game/Gate.hpp"
+#include "Game/Mirror.hpp"
 #include "Player.hpp"
 #include "PushableMirror.hpp"
 #include "Shield.hpp"
@@ -89,7 +92,7 @@ void YellowLaser::UpdateDirection(double dt)
 
 void YellowLaser::CalculateLaserPath()
 {
-    std::vector<std::pair<Math::vec2, Math::vec2>> reflectSegments;
+    std::vector<Physics::LineSegment> allSegments;
 
     if (player != nullptr)
     {
@@ -97,7 +100,10 @@ void YellowLaser::CalculateLaserPath()
         if (shield && shield->IsGuardUp())
         {
             auto shieldSegments = shield->GetSegments();
-            reflectSegments.insert(reflectSegments.end(), shieldSegments.begin(), shieldSegments.end());
+            for (const auto& seg : shieldSegments)
+            {
+                allSegments.push_back({ seg.first, seg.second, true });
+            }
         }
     }
 
@@ -106,24 +112,48 @@ void YellowLaser::CalculateLaserPath()
     {
         for (auto obj : gom->GetObjects())
         {
-            if (obj->Type() == GameObjectTypes::PushableMirror)
+            if (obj->Type() == GameObjectTypes::Mirror)
+            {
+                allSegments.push_back(static_cast<Mirror*>(obj)->GetReflectiveSegment());
+            }
+            else if (obj->Type() == GameObjectTypes::PushableMirror)
             {
                 auto mirror         = static_cast<PushableMirror*>(obj);
                 auto mirrorSegments = mirror->GetSegments();
-
-                reflectSegments.insert(reflectSegments.end(), mirrorSegments.begin(), mirrorSegments.end());
+                for (const auto& seg : mirrorSegments)
+                {
+                    allSegments.push_back({ seg.first, seg.second, true });
+                }
+            }
+            else if (obj->Type() == GameObjectTypes::Floor)
+            {
+                auto wall     = static_cast<CS230::MapElement*>(obj);
+                auto wallSegs = wall->GetWallSegments();
+                allSegments.insert(allSegments.end(), wallSegs.begin(), wallSegs.end());
+            }
+            else if (obj->Type() == GameObjectTypes::Gate)
+            {
+                auto gate = static_cast<Gate*>(obj);
+                if (!gate->IsOpen())
+                {
+                    Math::vec2 pos = gate->GetPosition();
+                    allSegments.push_back(
+                        {
+                            { pos.x - 50, pos.y },
+                            { pos.x + 50, pos.y },
+                            false
+                    });
+                }
             }
         }
     }
 
-    auto calculatedPath = Physics::CalculateLaserPath(startPos, currentDir, reflectSegments, 5, maxLaserLength);
+    auto calculatedPath = Physics::CalculateLaserPath(startPos, currentDir, allSegments, 5, maxLaserLength);
 
     pathPoints.clear();
-
     if (!calculatedPath.empty())
     {
         pathPoints.push_back(calculatedPath[0].first);
-
         for (const auto& segment : calculatedPath)
         {
             pathPoints.push_back(segment.second);

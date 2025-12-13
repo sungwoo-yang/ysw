@@ -21,6 +21,7 @@
 #include "Timer.hpp"
 #include "Window.hpp"
 
+#include <algorithm>
 #include <chrono>
 
 // Pimpl implementation class
@@ -39,16 +40,16 @@ public:
     {
     }
 
-    CS230::Logger              logger;
-    CS230::Window              window{};
-    CS230::Input               input{};
-    ImGuiHelper::Viewport      viewport{};
-    util::FPS                  fps{};
-    util::Timer                timer{};
-    WindowEnvironment          environment{};
-    CS230::GameStateManager    gameStateManager{};
-    CS200::ImmediateRenderer2D renderer2D{};
-    CS230::TextureManager      textureManager{};
+    CS230::Logger                             logger;
+    CS230::Window                             window{};
+    CS230::Input                              input{};
+    ImGuiHelper::Viewport                     viewport{};
+    util::FPS                                 fps{};
+    util::Timer                               timer{};
+    WindowEnvironment                         environment{};
+    CS230::GameStateManager                   gameStateManager{};
+    CS200::ImmediateRenderer2D                renderer2D{};
+    CS230::TextureManager                     textureManager{};
     std::vector<std::unique_ptr<CS230::Font>> fonts;
 };
 
@@ -163,8 +164,9 @@ Engine::~Engine()
 
 void Engine::updateEnvironment()
 {
-    auto& environment     = impl->environment;
-    environment.DeltaTime = impl->timer.GetElapsedSeconds();
+    auto&  environment       = impl->environment;
+    double actualElaspedTime = impl->timer.GetElapsedSeconds();
+    environment.DeltaTime    = (actualElaspedTime > 0.05) ? 0.05 : actualElaspedTime;
     impl->timer.ResetTimeStamp();
     environment.ElapsedTime += environment.DeltaTime;
     ++environment.FrameCount;

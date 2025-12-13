@@ -9,9 +9,10 @@
 #include "Engine/MapManager.h"
 #include "Engine/ShowCollision.hpp"
 #include "Engine/Window.hpp"
-#include "Game/Sign.hpp"
 #include "Gate.hpp"
+#include "Mirror.hpp"
 #include "Player.hpp"
+#include "Sign.hpp"
 #include "Star.hpp"
 #include "TargetStar.hpp"
 #include "WorldTextManager.hpp"
@@ -59,6 +60,8 @@ void Mode2::InitGame()
     std::vector<TargetStar*> targets     = { puzzleTarget };
     Star*                    laserSource = new Star({ 300.0, 600.0 }, player, targets, StarType::Yellow);
     gom->Add(laserSource);
+    Mirror* reflectMirror = new Mirror({ 800.0, 300.0 }, { 120.0, 10.0 }, -0.785398f);
+    gom->Add(reflectMirror);
 
     gom->Add(new Sign({ 200.0, 250.0 }, { 80.0, 40.0 }, "Hit Target -> Open Gate"));
 }
@@ -159,19 +162,35 @@ void Mode2::DrawImGui()
 #ifdef DEVELOPER_VERSION
     ImGui::Begin("Mode2 (Boss) Debug");
 
-    ImGui::Text("FPS: %d", Engine::GetWindowEnvironment().FPS);
-    if (camera)
+    if (ImGui::CollapsingHeader("Global Info", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        Math::vec2 camPos = camera->GetPosition();
-        ImGui::Text("Camera Pos: (%.1f, %.1f)", camPos.x, camPos.y);
+        ImGui::Text("FPS: %d", Engine::GetWindowEnvironment().FPS);
+
+        const char* stateStr = "Unknown";
+        switch (currentState)
+        {
+            case State::Loading: stateStr = "Loading"; break;
+            case State::Playing: stateStr = "Playing"; break;
+        }
+        ImGui::Text("Current State: %s", stateStr);
+
+        // 카메라 정보
+        if (camera)
+        {
+            Math::vec2 camPos = camera->GetPosition();
+            ImGui::Text("Camera Pos: (%.1f, %.1f)", camPos.x, camPos.y);
+        }
+
+        ImGui::Text("Level Boundary: L:%.0f R:%.0f B:%.0f T:%.0f", level_boundary.Left(), level_boundary.Right(), level_boundary.Bottom(), level_boundary.Top());
     }
 
-    ImGui::Separator();
-
-    auto gom = GetGSComponent<CS230::GameObjectManager>();
-    if (gom)
+    if (ImGui::CollapsingHeader("Object Inspector", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        gom->DrawAllImGui();
+        auto gom = GetGSComponent<CS230::GameObjectManager>();
+        if (gom)
+        {
+            gom->DrawAllImGui();
+        }
     }
 
     ImGui::End();

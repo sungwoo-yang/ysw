@@ -1,9 +1,10 @@
 #pragma once
 #include "Engine/GameObject.hpp"
+#include "Engine/GameObjectTypes.hpp"
+#include "Engine/Physics/Reflection.hpp"
 #include "Engine/Polygon.h"
 #include "Engine/Vec2.hpp"
 #include <vector>
-#include "Engine/GameObjectTypes.hpp"
 
 namespace CS230
 {
@@ -11,8 +12,9 @@ namespace CS230
     {
     public:
         MapElement(Math::vec2 pos, Polygon polygon);
-
         void Draw(const Math::TransformationMatrix& camera_matrix) override;
+
+        std::vector<Physics::LineSegment> GetWallSegments();
 
         GameObjectTypes Type() override
         {

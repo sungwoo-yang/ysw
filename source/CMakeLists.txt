@@ -60,6 +60,7 @@ set(SOURCE_CODE
     Game/Gate.hpp Game/Gate.cpp
     Game/MainMenu.hpp Game/MainMenu.cpp
     Game/MiniMap.hpp Game/MiniMap.cpp
+    Game/Mirror.hpp Game/Mirror.cpp
     Game/Mode1.hpp Game/Mode1.cpp
     Game/Mode2.hpp Game/Mode2.cpp
     Game/Player.hpp Game/Player.cpp

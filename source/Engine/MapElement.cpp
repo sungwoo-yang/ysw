@@ -1,14 +1,12 @@
 #include "Engine/MapElement.h"
-#include "CS200/IRenderer2D.hpp" 
-#include "CS200/RGBA.hpp"      
-#include "Engine/Engine.hpp"     
+#include "CS200/IRenderer2D.hpp"
+#include "CS200/RGBA.hpp"
 #include "Engine/Collision.hpp"
+#include "Engine/Engine.hpp"
 
 namespace CS230
 {
-    MapElement::MapElement(Math::vec2 pos, Polygon polygon)
-        : CS230::GameObject(pos),
-          local_polygon(std::move(polygon))
+    MapElement::MapElement(Math::vec2 pos, Polygon polygon) : CS230::GameObject(pos), local_polygon(std::move(polygon))
     {
         local_polygon.vertexCount = static_cast<int>(local_polygon.vertices.size());
 
@@ -33,5 +31,21 @@ namespace CS230
         }
 
         CS230::GameObject::Draw(camera_matrix);
+    }
+
+    std::vector<Physics::LineSegment> CS230::MapElement::GetWallSegments()
+    {
+        std::vector<Physics::LineSegment> segments;
+        Math::TransformationMatrix        mat = GetMatrix();
+
+        const auto& verts = local_polygon.vertices;
+        for (size_t i = 0; i < verts.size(); ++i)
+        {
+            Math::vec2 p1 = mat * verts[i];
+            Math::vec2 p2 = mat * verts[(i + 1) % verts.size()];
+
+            segments.push_back({ p1, p2, false });
+        }
+        return segments;
     }
 }

@@ -517,6 +517,8 @@ bool Player::CanCollideWith(GameObjectTypes other_object_type)
         return true;
     if (other_object_type == GameObjectTypes::PushableMirror)
         return true;
+    if (other_object_type == GameObjectTypes::Gate)
+        return true;
 
     return false;
 }
@@ -526,17 +528,32 @@ void Player::ResolveCollision(GameObject* other_object)
     auto  textManager = Engine::GetGameStateManager().GetGSComponent<WorldTextManager>();
     auto& input       = Engine::GetInput();
 
-    if (other_object->Type() == GameObjectTypes::Floor)
+    if (other_object->Type() == GameObjectTypes::Floor || other_object->Type() == GameObjectTypes::Gate)
     {
         CS230::RectCollision* my_collider = GetGOComponent<CS230::RectCollision>();
         if (!my_collider)
             return;
-        CS230::SATCollision* other_collider = other_object->GetGOComponent<CS230::SATCollision>();
-        if (!other_collider)
-            return;
 
-        Math::rect my_box    = my_collider->WorldBoundary();
-        Math::rect other_box = other_collider->WorldBoundary().FindBoundary();
+        Math::rect other_box;
+
+        if (other_object->Type() == GameObjectTypes::Floor)
+        {
+            // Floor는 SATCollision (Polygon)
+            CS230::SATCollision* floor_collider = other_object->GetGOComponent<CS230::SATCollision>();
+            if (!floor_collider)
+                return;
+            other_box = floor_collider->WorldBoundary().FindBoundary();
+        }
+        else if (other_object->Type() == GameObjectTypes::Gate)
+        {
+            // Gate는 RectCollision (Rectangle)
+            CS230::RectCollision* gate_collider = other_object->GetGOComponent<CS230::RectCollision>();
+            if (!gate_collider)
+                return;
+            other_box = gate_collider->WorldBoundary();
+        }
+
+        Math::rect my_box = my_collider->WorldBoundary();
 
         double prev_bottom = previousPosition.y - (PLAYER_COLLISION_SIZE.y / 2.0);
         double prev_top    = previousPosition.y + (PLAYER_COLLISION_SIZE.y / 2.0);

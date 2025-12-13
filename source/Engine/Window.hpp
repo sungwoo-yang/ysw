@@ -30,6 +30,8 @@ namespace CS230
         Math::ivec2   GetSize() const;
         void          Clear(CS200::RGBA color);
         void          ForceResize(int desired_width, int desired_height);
+        void          SetFullscreen(bool fullscreen);
+        void          SetBordered(bool bordered);
         SDL_Window*   GetSDLWindow() const;
         SDL_GLContext GetGLContext() const;
 

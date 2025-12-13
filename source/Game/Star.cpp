@@ -4,9 +4,13 @@
 #include "Engine/GameObjectManager.hpp"
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Logger.hpp"
+#include "Engine/MapElement.h"
 #include "Engine/Physics/Reflection.hpp"
 #include "Engine/ShowCollision.hpp"
+#include "Gate.hpp"
+#include "Mirror.hpp"
 #include "Player.hpp"
+#include "PushableMirror.hpp"
 #include "RedLaser.hpp"
 #include "Shield.hpp"
 #include "YellowLaser.hpp"
@@ -143,7 +147,6 @@ void Star::Draw([[maybe_unused]] const Math::TransformationMatrix& camera_matrix
     if (currentState == State::Warning && player != nullptr)
     {
         CS200::RGBA lineColor;
-
         if (starType == StarType::Red)
         {
             lineColor = (timer <= 0.5) ? 0x00FFFF80 : 0xFF000080;
@@ -153,19 +156,60 @@ void Star::Draw([[maybe_unused]] const Math::TransformationMatrix& camera_matrix
             lineColor = 0xFFFF0080;
         }
 
-        std::vector<std::pair<Math::vec2, Math::vec2>> walls;
-        Shield*                                        shield = player->GetShield();
+        std::vector<Physics::LineSegment> allSegments;
 
+        Shield* shield = player->GetShield();
         if (shield && shield->IsGuardUp())
         {
             auto segments = shield->GetSegments();
-            if (!segments.empty())
-                walls.push_back(segments[0]);
+            for (const auto& seg : segments)
+            {
+                allSegments.push_back({ seg.first, seg.second, true });
+            }
+        }
+
+        auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
+        if (gom)
+        {
+            for (auto obj : gom->GetObjects())
+            {
+                if (obj->Type() == GameObjectTypes::Mirror)
+                {
+                    allSegments.push_back(static_cast<Mirror*>(obj)->GetReflectiveSegment());
+                }
+                else if (obj->Type() == GameObjectTypes::PushableMirror)
+                {
+                    auto mirror = static_cast<PushableMirror*>(obj);
+                    auto segs   = mirror->GetSegments();
+                    for (const auto& s : segs)
+                        allSegments.push_back({ s.first, s.second, true });
+                }
+                else if (obj->Type() == GameObjectTypes::Floor)
+                {
+                    auto wall     = static_cast<CS230::MapElement*>(obj);
+                    auto wallSegs = wall->GetWallSegments();
+                    allSegments.insert(allSegments.end(), wallSegs.begin(), wallSegs.end());
+                }
+                else if (obj->Type() == GameObjectTypes::Gate)
+                {
+                    auto gate = static_cast<Gate*>(obj);
+                    if (!gate->IsOpen())
+                    {
+                        Math::vec2 pos = gate->GetPosition();
+                        allSegments.push_back(
+                            {
+                                { pos.x - 50, pos.y },
+                                { pos.x + 50, pos.y },
+                                false
+                        });
+                    }
+                }
+            }
         }
 
         Math::vec2 dir = (player->GetPosition() - GetPosition()).Normalize();
 
-        auto path = Physics::CalculateLaserPath(GetPosition(), dir, walls, 2, 15000.0);
+        auto path = Physics::CalculateLaserPath(GetPosition(), dir, allSegments, 2, 15000.0);
 
         for (const auto& seg : path)
         {

@@ -2,8 +2,37 @@
 #include "CS200/IRenderer2D.hpp"
 #include "Engine/Engine.hpp"
 
-TargetStar::TargetStar(Math::vec2 position) : CS230::GameObject(position), color(CS200::WHITE), isHit(false)
+TargetStar::TargetStar(Math::vec2 position) : CS230::GameObject(position), color(CS200::WHITE), isHit(false), hitTimer(0.0), isBeingHit(false)
 {
+}
+
+void TargetStar::Update(double dt)
+{
+    if (isHit)
+    {
+        CS230::GameObject::Update(dt);
+        return;
+    }
+
+    if (isBeingHit)
+    {
+        hitTimer += dt;
+
+        if (hitTimer >= activationTime)
+        {
+            isHit = true;
+            color = 0xFFFF00FF;
+        }
+    }
+    else
+    {
+        hitTimer = 0.0;
+        color    = CS200::WHITE;
+    }
+
+    isBeingHit = false;
+
+    CS230::GameObject::Update(dt);
 }
 
 void TargetStar::Draw([[maybe_unused]] const Math::TransformationMatrix& camera_matrix)
@@ -16,8 +45,7 @@ void TargetStar::Draw([[maybe_unused]] const Math::TransformationMatrix& camera_
 
 void TargetStar::OnHit()
 {
-    color = 0xFFFF00FF;
-    isHit = true;
+    isBeingHit = true;
 }
 
 bool TargetStar::IsHit() const

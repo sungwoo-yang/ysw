@@ -1,8 +1,13 @@
 #include "RedLaser.hpp"
 #include "CS200/IRenderer2D.hpp"
 #include "Engine/Engine.hpp"
+#include "Engine/GameObjectManager.hpp"
+#include "Engine/GameStateManager.hpp"
 #include "Engine/Logger.hpp"
+#include "Engine/MapElement.h"
 #include "Engine/Physics/Reflection.hpp"
+#include "Gate.hpp"
+#include "Mirror.hpp"
 #include "Player.hpp"
 #include "Shield.hpp"
 #include "TargetStar.hpp"
@@ -37,7 +42,7 @@ void RedLaser::Update(double dt)
     {
         isCalculated = true;
 
-        std::vector<std::pair<Math::vec2, Math::vec2>> walls;
+        std::vector<Physics::LineSegment> allSegments;
 
         if (player != nullptr)
         {
@@ -49,18 +54,19 @@ void RedLaser::Update(double dt)
                 {
                     Math::vec2 segStart = segments[0].first;
                     Math::vec2 segEnd   = segments[0].second;
-                    Math::vec2 wallVec  = segEnd - segStart;
-                    Math::vec2 normal   = Math::vec2{ -wallVec.y, wallVec.x }.Normalize();
+
+                    Math::vec2 wallVec = segEnd - segStart;
+                    Math::vec2 normal  = Math::vec2{ -wallVec.y, wallVec.x }.Normalize();
 
                     Math::vec2 playerToShield = ((segStart + segEnd) * 0.5) - player->GetPosition();
                     if (Math::dot(playerToShield, normal) < 0)
                     {
                         normal = -normal;
                     }
-
+                    
                     if (Math::dot(dir, normal) < 0)
                     {
-                        walls.push_back(segments[0]);
+                        allSegments.push_back({ segStart, segEnd, true });
 
                         shield->HandleHit(true);
                         Engine::GetLogger().LogEvent("Perfect Parry Success!");
@@ -73,7 +79,36 @@ void RedLaser::Update(double dt)
             }
         }
 
-        auto path = Physics::CalculateLaserPath(start, dir, walls, 2);
+        auto& objects = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>()->GetObjects();
+        for (auto obj : objects)
+        {
+            if (obj->Type() == GameObjectTypes::Mirror)
+            {
+                allSegments.push_back(static_cast<Mirror*>(obj)->GetReflectiveSegment());
+            }
+            else if (obj->Type() == GameObjectTypes::Floor)
+            {
+                auto wall     = static_cast<CS230::MapElement*>(obj);
+                auto wallSegs = wall->GetWallSegments();
+                allSegments.insert(allSegments.end(), wallSegs.begin(), wallSegs.end());
+            }
+            else if (obj->Type() == GameObjectTypes::Gate)
+            {
+                auto gate = static_cast<Gate*>(obj);
+                if (!gate->IsOpen())
+                {
+                    Math::vec2 pos = gate->GetPosition();
+                    allSegments.push_back(
+                        {
+                            { pos.x - 50, pos.y },
+                            { pos.x + 50, pos.y },
+                            false
+                    });
+                }
+            }
+        }
+
+        auto path = Physics::CalculateLaserPath(start, dir, allSegments, 5);
 
         bool hitSomething = false;
 
@@ -92,7 +127,6 @@ void RedLaser::Update(double dt)
                 if (DistToSegmentSquared(target->GetPosition(), p1, p2) <= r2)
                 {
                     target->OnHit();
-
                     beams.push_back({ p1, target->GetPosition(), beamColor });
                     hitSomething = true;
                     Engine::GetLogger().LogEvent("Red Laser Hit Target!");
@@ -105,12 +139,10 @@ void RedLaser::Update(double dt)
             if (player != nullptr)
             {
                 double playerR2 = 40.0 * 40.0;
-
                 if (DistToSegmentSquared(player->GetPosition(), p1, p2) <= playerR2)
                 {
-                    Math::vec2 hitPos = player->GetPosition();
                     player->ResetState();
-                    beams.push_back({ p1, hitPos, beamColor });
+                    beams.push_back({ p1, player->GetPosition(), beamColor });
                     hitSomething = true;
                     Engine::GetLogger().LogEvent("Player Hit by Red Laser!");
                     break;
