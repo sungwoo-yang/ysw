@@ -10,6 +10,7 @@
 
 #include "Vec2.hpp"
 #include <cmath>
+#include <limits>
 
 namespace Math
 {
@@ -80,6 +81,11 @@ namespace Math
     double vec2::Length() const
     {
         return std::sqrt(x * x + y * y);
+    }
+
+    double vec2::LengthSquared() const
+    {
+        return (x * x) + (y * y);
     }
 
     vec2 vec2::Normalize() const

@@ -14,6 +14,7 @@ namespace CS230
     class GameObjectManager;
 }
 
+// Minimap Visual Style Configuration
 struct MiniMapStyle
 {
     Math::vec2 canvasSize{ 220.0, 220.0 };
@@ -46,6 +47,7 @@ public:
 
     void Update(double dt);
 
+    // Attach system components
     void SetWorldBounds(Math::rect bounds);
     void AttachPlayer(Player* player_ptr);
     void AttachCamera(CS230::Camera* camera_ptr);
@@ -55,18 +57,21 @@ public:
     void SetStyle(const MiniMapStyle& style_config);
     void SetWindowTitle(std::string title_text);
     void SetVisible(bool enabled);
-    bool IsVisible() const;
+
+    [[nodiscard]] bool IsVisible() const;
 
     void        SetMode(MiniMapMode new_mode);
-    MiniMapMode GetMode() const;
+    [[nodiscard]] MiniMapMode GetMode() const;
     void        ToggleMode();
 
     void ResetFog();
     void DrawImGui();
 
 private:
+    // World to Canvas Conversion
     Math::vec2 WorldToMapCanvas(const Math::vec2& world_position, const struct ImVec2& canvas_size) const;
     
+    // Rendering Passes
     void DrawGrid(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
     void DrawLevelBounds(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
     void DrawCameraFrustum(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
@@ -74,6 +79,7 @@ private:
     void DrawTerrainPolygons(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
     void DrawGameObjects(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
     
+    // Fog of War
     void ResizeFogGrid();
     void UpdateFogVisibility();
     void DrawFog(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;

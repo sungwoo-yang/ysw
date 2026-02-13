@@ -2,7 +2,7 @@
 #include "CS200/IRenderer2D.hpp"
 #include "Engine/Engine.hpp"
 
-TargetStar::TargetStar(Math::vec2 position) : CS230::GameObject(position), color(CS200::WHITE), isHit(false), hitTimer(0.0), isBeingHit(false)
+TargetStar::TargetStar(Math::vec2 in_position) : CS230::GameObject(in_position), color(CS200::WHITE), isHit(false), hitTimer(0.0), isBeingHit(false)
 {
 }
 

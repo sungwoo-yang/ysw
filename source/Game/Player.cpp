@@ -72,9 +72,9 @@ namespace
     }
 }
 
-Player::Player(Math::vec2 start_pos)
-    : CS230::GameObject(start_pos), startPosition(start_pos), previousPosition(start_pos), shieldComponent(nullptr), isJumping(true), velocityY(0.0), faceRight(true), healthState(HealthState::Full),
-      playerHp(5.0), maxPlayerHp(5.0), recoverDelayTimer(0.0), tookDamageThisFrame(false), invincibilityTimer(0.0)
+Player::Player(Math::vec2 in_start_pos)
+    : CS230::GameObject(in_start_pos), isJumping(true), velocityY(0.0), faceRight(true), startPosition(in_start_pos), previousPosition(in_start_pos), shieldComponent(nullptr),
+      healthState(HealthState::Full), playerHp(5.0), maxPlayerHp(5.0), recoverDelayTimer(0.0), tookDamageThisFrame(false), invincibilityTimer(0.0)
 {
     shieldComponent = new Shield(this);
     AddGOComponent(shieldComponent);
@@ -86,11 +86,11 @@ Player::Player(Math::vec2 start_pos)
     AddGOComponent(new CS230::RectCollision(PLAYER_COLLISION_BOX, this));
     dashComponent.dashCooldown = 1.0;
 
-    double floorY = start_pos.y - collisionHalfHeight;
-    handTargetL   = start_pos;
-    handTargetR   = start_pos;
-    footTargetL   = { start_pos.x - 5.0, floorY };
-    footTargetR   = { start_pos.x + 5.0, floorY };
+    double floorY = in_start_pos.y - collisionHalfHeight;
+    handTargetL   = in_start_pos;
+    handTargetR   = in_start_pos;
+    footTargetL   = { in_start_pos.x - 5.0, floorY };
+    footTargetR   = { in_start_pos.x + 5.0, floorY };
 }
 
 void Player::BuildSkeleton()
@@ -122,6 +122,23 @@ void Player::BuildSkeleton()
     skeleton->AddBone("R_Clavicle", 0.0, { 0.0, 0.0 }, 0.0, "SpineUpper");
     skeleton->AddBone("R_Arm_Up", upperArmLen, { 0.0, 0.0 }, 0.0, "R_Clavicle");
     skeleton->AddBone("R_Arm_Low", foreArmLen, { 0.0, 0.0 }, 0.0, "R_Arm_Up");
+
+    bHips       = skeleton->GetBone("Hips");
+    bSpineLower = skeleton->GetBone("SpineLower");
+    bSpineUpper = skeleton->GetBone("SpineUpper");
+    bNeck       = skeleton->GetBone("Neck");
+    bHead       = skeleton->GetBone("Head");
+    bNose       = skeleton->GetBone("Nose");
+    bLThigh     = skeleton->GetBone("L_Thigh");
+    bLCalf      = skeleton->GetBone("L_Calf");
+    bRThigh     = skeleton->GetBone("R_Thigh");
+    bRCalf      = skeleton->GetBone("R_Calf");
+    bLClavicle  = skeleton->GetBone("L_Clavicle");
+    bLArmUp     = skeleton->GetBone("L_Arm_Up");
+    bLArmLow    = skeleton->GetBone("L_Arm_Low");
+    bRClavicle  = skeleton->GetBone("R_Clavicle");
+    bRArmUp     = skeleton->GetBone("R_Arm_Up");
+    bRArmLow    = skeleton->GetBone("R_Arm_Low");
 }
 
 void Player::Update(double dt)
@@ -194,14 +211,12 @@ void Player::UpdateProceduralAnimation(double dt)
     bool   isMoving   = isGrounded && (speedAbs > 5.0);
 
     // 2. Walk Phase
-    float phaseSpeedScale = 0.035f;
+    double phaseSpeedScale = 0.035;
     if (isMoving)
-    {
         walkPhase += (speedAbs * phaseSpeedScale * dt);
-    }
 
     // 3. Bobbing
-    float  hipBobAmp = 2.0f;
+    double hipBobAmp = 2.0;
     double bob       = isMoving ? (-hipBobAmp * (0.5 * (1.0 - std::cos(2.0 * walkPhase)))) : 0.0;
 
     // 4. Calculate Key Positions
@@ -346,9 +361,8 @@ void Player::UpdateProceduralAnimation(double dt)
     TwoBone legL = SolveTwoBoneStraight(hipL, thighL_, shinL_, footTargetL, false);
 
     // 8. Apply Bones
-    auto ConnectBone = [&](std::string name, Math::vec2 start, Math::vec2 end)
+    auto ConnectBone = [&](Bone* b, Math::vec2 start, Math::vec2 end)
     {
-        Bone* b = skeleton->GetBone(name);
         if (!b)
             return;
 
@@ -356,7 +370,7 @@ void Player::UpdateProceduralAnimation(double dt)
         double     len         = dir.Length();
         double     targetAngle = std::atan2(dir.y, dir.x) + (3.14159 / 2.0);
 
-        if (name == "Hips")
+        if (b->name == "Hips")
         {
             b->localPosition = start - GetPosition();
             b->angle         = 0.0;
@@ -385,26 +399,26 @@ void Player::UpdateProceduralAnimation(double dt)
 
     skeleton->Update(0.0);
 
-    ConnectBone("Hips", pelvis, pelvis);
-    ConnectBone("SpineLower", pelvis, spineMid);
-    ConnectBone("SpineUpper", spineMid, chest);
-    ConnectBone("Neck", chest, neck);
-    ConnectBone("Head", neck, headTop);
-    ConnectBone("Nose", headTop + Math::vec2{ 0, -5 }, nosePos);
+    ConnectBone(bHips, pelvis, pelvis);
+    ConnectBone(bSpineLower, pelvis, spineMid);
+    ConnectBone(bSpineUpper, spineMid, chest);
+    ConnectBone(bNeck, chest, neck);
+    ConnectBone(bHead, neck, headTop);
+    ConnectBone(bNose, headTop + Math::vec2{ 0, -5 }, nosePos);
 
-    ConnectBone("L_Clavicle", chest, shoulderL);
-    ConnectBone("L_Arm_Up", shoulderL, armL.mid);
-    ConnectBone("L_Arm_Low", armL.mid, armL.end);
+    ConnectBone(bLClavicle, chest, shoulderL);
+    ConnectBone(bLArmUp, shoulderL, armL.mid);
+    ConnectBone(bLArmLow, armL.mid, armL.end);
 
-    ConnectBone("R_Clavicle", chest, shoulderR);
-    ConnectBone("R_Arm_Up", shoulderR, armR.mid);
-    ConnectBone("R_Arm_Low", armR.mid, armR.end);
+    ConnectBone(bRClavicle, chest, shoulderR);
+    ConnectBone(bRArmUp, shoulderR, armR.mid);
+    ConnectBone(bRArmLow, armR.mid, armR.end);
 
-    ConnectBone("L_Thigh", hipL, legL.mid);
-    ConnectBone("L_Calf", legL.mid, legL.end);
+    ConnectBone(bLThigh, hipL, legL.mid);
+    ConnectBone(bLCalf, legL.mid, legL.end);
 
-    ConnectBone("R_Thigh", hipR, legR.mid);
-    ConnectBone("R_Calf", legR.mid, legR.end);
+    ConnectBone(bRThigh, hipR, legR.mid);
+    ConnectBone(bRCalf, legR.mid, legR.end);
 }
 
 void Player::ResetState()
@@ -453,6 +467,7 @@ void Player::HandleInput(double dt)
         shieldComponent->HandleInput(dt);
     }
 
+    // Respawn hotkey
     if (input.KeyJustPressed(CS230::Input::Keys::R))
     {
         ResetState();
@@ -502,6 +517,7 @@ void Player::HandleInput(double dt)
 
         SetVelocity({ move.x * currentSpeed, GetVelocity().y });
 
+        // Jump processing
         if (!isJumping && (input.KeyJustPressed(CS230::Input::Keys::W) || input.KeyJustPressed(CS230::Input::Keys::Space)))
         {
             jumpBufferTimer = jumpStrength;
@@ -553,7 +569,6 @@ void Player::ResolveCollision(GameObject* other_object)
 
         if (other_object->Type() == GameObjectTypes::Floor)
         {
-            // Floor는 SATCollision (Polygon)
             CS230::SATCollision* floor_collider = other_object->GetGOComponent<CS230::SATCollision>();
             if (!floor_collider)
                 return;
@@ -561,7 +576,6 @@ void Player::ResolveCollision(GameObject* other_object)
         }
         else if (other_object->Type() == GameObjectTypes::Gate)
         {
-            // Gate는 RectCollision (Rectangle)
             CS230::RectCollision* gate_collider = other_object->GetGOComponent<CS230::RectCollision>();
             if (!gate_collider)
                 return;
@@ -745,51 +759,15 @@ void Player::Draw(const Math::TransformationMatrix& camera_matrix)
 
     if (skeleton)
     {
-        // Define Draw Order based on Facing Direction
-        std::vector<std::string> drawOrder;
+        static const std::vector<std::string> drawOrderRight = { "L_Thigh", "L_Calf", "L_Clavicle", "L_Arm_Up", "L_Arm_Low", "Hips",       "SpineLower", "SpineUpper",
+                                                                 "Neck",    "Head",   "Nose",       "R_Thigh",  "R_Calf",    "R_Clavicle", "R_Arm_Up",   "R_Arm_Low" };
 
-        auto AddLeftLimbs = [&]()
-        {
-            drawOrder.push_back("L_Thigh");
-            drawOrder.push_back("L_Calf");
-            drawOrder.push_back("L_Clavicle");
-            drawOrder.push_back("L_Arm_Up");
-            drawOrder.push_back("L_Arm_Low");
-        };
-        auto AddRightLimbs = [&]()
-        {
-            drawOrder.push_back("R_Thigh");
-            drawOrder.push_back("R_Calf");
-            drawOrder.push_back("R_Clavicle");
-            drawOrder.push_back("R_Arm_Up");
-            drawOrder.push_back("R_Arm_Low");
-        };
-        auto AddBody = [&]()
-        {
-            drawOrder.push_back("Hips");
-            drawOrder.push_back("SpineLower");
-            drawOrder.push_back("SpineUpper");
-            drawOrder.push_back("Neck");
-            drawOrder.push_back("Head");
-            drawOrder.push_back("Nose");
-        };
+        static const std::vector<std::string> drawOrderLeft = { "R_Thigh", "R_Calf", "R_Clavicle", "R_Arm_Up", "R_Arm_Low", "Hips",       "SpineLower", "SpineUpper",
+                                                                "Neck",    "Head",   "Nose",       "L_Thigh",  "L_Calf",    "L_Clavicle", "L_Arm_Up",   "L_Arm_Low" };
 
-        if (faceRight)
-        {
-            // Right: Left(Far) -> Body -> Right(Near)
-            AddLeftLimbs();
-            AddBody();
-            AddRightLimbs();
-        }
-        else
-        {
-            // Left: Right(Far) -> Body -> Left(Near)
-            AddRightLimbs();
-            AddBody();
-            AddLeftLimbs();
-        }
+        const auto& currentDrawOrder = faceRight ? drawOrderRight : drawOrderLeft;
 
-        for (const auto& name : drawOrder)
+        for (const auto& name : currentDrawOrder)
         {
             Bone* b = skeleton->GetBone(name);
             if (b)
@@ -807,14 +785,17 @@ void Player::Draw(const Math::TransformationMatrix& camera_matrix)
 
 void Player::ApplyLaserDamage(double damageAmount)
 {
-    if (healthState == HealthState::Dead) return;
-    if (damageAmount <= 0.0) return;
-    if (invincibilityTimer > 0.0) return;
+    if (healthState == HealthState::Dead)
+        return;
+    if (damageAmount <= 0.0)
+        return;
+    if (invincibilityTimer > 0.0)
+        return;
 
     tookDamageThisFrame = true;
     recoverDelayTimer   = recoverDelayDuration;
     invincibilityTimer  = invincibilityDuration;
-    
+
     playerHp = std::max(0.0, playerHp - damageAmount);
 
     if (playerHp <= 0.0)
@@ -827,7 +808,8 @@ void Player::ApplyLaserDamage(double damageAmount)
 
 void Player::UpdateHealthState(double dt)
 {
-    if (healthState == HealthState::Dead) return;
+    if (healthState == HealthState::Dead)
+        return;
 
     if (recoverDelayTimer > 0.0)
     {
@@ -836,16 +818,21 @@ void Player::UpdateHealthState(double dt)
     else if (playerHp < maxPlayerHp)
     {
         playerHp = std::min(maxPlayerHp, playerHp + 1.0 * dt);
-
     }
 
     int hpInt = static_cast<int>(playerHp + 0.001);
-    if (hpInt >= 5)      healthState = HealthState::Full;
-    else if (hpInt == 4) healthState = HealthState::Healthy;
-    else if (hpInt == 3) healthState = HealthState::Hurt;
-    else if (hpInt == 2) healthState = HealthState::Critical;
-    else if (hpInt == 1) healthState = HealthState::NearDeath;
-    else                 healthState = HealthState::Dead;
+    if (hpInt >= 5)
+        healthState = HealthState::Full;
+    else if (hpInt == 4)
+        healthState = HealthState::Healthy;
+    else if (hpInt == 3)
+        healthState = HealthState::Hurt;
+    else if (hpInt == 2)
+        healthState = HealthState::Critical;
+    else if (hpInt == 1)
+        healthState = HealthState::NearDeath;
+    else
+        healthState = HealthState::Dead;
 
     tookDamageThisFrame = false;
 }

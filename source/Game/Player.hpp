@@ -22,44 +22,56 @@ namespace CS200
 class Player : public CS230::GameObject
 {
 public:
-    Player(Math::vec2 start_pos);
+    Player(Math::vec2 in_start_pos);
     ~Player() override = default;
 
+    // Update player logic per frame
     void Update(double dt) override;
+
+    // Draw player graphics
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
+
+    // Draw debug UI
     void DrawImGui() override;
 
-    const Math::vec2& GetPosition() const
+    [[nodiscard]] const Math::vec2& GetPosition() const
     {
         return GameObject::GetPosition();
     };
 
-    GameObjectTypes Type() override
+    [[nodiscard]] GameObjectTypes Type() override
     {
         return GameObjectTypes::Player;
     }
 
-    std::string TypeName() override
+    [[nodiscard]] std::string TypeName() override
     {
         return "Player";
     }
 
-    bool CanCollideWith(GameObjectTypes other_object_type) override;
-    void ResolveCollision(CS230::GameObject* other_object) override;
-
-    void ResetState();
-    void SetSavePoint(Math::vec2 new_spawn_point);
-
-    Shield* GetShield() const
+    [[nodiscard]] Shield* GetShield() const
     {
         return shieldComponent;
     }
 
-    Skeleton* GetSkeleton() const
+    [[nodiscard]] Skeleton* GetSkeleton() const
     {
         return skeleton;
     }
 
+    // Check collidable objects
+    bool CanCollideWith(GameObjectTypes other_object_type) override;
+
+    // Resolve physical collision
+    void ResolveCollision(CS230::GameObject* other_object) override;
+
+    // Reset player to initial state
+    void ResetState();
+
+    // Update respawn coordinate
+    void SetSavePoint(Math::vec2 new_spawn_point);
+
+    // Handle laser damage
     void ApplyLaserDamage(double damageAmount);
 
     CS230::DashComponent  dashComponent;
@@ -72,13 +84,17 @@ public:
     bool               isInteracting     = false;
 
 private:
+    // Process player input
     void HandleInput(double dt);
 
-    // Initialize Skeleton
+    // Build skeletal hierarchy
     void BuildSkeleton();
 
-    // Procedural Animation Update
+    // Update procedural animation
     void UpdateProceduralAnimation(double dt);
+
+    // Update player health status
+    void UpdateHealthState(double dt);
 
     // Walk animation state
     double walkPhase = 0.0;
@@ -113,6 +129,23 @@ private:
     Skeleton*       skeleton = nullptr;
     AnimationEditor animEditor;
 
+    Bone* bHips       = nullptr;
+    Bone* bSpineLower = nullptr;
+    Bone* bSpineUpper = nullptr;
+    Bone* bNeck       = nullptr;
+    Bone* bHead       = nullptr;
+    Bone* bNose       = nullptr;
+    Bone* bLThigh     = nullptr;
+    Bone* bLCalf      = nullptr;
+    Bone* bRThigh     = nullptr;
+    Bone* bRCalf      = nullptr;
+    Bone* bLClavicle  = nullptr;
+    Bone* bLArmUp     = nullptr;
+    Bone* bLArmLow    = nullptr;
+    Bone* bRClavicle  = nullptr;
+    Bone* bRArmUp     = nullptr;
+    Bone* bRArmLow    = nullptr;
+
     const double gravity      = 1500.0;
     const double jumpStrength = 700.0;
     const double baseSpeed    = 300.0;
@@ -123,6 +156,10 @@ private:
 
     Math::vec2 startPosition;
     Math::vec2 previousPosition;
+
+    Shield*         shieldComponent = nullptr;
+    Skeleton*       skeleton        = nullptr;
+    AnimationEditor animEditor;
 
     double       jumpBufferTimer = 0.0;
     double       coyoteTimer     = 0.0;
@@ -149,6 +186,4 @@ private:
 
     double       invincibilityTimer    = 0.0;
     const double invincibilityDuration = 1.0;
-
-    void UpdateHealthState(double dt);
 };

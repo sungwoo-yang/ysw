@@ -29,10 +29,9 @@ namespace
     }
 }
 
-YellowLaser::YellowLaser(Math::vec2 startPos, Math::vec2 direction, Player* player, const std::vector<TargetStar*>& targets)
-    : CS230::GameObject(startPos), startPos(startPos), currentDir(direction.Normalize()), player(player), targets(targets), timer(0.0)
+YellowLaser::YellowLaser(Math::vec2 in_startPos, Math::vec2 in_direction, Player* in_player, const std::vector<TargetStar*>& in_targets)
+    : CS230::GameObject(in_startPos), start(in_startPos), dir(in_direction.Normalize()), player(in_player), targets(in_targets), lifeTime(0.5)
 {
-    CalculateLaserPath();
 }
 
 void YellowLaser::Update(double dt)

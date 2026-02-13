@@ -38,12 +38,10 @@ private:
         Cooldown,
     };
 
-    Player*                  player;
-    std::vector<TargetStar*> targets;
-
     State  currentState;
+    Player* player;
+    std::vector<TargetStar*> targets;
     double timer;
-
     StarType starType;
 
     const double detectionRadius  = 500.0;

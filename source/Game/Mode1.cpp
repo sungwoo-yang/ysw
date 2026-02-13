@@ -85,6 +85,8 @@ void Mode1::InitGame()
 
     targetStars.clear();
 
+    targetStars.reserve(7);
+
     double t1_x = 4500.0;
     double t1_y = 750.0;
     double t2_x = 4800.0;
@@ -162,6 +164,7 @@ void Mode1::Update(double dt)
 {
     UpdateGSComponents(dt);
 
+    // Wait for map load
     if (currentState == State::Loading)
     {
         if (mapManager->GetCurrentMap() && mapManager->GetCurrentMap()->IsLevelLoaded())
@@ -173,6 +176,7 @@ void Mode1::Update(double dt)
         return;
     }
 
+    // Toggle minimap
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::M))
     {
         if (miniMap)
@@ -185,6 +189,7 @@ void Mode1::Update(double dt)
     if (player != nullptr && player->interactionTarget == nullptr)
         player->isInteracting = false;
 
+    // Update camera target
     if (player != nullptr)
     {
         Math::vec2 winSize   = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
@@ -220,6 +225,7 @@ void Mode1::Draw()
     CS200::IRenderer2D& renderer         = Engine::GetRenderer2D();
     Math::ivec2         display_size_int = Engine::GetWindow().GetSize();
 
+    // Render loading screen
     if (currentState == State::Loading)
     {
         Engine::GetWindow().Clear(CS200::BLACK);
@@ -245,6 +251,7 @@ void Mode1::Draw()
     Math::vec2 camPos  = camera->GetPosition();
     Math::vec2 winSize = static_cast<Math::vec2>(display_size_int);
 
+    // Render parallax background
     auto DrawParallaxLayer = [&](std::shared_ptr<CS230::Texture> texture, float parallaxSpeedX, float scale, float offsetX, float offsetY)
     {
         if (texture)
@@ -254,17 +261,15 @@ void Mode1::Draw()
 
             Math::vec2 texSize = static_cast<Math::vec2>(texture->GetSize());
 
-            double baseScale  = winSize.y / texSize.y;
-            double finalScale = baseScale * scale;
+            double baseScale = winSize.y / texSize.y;
 
-            double worldW = texSize.x * finalScale;
-            double worldH = texSize.y * finalScale;
+            double finalScale = baseScale * static_cast<double>(scale);
+            double worldW     = texSize.x * finalScale;
+            double worldH     = texSize.y * finalScale;
 
-            double u_offset = (camPos.x * parallaxSpeedX - offsetX) / worldW;
-
-            double uv_height = 1.0 / scale;
-
-            double v_offset = (1.0 - uv_height) * 0.5 - (offsetY / worldH);
+            double u_offset  = (camPos.x * static_cast<double>(parallaxSpeedX) - static_cast<double>(offsetX)) / worldW;
+            double uv_height = 1.0 / static_cast<double>(scale);
+            double v_offset  = (1.0 - uv_height) * 0.5 - (static_cast<double>(offsetY) / worldH);
 
             double uv_width = winSize.x / worldW;
 
@@ -281,9 +286,9 @@ void Mode1::Draw()
     };
 
     DrawParallaxLayer(textureLayer1_Atmosphere, 0.05f, 1.0f, 0.0f, 0.0f);
-
     DrawParallaxLayer(textureLayer2_Trees, 0.2f, 1.5f, -500.0f, 20.0f);
 
+    // Draw game objects
     Math::TransformationMatrix view_projection_matrix = CS200::build_ndc_matrix(display_size_int) * camera->GetMatrix();
     renderer.BeginScene(view_projection_matrix);
     GetGSComponent<CS230::GameObjectManager>()->DrawAll(view_projection_matrix);
@@ -291,6 +296,7 @@ void Mode1::Draw()
 
     DrawParallaxLayer(textureLayer3_Silhouette, 0.5f, 1.2f, 0.0f, 50.0f);
 
+    // Draw UI texts
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
     renderer.BeginScene(screen_matrix);
 
@@ -310,7 +316,10 @@ void Mode1::Draw()
 
         std::string  countText = "Stars: " + std::to_string(hitCount) + " / " + std::to_string(targetStars.size());
         CS230::Font& font      = Engine::GetFont(0);
-        CS200::RGBA  textColor = (hitCount == targetStars.size()) ? 0x00FF00FF : CS200::WHITE;
+
+        int         hitCountInt   = static_cast<int>(hitCount);
+        int         targetSizeInt = static_cast<int>(targetStars.size());
+        CS200::RGBA textColor     = (hitCountInt == targetSizeInt) ? 0x00FF00FF : CS200::WHITE;
 
         auto textTex = font.PrintToTexture(countText, textColor);
         if (textTex)

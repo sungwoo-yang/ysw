@@ -28,7 +28,7 @@ constexpr CS200::RGBA COLOR_WHITE = 0xFFFFFFFF;
 class Shield : public CS230::Component
 {
 public:
-    Shield(CS230::GameObject* owner);
+    Shield(CS230::GameObject* in_owner);
 
     void Update(double dt) override;
     void HandleInput(double dt);

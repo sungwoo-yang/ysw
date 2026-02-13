@@ -4,7 +4,7 @@
 #include "Engine/Engine.hpp"
 #include "Engine/Logger.hpp"
 
-PushableMirror::PushableMirror(Math::vec2 start_pos, Math::vec2 size) : CS230::GameObject(start_pos), size(size)
+PushableMirror::PushableMirror(Math::vec2 in_start_pos, Math::vec2 in_size) : CS230::GameObject(in_start_pos), size(in_size)
 {
     Math::irect collision_box{
         { static_cast<int>(-size.x / 2.0), static_cast<int>(-size.y / 2.0) },

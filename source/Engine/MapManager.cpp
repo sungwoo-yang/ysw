@@ -25,7 +25,7 @@ namespace CS230
     {
         if (maps.empty())
             return;
-        maps[currentMapIndex]->OpenSVG();
+        maps[static_cast<size_t>(currentMapIndex)]->OpenSVG();
     }
 
     void MapManager::Unload()
@@ -42,7 +42,7 @@ namespace CS230
     {
         if (maps.empty())
             return nullptr;
-        return maps[currentMapIndex];
+        return maps[static_cast<size_t>(currentMapIndex)];
     }
 
     void MapManager::Update([[maybe_unused]] double dt)
@@ -194,10 +194,11 @@ namespace CS230
                     {
                         vec.x += rotatetranslate.x;
                         vec.y += rotatetranslate.y;
-                        double rotatedX = vec.x * std::cos(rotateAngle) - vec.y * std::sin(rotateAngle);
-                        double rotatedY = vec.x * std::sin(rotateAngle) + vec.y * std::cos(rotateAngle);
-                        vec.x           = rotatedX;
-                        vec.y           = rotatedY;
+
+                        double rotateAngleD = static_cast<double>(rotateAngle);
+                        double rotatedY     = static_cast<double>(vec.x) * std::sin(rotateAngleD) + static_cast<double>(vec.y) * std::cos(rotateAngleD);
+
+                        vec.y = rotatedY;
                     }
                     if (IsTranslate)
                     {

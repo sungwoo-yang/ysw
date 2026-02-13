@@ -22,10 +22,10 @@ namespace CS230
         if (local_polygon.vertexCount < 2)
             return;
 
-        for (int i = 0; i < local_polygon.vertexCount; ++i)
+        for (size_t i = 0; i < static_cast<size_t>(local_polygon.vertexCount); ++i)
         {
             Math::vec2 p1 = local_polygon.vertices[i];
-            Math::vec2 p2 = local_polygon.vertices[(i + 1) % local_polygon.vertexCount];
+            Math::vec2 p2 = local_polygon.vertices[(i + 1) % static_cast<size_t>(local_polygon.vertexCount)];
 
             renderer.DrawLine(model_matrix, p1, p2, CS200::WHITE, 1.0);
         }

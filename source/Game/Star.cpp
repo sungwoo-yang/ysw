@@ -16,13 +16,10 @@
 #include "YellowLaser.hpp"
 #include <imgui.h>
 
-Star::Star(Math::vec2 position, Player* targetPlayer, const std::vector<TargetStar*>& destStars, StarType type)
-    : CS230::GameObject(position), player(targetPlayer), targets(destStars), starType(type), currentState(State::Idle), timer(0.0)
+Star::Star(Math::vec2 in_position, Player* in_targetPlayer, const std::vector<TargetStar*>& in_destStars, StarType in_type)
+    : CS230::GameObject(in_position), currentState(State::Idle), player(in_targetPlayer), targets(in_destStars), timer(0.0), starType(in_type)
 {
-    if (starType == StarType::Red)
-        color = 0xFF0000FF;
-    else
-        color = 0xFFFF00FF;
+    color = (starType == StarType::Red) ? 0xFF0000FF : 0xFFFF00FF;
 }
 
 void Star::Update(double dt)

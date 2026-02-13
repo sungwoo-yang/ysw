@@ -8,7 +8,7 @@
 class PushableMirror : public CS230::GameObject
 {
 public:
-    PushableMirror(Math::vec2 start_pos, Math::vec2 size);
+    PushableMirror(Math::vec2 in_start_pos, Math::vec2 in_size);
 
     void Update(double dt) override;
     void Draw(const Math::TransformationMatrix& camera_matrix) override;

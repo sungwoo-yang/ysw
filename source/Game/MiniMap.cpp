@@ -139,13 +139,17 @@ void MiniMap::UpdateFogVisibility()
 
     Math::vec2 playerPos = player->GetPosition();
 
+    // Skip if player is out of bounds
     if (playerPos.x < worldBounds.Left() || playerPos.x > worldBounds.Right() || playerPos.y < worldBounds.Bottom() || playerPos.y > worldBounds.Top())
         return;
 
+    // Calculate grid index
     int centerX = static_cast<int>((playerPos.x - worldBounds.Left()) / style.fogTileSize);
     int centerY = static_cast<int>((playerPos.y - worldBounds.Bottom()) / style.fogTileSize);
 
+    // Cache squared radius for performance
     int radiusGrid = static_cast<int>(std::ceil(style.visionRadius / style.fogTileSize));
+    int radiusSq   = radiusGrid * radiusGrid;
 
     for (int y = centerY - radiusGrid; y <= centerY + radiusGrid; ++y)
     {
@@ -153,8 +157,13 @@ void MiniMap::UpdateFogVisibility()
         {
             if (y >= 0 && y < fogRows && x >= 0 && x < fogCols)
             {
-                double distSq = std::pow(x - centerX, 2) + std::pow(y - centerY, 2);
-                if (distSq <= std::pow(radiusGrid, 2))
+                // Use squared distance instead of sqrt
+                int dx     = x - centerX;
+                int dy     = y - centerY;
+
+                // Reveal fog if within vision
+                int distSq = (dx * dx) + (dy * dy);
+                if (distSq <= radiusSq)
                 {
                     fogVisited[y][x] = true;
                 }
@@ -290,24 +299,27 @@ void MiniMap::DrawLevelBounds(ImDrawList* draw_list, const ImVec2& canvas_min, c
 {
     ImVec2 size = ImVec2(canvas_max.x - canvas_min.x, canvas_max.y - canvas_min.y);
 
+    // Convert world coordinates to canvas
     Math::vec2 tl = WorldToMapCanvas({ worldBounds.Left(), worldBounds.Top() }, size);
     Math::vec2 br = WorldToMapCanvas({ worldBounds.Right(), worldBounds.Bottom() }, size);
 
+    // Render bounds for mini mode
     if (currentMode == MiniMapMode::Mini)
     {
-        ImVec2 p1(canvas_min.x + (float)tl.x, canvas_min.y + (float)tl.y);
-        ImVec2 p3(canvas_min.x + (float)br.x, canvas_min.y + (float)br.y);
+        ImVec2 p1(canvas_min.x + static_cast<float>(tl.x), canvas_min.y + static_cast<float>(tl.y));
+        ImVec2 p3(canvas_min.x + static_cast<float>(br.x), canvas_min.y + static_cast<float>(br.y));
         draw_list->AddRect(p1, p3, IM_COL32(150, 150, 150, 255));
     }
+    // Render bounds for full mode
     else
     {
         Math::vec2 tr = WorldToMapCanvas({ worldBounds.Right(), worldBounds.Top() }, size);
         Math::vec2 bl = WorldToMapCanvas({ worldBounds.Left(), worldBounds.Bottom() }, size);
 
-        ImVec2 p1(canvas_min.x + (float)tl.x, canvas_min.y + (float)tl.y);
-        ImVec2 p2(canvas_min.x + (float)tr.x, canvas_min.y + (float)tr.y);
-        ImVec2 p3(canvas_min.x + (float)br.x, canvas_min.y + (float)br.y);
-        ImVec2 p4(canvas_min.x + (float)bl.x, canvas_min.y + (float)bl.y);
+        ImVec2 p1(canvas_min.x + static_cast<float>(tl.x), canvas_min.y + static_cast<float>(tl.y));
+        ImVec2 p2(canvas_min.x + static_cast<float>(tr.x), canvas_min.y + static_cast<float>(tr.y));
+        ImVec2 p3(canvas_min.x + static_cast<float>(br.x), canvas_min.y + static_cast<float>(br.y));
+        ImVec2 p4(canvas_min.x + static_cast<float>(bl.x), canvas_min.y + static_cast<float>(bl.y));
         draw_list->AddQuad(p1, p2, p3, p4, IM_COL32(150, 150, 150, 255));
     }
 }

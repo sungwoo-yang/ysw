@@ -58,6 +58,7 @@ namespace CS230
 
     void SettingsManager::SetMasterVolume(float volume)
     {
+        // Clamp volume between 0.0 and 1.0
         currentSettings.masterVolume = std::clamp(volume, 0.0f, 1.0f);
     }
 
@@ -68,6 +69,7 @@ namespace CS230
 
     void SettingsManager::ApplyAllSettings()
     {
+        // Apply window settings
         auto& window = Engine::GetWindow();
         window.SetFullscreen(false);
         window.ForceResize(currentSettings.resolutionX, currentSettings.resolutionY);
@@ -92,6 +94,7 @@ namespace CS230
         std::string line;
         while (std::getline(file, line))
         {
+            // Ignore comments and empty lines
             if (line.empty() || line[0] == '#')
                 continue;
 
@@ -102,18 +105,25 @@ namespace CS230
                 std::string value;
                 if (std::getline(iss, value))
                 {
-                    if (key == "ResolutionX")
-                        currentSettings.resolutionX = std::stoi(value);
-                    else if (key == "ResolutionY")
-                        currentSettings.resolutionY = std::stoi(value);
-                    else if (key == "Fullscreen")
-                        currentSettings.fullscreen = (value == "1" || value == "true");
-                    else if (key == "Borderless")
-                        currentSettings.borderless = (value == "1" || value == "true");
-                    else if (key == "MasterVolume")
-                        currentSettings.masterVolume = std::stof(value);
-                    else if (key == "ShowFPS")
-                        currentSettings.showFPS = (value == "1" || value == "true");
+                    try
+                    {
+                        if (key == "ResolutionX")
+                            currentSettings.resolutionX = std::stoi(value);
+                        else if (key == "ResolutionY")
+                            currentSettings.resolutionY = std::stoi(value);
+                        else if (key == "Fullscreen")
+                            currentSettings.fullscreen = (value == "1" || value == "true");
+                        else if (key == "Borderless")
+                            currentSettings.borderless = (value == "1" || value == "true");
+                        else if (key == "MasterVolume")
+                            currentSettings.masterVolume = std::stof(value);
+                        else if (key == "ShowFPS")
+                            currentSettings.showFPS = (value == "1" || value == "true");
+                    }
+                    catch (const std::exception& e)
+                    {
+                        Engine::GetLogger().LogError("Invalid setting format for key '" + key + "': " + e.what());
+                    }
                 }
             }
         }
@@ -127,6 +137,7 @@ namespace CS230
         if (!file.is_open())
             return;
 
+        // Write config to file
         file << "# Game Configuration File\n";
         file << "ResolutionX=" << currentSettings.resolutionX << "\n";
         file << "ResolutionY=" << currentSettings.resolutionY << "\n";
@@ -135,6 +146,6 @@ namespace CS230
         file << "MasterVolume=" << currentSettings.masterVolume << "\n";
         file << "ShowFPS=" << (currentSettings.showFPS ? "1" : "0") << "\n";
 
-        Engine::GetLogger().LogEvent("Settings Saved to " + filepath.string());
+        Engine::GetLogger().LogEvent(std::string("Settings Saved to ") + filepath.string());
     }
 }

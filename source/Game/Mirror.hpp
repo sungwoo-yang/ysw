@@ -6,18 +6,20 @@
 class Mirror : public CS230::GameObject
 {
 public:
-    Mirror(Math::vec2 position, Math::vec2 size, float rotation = 0.0f);
-    
+    // Initialize mirror
+    Mirror(Math::vec2 in_position, Math::vec2 in_size, float in_rotation = 0.0f);
+
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
 
-    Physics::LineSegment GetReflectiveSegment();
+    // Get reflective physics segment
+    [[nodiscard]] Physics::LineSegment GetReflectiveSegment();
 
-    GameObjectTypes Type() override
+    [[nodiscard]] GameObjectTypes Type() override
     {
         return GameObjectTypes::Mirror;
     }
 
-    std::string TypeName() override
+    [[nodiscard]] std::string TypeName() override
     {
         return "Mirror";
     }

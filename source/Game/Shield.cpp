@@ -41,7 +41,7 @@ namespace
     }
 }
 
-Shield::Shield(CS230::GameObject* owner) : owner(owner), shieldHitTimer(shieldColorRecoveryTime)
+Shield::Shield(CS230::GameObject* in_owner) : owner(in_owner), shieldHitTimer(1.0)
 {
     if (owner == nullptr)
     {
@@ -261,14 +261,14 @@ void Shield::DrawImGui()
 
         ImGui::Separator();
         ImGui::Text("Timers:");
-        ImGui::Text("Cooldown: %.2f / %.2f", static_cast<float>(cooldownTimer), static_cast<float>(shieldCooldown));
-        ImGui::Text("Frozen Timer: %.2f / %.2f", static_cast<float>(shieldFrozenTimer), static_cast<float>(shieldFreezeDuration));
-        ImGui::Text("Hit Timer: %.2f / %.2f", static_cast<float>(shieldHitTimer), static_cast<float>(shieldColorRecoveryTime));
+        ImGui::Text("Cooldown: %.2f / %.2f", static_cast<double>(cooldownTimer), static_cast<double>(shieldCooldown));
+        ImGui::Text("Frozen Timer: %.2f / %.2f", static_cast<double>(shieldFrozenTimer), static_cast<double>(shieldFreezeDuration));
+        ImGui::Text("Hit Timer: %.2f / %.2f", static_cast<double>(shieldHitTimer), static_cast<double>(shieldColorRecoveryTime));
 
         ImGui::Separator();
         ImGui::Text("Transform:");
         float angleDeg = static_cast<float>(shieldAngle * 180.0 / PI);
-        ImGui::Text("Angle: %.1f deg", angleDeg);
+        ImGui::Text("Angle: %.1f deg", static_cast<double>(angleDeg));
 
         float len = static_cast<float>(shieldLength);
         if (ImGui::DragFloat("Length", &len, 1.0f, 10.0f, 500.0f))

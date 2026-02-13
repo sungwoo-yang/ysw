@@ -14,8 +14,8 @@
 #include "Shield.hpp"
 #include "YellowLaser.hpp"
 
-BossStar::BossStar(Math::vec2 position, Player* player, const std::vector<TargetStar*>& targets)
-    : CS230::GameObject(position), player(player), targets(targets), currentState(State::Idle), nextLaserType(NextLaser::Yellow), timer(0.0)
+BossStar::BossStar(Math::vec2 in_position, Player* in_player, const std::vector<TargetStar*>& in_targets)
+    : CS230::GameObject(in_position), currentState(State::Idle), nextLaserType(NextLaser::Yellow), player(in_player), targets(in_targets), timer(0.0)
 {
 }
 
@@ -24,12 +24,12 @@ void BossStar::Update(double dt)
     if (player == nullptr)
         return;
 
-    double distance = (player->GetPosition() - GetPosition()).Length();
+    double distanceSq = (player->GetPosition() - GetPosition()).LengthSquared();
 
     switch (currentState)
     {
         case State::Idle:
-            if (distance <= detectionRadius)
+            if (distanceSq <= detectionRadius)
             {
                 currentState = State::Warning;
                 timer        = warningDuration;
@@ -38,19 +38,21 @@ void BossStar::Update(double dt)
             break;
 
         case State::Warning:
-            if (distance > detectionRadius * 1.5)
+            // Cancel charge if player escapes
+            if (distanceSq > detectionRadius * 2.25)
             {
                 currentState = State::Idle;
-                timer = 0.0;
+                timer        = 0.0;
                 return;
             }
-            
+
             timer -= dt;
             if (timer <= 0.0)
             {
                 Math::vec2 dir = (player->GetPosition() - GetPosition()).Normalize();
                 auto       gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
 
+                // Fire corresponding laser
                 if (nextLaserType == NextLaser::Red)
                 {
                     gom->Add(new RedLaser(GetPosition(), dir, player, targets));
@@ -73,7 +75,7 @@ void BossStar::Update(double dt)
             timer -= dt;
             if (timer <= 0.0)
             {
-                if (distance <= detectionRadius)
+                if (distanceSq <= detectionRadius)
                 {
                     currentState = State::Warning;
                     timer        = warningDuration;
@@ -93,6 +95,7 @@ void BossStar::Draw(const Math::TransformationMatrix& camera_matrix)
 {
     auto& renderer = Engine::GetRenderer2D();
 
+    // Determine boss color based on next laser
     CS200::RGBA bossColor;
     if (nextLaserType == NextLaser::Red)
         bossColor = 0xFF0000FF;
@@ -102,6 +105,7 @@ void BossStar::Draw(const Math::TransformationMatrix& camera_matrix)
     Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix({ size, size });
     renderer.DrawCircle(transform, bossColor);
 
+    // Draw laser trajectory warning
     if (currentState == State::Warning && player != nullptr)
     {
         CS200::RGBA lineColor = bossColor;
@@ -110,6 +114,8 @@ void BossStar::Draw(const Math::TransformationMatrix& camera_matrix)
         lineColor = (lineColor & 0xFFFFFF00) | 0x80;
 
         std::vector<Physics::LineSegment> allSegments;
+
+        allSegments.reserve(64);
 
         Shield* shield = player->GetShield();
         if (shield && shield->IsGuardUp())

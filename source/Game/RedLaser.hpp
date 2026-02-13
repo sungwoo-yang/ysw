@@ -11,7 +11,7 @@ class TargetStar;
 class RedLaser : public CS230::GameObject
 {
 public:
-    RedLaser(Math::vec2 startPos, Math::vec2 direction, Player* player, const std::vector<TargetStar*>& targets);
+    RedLaser(Math::vec2 in_startPos, Math::vec2 in_direction, Player* in_player, const std::vector<TargetStar*>& in_targets);
 
     void Update(double dt) override;
     void Draw(const Math::TransformationMatrix& camera_matrix) override;

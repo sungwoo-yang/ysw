@@ -17,7 +17,7 @@ public:
     void Draw() override;
     void DrawImGui() override;
 
-    gsl::czstring GetName() const override
+    [[nodiscard]] gsl::czstring GetName() const override
     {
         return "MainMenu";
     }
@@ -38,11 +38,13 @@ private:
     void UpdateMainMenu(double dt);
     void DrawMainMenu();
 
+    // UI Textures
     std::shared_ptr<CS230::Texture> titleTexture;
     std::shared_ptr<CS230::Texture> startTexture;
     std::shared_ptr<CS230::Texture> settingsTexture;
     std::shared_ptr<CS230::Texture> exitTexture;
 
+    // Button Rects
     Math::rect startButtonRect;
     Math::rect settingsButtonRect;
     Math::rect exitButtonRect;
@@ -55,6 +57,7 @@ private:
     void DrawSettingsMenu();
     void SetupButtons();
 
+    // Tab UI
     std::shared_ptr<CS230::Texture> tabDisplayTexture;
     std::shared_ptr<CS230::Texture> tabControlsTexture;
     std::shared_ptr<CS230::Texture> backTexture;
@@ -66,6 +69,7 @@ private:
     void UpdateDisplayTab();
     void DrawDisplayTab();
 
+    // Display Settings UI
     std::shared_ptr<CS230::Texture> res1600Texture;
     std::shared_ptr<CS230::Texture> res1280Texture;
     std::shared_ptr<CS230::Texture> windowedTexture;
@@ -98,6 +102,7 @@ private:
     void UpdateControlsTab();
     void DrawControlsTab();
 
+    // Key Bind Button Data
     struct KeyBindButton
     {
         CS230::GameAction               action;

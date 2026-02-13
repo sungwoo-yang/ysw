@@ -10,7 +10,7 @@ class TargetStar;
 class BossStar : public CS230::GameObject
 {
 public:
-    BossStar(Math::vec2 position, Player* player, const std::vector<TargetStar*>& targets);
+    BossStar(Math::vec2 in_position, Player* in_player, const std::vector<TargetStar*>& in_targets);
 
     void Update(double dt) override;
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
@@ -27,6 +27,7 @@ public:
     }
 
 private:
+    // Boss states
     enum class State
     {
         Idle,
@@ -48,8 +49,9 @@ private:
 
     double timer;
 
-    const double detectionRadius  = 800.0;
-    const double warningDuration  = 1.5;
-    const double cooldownDuration = 5.0;
-    const double size             = 80.0;
+    static constexpr double detectionRadius  = 800.0;
+    static constexpr double detectionRadiusSq = detectionRadius * detectionRadius;
+    static constexpr double warningDuration  = 1.5;
+    static constexpr double cooldownDuration = 5.0;
+    static constexpr double size             = 80.0;
 };

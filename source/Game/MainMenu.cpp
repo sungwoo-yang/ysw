@@ -155,13 +155,17 @@ void MainMenu::SetupButtons()
         };
     }
 
+    // Pre-allocate memory for buttons
     keyBindButtons.clear();
+    keyBindButtons.reserve(static_cast<size_t>(CS230::GameAction::Count));
+
     CS230::Font& listFont = Engine::GetFont(1);
     auto&        mapper   = CS230::InputMapper::Instance();
 
     double listStartY = tabY - 100.0;
     double rowHeight  = 45.0;
 
+    // Generate key binding list
     for (int i = 0; i < static_cast<int>(CS230::GameAction::Count); ++i)
     {
         CS230::GameAction action  = static_cast<CS230::GameAction>(i);
@@ -194,13 +198,16 @@ void MainMenu::Update([[maybe_unused]] double dt)
         UpdateSettingsMenu(dt);
 }
 
-void MainMenu::UpdateMainMenu(double)
+void MainMenu::UpdateMainMenu([[maybe_unused]] double dt)
 {
     auto&       input    = Engine::GetInput();
     Math::ivec2 winSize  = Engine::GetWindow().GetSize();
     Math::vec2  mousePos = input.GetMousePosition();
-    mousePos.y           = static_cast<double>(winSize.y) - mousePos.y;
 
+    // Invert mouse Y coordinate
+    mousePos.y = static_cast<double>(winSize.y) - mousePos.y;
+
+    // Check if mouse is hovering
     auto CheckHover = [&](const Math::rect& rect)
     {
         return mousePos.x >= rect.Left() && mousePos.x <= rect.Right() && mousePos.y >= rect.Bottom() && mousePos.y <= rect.Top();
@@ -210,6 +217,7 @@ void MainMenu::UpdateMainMenu(double)
     isSettingsHovered = CheckHover(settingsButtonRect);
     isExitHovered     = CheckHover(exitButtonRect);
 
+    // Handle button clicks
     if (input.MouseButtonJustPressed(CS230::Input::MouseButton::Left))
     {
         if (isStartHovered)

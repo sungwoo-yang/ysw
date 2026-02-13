@@ -7,20 +7,22 @@
 class Sign : public CS230::GameObject
 {
 public:
-    Sign(Math::vec2 start_pos, Math::vec2 size, std::string msg);
+    // Initialize sign object
+    Sign(Math::vec2 in_start_pos, Math::vec2 in_size, std::string in_msg);
 
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
 
-    GameObjectTypes Type() override
+    [[nodiscard]] GameObjectTypes Type() override
     {
         return GameObjectTypes::Sign;
     }
 
-    std::string TypeName() override
+    [[nodiscard]] std::string TypeName() override
     {
         return "Sign";
     }
 
+    // Handle player interaction
     void Interact(CS230::GameObject* interactor) override;
 
 private:

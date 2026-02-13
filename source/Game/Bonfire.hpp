@@ -6,11 +6,11 @@
 class Bonfire : public CS230::GameObject
 {
 public:
-    Bonfire(Math::vec2 start_pos, Math::vec2 size);
+    Bonfire(Math::vec2 in_start_pos, Math::vec2 in_size);
 
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
 
-    GameObjectTypes Type() override
+    [[nodiscard]] GameObjectTypes Type() override
     {
         return GameObjectTypes::Bonfire;
     }
@@ -20,6 +20,7 @@ public:
         return "Bonfire";
     }
 
+    // Handle interaction
     void Interact(CS230::GameObject* interactor) override;
 
 private:

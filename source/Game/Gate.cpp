@@ -4,8 +4,9 @@
 #include "Engine/Engine.hpp"
 #include "Engine/Logger.hpp"
 
-Gate::Gate(Math::vec2 position, Math::vec2 size) : CS230::GameObject(position), size(size), isOpen(false), color(0xFF00FFFF)
+Gate::Gate(Math::vec2 in_position, Math::vec2 in_size) : CS230::GameObject(in_position), size(in_size), isOpen(false), color(0xFF00FFFF)
 {
+    // Initialize collision box
     Math::irect collision_box{
         { static_cast<int>(-size.x / 2.0), static_cast<int>(-size.y / 2.0) },
         {  static_cast<int>(size.x / 2.0),  static_cast<int>(size.y / 2.0) }
@@ -21,6 +22,7 @@ void Gate::Update(double dt)
 
 void Gate::Draw(const Math::TransformationMatrix& camera_matrix)
 {
+    // Draw only when closed
     if (!isOpen)
     {
         auto&                      renderer  = Engine::GetRenderer2D();
@@ -32,8 +34,11 @@ void Gate::Draw(const Math::TransformationMatrix& camera_matrix)
 
 bool Gate::CanCollideWith(GameObjectTypes other_object_type)
 {
+    // Ignore all collisions if open
     if (isOpen)
         return false;
+
+    // Collide with player when closed
     if (other_object_type == GameObjectTypes::Player)
         return true;
 
@@ -42,6 +47,7 @@ bool Gate::CanCollideWith(GameObjectTypes other_object_type)
 
 void Gate::Open()
 {
+    // Remove collision box
     if (!isOpen)
     {
         isOpen = true;
@@ -52,9 +58,11 @@ void Gate::Open()
 
 void Gate::Close()
 {
+    // Restore collision box
     if (isOpen)
     {
         isOpen = false;
+
         Math::irect collision_box{
             { static_cast<int>(-size.x / 2.0), static_cast<int>(-size.y / 2.0) },
             {  static_cast<int>(size.x / 2.0),  static_cast<int>(size.y / 2.0) }

@@ -6,7 +6,7 @@
 class TargetStar : public CS230::GameObject
 {
 public:
-    TargetStar(Math::vec2 position);
+    TargetStar(Math::vec2 in_position);
 
     void Update(double dt) override;
     void Draw([[maybe_unused]] const Math::TransformationMatrix& camera_matrix) override;

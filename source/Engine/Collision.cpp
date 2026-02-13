@@ -161,10 +161,10 @@ namespace CS230
         if (world_boundary.vertexCount < 2)
             return;
 
-        for (int i = 0; i < world_boundary.vertexCount; ++i)
+        for (size_t i = 0; i < static_cast<size_t>(world_boundary.vertexCount); ++i)
         {
             Math::vec2 p1 = world_boundary.vertices[i];
-            Math::vec2 p2 = world_boundary.vertices[(i + 1) % world_boundary.vertexCount];
+            Math::vec2 p2 = world_boundary.vertices[(i + 1) % static_cast<size_t>(world_boundary.vertexCount)];
 
             renderer.DrawLine(display_matrix * p1, display_matrix * p2, CS200::WHITE, 1.0);
         }
@@ -174,7 +174,7 @@ namespace CS230
     {
         Polygon world_poly;
         world_poly.vertexCount = boundary.vertexCount;
-        world_poly.vertices.reserve(boundary.vertexCount);
+        world_poly.vertices.reserve(static_cast<size_t>(boundary.vertexCount));
 
         const Math::TransformationMatrix& matrix = object->GetMatrix();
 
@@ -191,9 +191,9 @@ namespace CS230
         if (poly_1.vertexCount == 0)
             return false;
 
-        for (int i = 0; i < poly_1.vertexCount; i++)
+        for (size_t i = 0; i < static_cast<size_t>(poly_1.vertexCount); ++i)
         {
-            Math::vec2 edge = poly_1.vertices[(i + 1) % poly_1.vertexCount] - poly_1.vertices[i];
+            Math::vec2 edge = poly_1.vertices[(i + 1) % static_cast<size_t>(poly_1.vertexCount)] - poly_1.vertices[i];
             Math::vec2 axis = GetPerpendicular(edge).Normalize();
 
             double minA, maxA;
@@ -241,9 +241,9 @@ namespace CS230
         if (poly_1.vertexCount == 0 || poly_2.vertexCount == 0)
             return false;
 
-        for (int i = 0; i < poly_1.vertexCount; i++)
+        for (size_t i = 0; i < static_cast<size_t>(poly_1.vertexCount); i++)
         {
-            Math::vec2 edge = poly_1.vertices[(i + 1) % poly_1.vertexCount] - poly_1.vertices[i];
+            Math::vec2 edge = poly_1.vertices[(i + 1) % static_cast<size_t>(poly_1.vertexCount)] - poly_1.vertices[i];
             Math::vec2 axis = GetPerpendicular(edge).Normalize();
 
             double minA, maxA, minB, maxB;
@@ -254,9 +254,9 @@ namespace CS230
                 return false;
         }
 
-        for (int i = 0; i < poly_2.vertexCount; i++)
+        for (size_t i = 0; i < static_cast<size_t>(poly_2.vertexCount); ++i)
         {
-            Math::vec2 edge = poly_2.vertices[(i + 1) % poly_2.vertexCount] - poly_2.vertices[i];
+            Math::vec2 edge = poly_2.vertices[(i + 1) % static_cast<size_t>(poly_2.vertexCount)] - poly_2.vertices[i];
             Math::vec2 axis = GetPerpendicular(edge).Normalize();
 
             double minA, maxA, minB, maxB;

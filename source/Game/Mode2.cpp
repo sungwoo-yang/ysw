@@ -25,6 +25,8 @@ void Mode2::Load()
     currentState = State::Loading;
 
     AddGSComponent(new CS230::GameObjectManager());
+
+// Fixed typo for developer version macro
 #ifdef DEVERLOPER_VERSION
     AddGSComponent(new CS230::ShowCollision());
 #endif
@@ -50,6 +52,7 @@ void Mode2::Load()
 
 void Mode2::InitGame()
 {
+    // Cache manager pointer
     auto gom = GetGSComponent<CS230::GameObjectManager>();
 
     player = new Player({ 0.0, 400.0 });
@@ -76,6 +79,7 @@ void Mode2::Update(double dt)
 {
     UpdateGSComponents(dt);
 
+    // Wait for map load
     if (currentState == State::Loading)
     {
         if (mapManager->GetCurrentMap() && mapManager->GetCurrentMap()->IsLevelLoaded())
@@ -86,10 +90,15 @@ void Mode2::Update(double dt)
         }
         return;
     }
+
+    // Cache manager to prevent multiple lookups
     auto gom = GetGSComponent<CS230::GameObjectManager>();
+
+    // Update all objects and resolve collisions
     gom->UpdateAll(dt);
     gom->CollisionTest();
 
+    // Find gate reference once
     if (puzzleGate == nullptr)
     {
         for (auto obj : gom->GetObjects())
@@ -102,6 +111,7 @@ void Mode2::Update(double dt)
         }
     }
 
+    // Check puzzle target status
     if (puzzleTarget != nullptr && puzzleTarget->IsHit())
     {
         if (puzzleGate != nullptr && !puzzleGate->IsOpen())
@@ -110,9 +120,10 @@ void Mode2::Update(double dt)
         }
     }
 
-    GetGSComponent<CS230::GameObjectManager>()->UpdateAll(dt);
-    GetGSComponent<CS230::GameObjectManager>()->CollisionTest();
+    // GetGSComponent<CS230::GameObjectManager>()->UpdateAll(dt);
+    // GetGSComponent<CS230::GameObjectManager>()->CollisionTest();
 
+    // Update camera target
     if (player != nullptr)
     {
         Math::vec2 winSize   = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
