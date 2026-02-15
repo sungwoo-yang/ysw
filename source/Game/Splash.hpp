@@ -14,5 +14,7 @@ public:
 
 private:
     double timer = 0.0;
+    
+    // How long the splash screen will stay visible automatically
     const double displayTime = 3.0;
 };

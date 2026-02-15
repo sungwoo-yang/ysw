@@ -34,9 +34,14 @@ public:
     void HandleInput(double dt);
     void Draw(CS200::IRenderer2D& renderer, const Math::TransformationMatrix& camera_matrix) const;
     void DrawImGui();
+
+    // Updates physical shield position relative to player and mouse
     void UpdatePosition();
+
+    // Handles visual and state changes based on block/parry success
     void HandleHit(bool parrySuccess);
 
+    // Activates vulnerability window given by enemy telegraphs
     void SetParryWindowActive(bool active)
     {
         parryWindowActive = active;
@@ -47,18 +52,22 @@ public:
         return parryWindowActive;
     }
 
+    // Evaluates player input for parry attempts
     void TryParry();
     bool ConsumeParryState();
 
     bool IsGuardUp() const;
 
+    // Returns world-space coordinates of the shield for laser physics
     std::vector<std::pair<Math::vec2, Math::vec2>> GetSegments() const;
 
+    // Punishment states for failing a parry
     bool         isShieldFrozen       = false;
     double       shieldFrozenTimer    = 0.0;
     const double shieldFreezeDuration = 3.0;
 
 private:
+    // Smoothly interpolates the shield color for visual feedback
     void UpdateShieldColor(double dt);
 
     CS230::GameObject* owner;
@@ -70,9 +79,11 @@ private:
     Math::vec2 shieldStart;
     Math::vec2 shieldEnd;
 
+    // Previous frame data used for swept collision prevention
     Math::vec2 prevShieldStart;
     Math::vec2 prevShieldEnd;
 
+    // Color interpolation state
     CS200::RGBA          shieldColor = COLOR_CYAN;
     std::array<float, 4> currentShieldColor{};
     std::array<float, 4> targetShieldColor{};
@@ -80,6 +91,7 @@ private:
     double       shieldHitTimer          = 0.0;
     const double shieldColorRecoveryTime = 1.0;
 
+    // State machine logic
     bool   isGuarding = false;
     double cooldownTimer = 0.0;
     const double shieldCooldown = 1.0;

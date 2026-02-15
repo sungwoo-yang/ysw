@@ -4,6 +4,9 @@
 #include "Engine/Rect.hpp"
 #include "Engine/Texture.hpp"
 #include "MiniMap.hpp"
+#include "OpenGL/Buffer.hpp"
+#include "OpenGL/Shader.hpp"
+#include "OpenGL/VertexArray.hpp"
 #include <memory>
 
 class Player;
@@ -52,13 +55,17 @@ private:
 
     // Gameplay objectives
     std::vector<TargetStar*> targetStars;
-    Star*              shooterStar;
-    Star*              targetStar;
-    YellowLaser*       yellowLaser;
+    Star*                    shooterStar;
+    Star*                    targetStar;
+    YellowLaser*             yellowLaser;
 
-    // Parallax background textures
-    std::shared_ptr<CS230::Texture> textureLayer1_Atmosphere;
-    std::shared_ptr<CS230::Texture> textureLayer2_Trees;
+    // Background Shader Members
+    OpenGL::CompiledShader    backgroundShader;
+    OpenGL::VertexArrayHandle backgroundVAO;
+    OpenGL::BufferHandle      backgroundVBO;
+    double                    shaderTime = 0.0;
+
+    // [Removed] textureLayer2_Trees definition
     std::shared_ptr<CS230::Texture> textureLayer3_Silhouette;
 
     // Level spatial constraints

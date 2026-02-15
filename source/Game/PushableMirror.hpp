@@ -19,14 +19,17 @@ public:
     GameObjectTypes Type() override { return GameObjectTypes::PushableMirror; }
     std::string TypeName() override { return "PushableMirror"; }
 
+    // Returns the diagonal reflective surface for laser bounce calculations
     std::vector<std::pair<Math::vec2, Math::vec2>> GetSegments() const;
 
+    // Applies horizontal velocity when pushed by the player
     void Push(Math::vec2 pushVelocity);
 
 private:
     Math::vec2 size;
     double velocityY = 0.0;
     
+    // Physics properties for realistic pushing behavior
     const double gravity = 1500.0;
     const double friction = 8.0;
 };

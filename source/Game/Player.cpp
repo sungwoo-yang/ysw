@@ -57,6 +57,8 @@ namespace
         double totalLen = L1 + L2;
 
         double currentLen = dist;
+
+        // Clamp length to prevent limb separation
         if (currentLen > totalLen)
         {
             currentLen = totalLen;
@@ -76,6 +78,7 @@ Player::Player(Math::vec2 in_start_pos)
     : CS230::GameObject(in_start_pos), isJumping(true), velocityY(0.0), faceRight(true), shieldComponent(nullptr), startPosition(in_start_pos), previousPosition(in_start_pos),
       healthState(HealthState::Full), playerHp(5.0), maxPlayerHp(5.0), recoverDelayTimer(0.0), tookDamageThisFrame(false), invincibilityTimer(0.0)
 {
+    // Initialize core components
     shieldComponent = new Shield(this);
     AddGOComponent(shieldComponent);
 
@@ -83,9 +86,12 @@ Player::Player(Math::vec2 in_start_pos)
     AddGOComponent(skeleton);
     BuildSkeleton();
     animEditor.SetSkeleton(skeleton);
+
+    // Add physical collision bounds
     AddGOComponent(new CS230::RectCollision(PLAYER_COLLISION_BOX, this));
     dashComponent.dashCooldown = 1.0;
 
+    // Set initial IK targets to rest position
     double floorY = in_start_pos.y - collisionHalfHeight;
     handTargetL   = in_start_pos;
     handTargetR   = in_start_pos;
@@ -98,7 +104,7 @@ void Player::BuildSkeleton()
     if (!skeleton)
         return;
 
-    // Construct Hierarchy
+    // Construct hierarchical bone structure representing the player's body
     skeleton->AddBone("Hips", 0.0, { 0.0, 0.0 }, 0.0);
 
     skeleton->AddBone("SpineLower", spineLenLower, { 0.0, 0.0 }, 0.0, "Hips");
@@ -106,7 +112,7 @@ void Player::BuildSkeleton()
     skeleton->AddBone("Neck", neckLen, { 0.0, 0.0 }, 0.0, "SpineUpper");
     skeleton->AddBone("Head", spineLenTop, { 0.0, 0.0 }, 0.0, "Neck");
 
-    // Add Nose to indicate facing direction
+    // Add Nose to indicate facing direction visually
     skeleton->AddBone("Nose", 0.0, { 0.0, 0.0 }, 0.0, "Head");
 
     skeleton->AddBone("L_Thigh", thighLen, { 0.0, 0.0 }, 0.0, "Hips");
@@ -123,6 +129,7 @@ void Player::BuildSkeleton()
     skeleton->AddBone("R_Arm_Up", upperArmLen, { 0.0, 0.0 }, 0.0, "R_Clavicle");
     skeleton->AddBone("R_Arm_Low", foreArmLen, { 0.0, 0.0 }, 0.0, "R_Arm_Up");
 
+    // Cache bone pointers for quick access during IK resolution
     bHips       = skeleton->GetBone("Hips");
     bSpineLower = skeleton->GetBone("SpineLower");
     bSpineUpper = skeleton->GetBone("SpineUpper");
@@ -146,11 +153,13 @@ void Player::Update(double dt)
     interactionTarget = nullptr;
     previousPosition  = GetPosition();
 
+    // Process invincibility timer
     if (invincibilityTimer > 0.0)
     {
         invincibilityTimer -= dt;
     }
 
+    // Process platforming assist timers
     if (jumpBufferTimer > 0.0)
         jumpBufferTimer -= dt;
     if (coyoteTimer > 0.0)
@@ -159,6 +168,7 @@ void Player::Update(double dt)
     HandleInput(dt);
     dashComponent.UpdateTimers(dt);
 
+    // Apply gravity unless disabled by dashing mechanics
     bool applyGravity = true;
     if (dashComponent.IsDashing() && dashComponent.disableGravityOnDash)
         applyGravity = false;
@@ -166,16 +176,18 @@ void Player::Update(double dt)
     if (applyGravity)
         velocityY -= gravity * dt;
 
+    // Override horizontal velocity if dashing
     double finalVelX = GetVelocity().x;
     if (dashComponent.IsDashing())
         finalVelX = dashComponent.GetDashVelocityX();
     SetVelocity({ finalVelX, velocityY });
 
-    isJumping            = true;
+    isJumping            = true; // Assume jumping until collision resolution says otherwise
     currentPlatformIndex = std::nullopt;
 
     CS230::GameObject::Update(dt);
 
+    // Update animations
     animEditor.Update(dt);
     if (animEditor.IsEditing())
     {
@@ -423,6 +435,7 @@ void Player::UpdateProceduralAnimation(double dt)
 
 void Player::ResetState()
 {
+    // Complete reset of player entity for respawns
     SetPosition(startPosition);
     previousPosition     = startPosition;
     velocityY            = 0.0;
@@ -444,6 +457,7 @@ void Player::ResetState()
     tookDamageThisFrame = false;
     invincibilityTimer  = 0.0;
 
+    // Reinitialize shield component
     if (shieldComponent != nullptr)
     {
         RemoveGOComponent<Shield>();
@@ -561,6 +575,7 @@ void Player::ResolveCollision(GameObject* other_object)
 
     if (other_object->Type() == GameObjectTypes::Floor || other_object->Type() == GameObjectTypes::Gate)
     {
+        // AABB / SAT Collision Resolution for world geometry
         CS230::RectCollision* my_collider = GetGOComponent<CS230::RectCollision>();
         if (!my_collider)
             return;
@@ -594,6 +609,7 @@ void Player::ResolveCollision(GameObject* other_object)
         double platform_left   = other_box.Left();
         double platform_right  = other_box.Right();
 
+        // Determine relative positions from previous frame to find collision normal
         bool was_above = prev_bottom >= platform_top;
         bool was_below = prev_top <= platform_bottom;
         bool was_left  = prev_right <= platform_left;
@@ -610,20 +626,24 @@ void Player::ResolveCollision(GameObject* other_object)
         if (!horizontal_overlap || !vertical_overlap)
             return;
 
+        // Resolve penetration by shifting player out of the overlapping axis
         if (velocityY <= 0 && was_above && horizontal_overlap)
         {
+            // Landing on top of a surface
             SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
             velocityY   = 0.0;
             isJumping   = false;
-            coyoteTimer = coyoteTime;
+            coyoteTimer = coyoteTime; // Refresh coyote time on ground contact
         }
         else if (velocityY > 0 && was_below && horizontal_overlap)
         {
+            // Hitting head on ceiling
             SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
             velocityY = 0.0;
         }
         else if (GetVelocity().x > 0 && was_left && vertical_overlap)
         {
+            // Hitting wall moving right
             SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
             SetVelocity({ 0.0, GetVelocity().y });
         }
@@ -757,6 +777,7 @@ void Player::Draw(const Math::TransformationMatrix& camera_matrix)
         shieldComponent->Draw(renderer, camera_matrix);
     }
 
+    // Render skeleton hierarchy with proper depth ordering based on facing direction
     if (skeleton)
     {
         static const std::vector<std::string> drawOrderRight = { "L_Thigh", "L_Calf", "L_Clavicle", "L_Arm_Up", "L_Arm_Low", "Hips",       "SpineLower", "SpineUpper",

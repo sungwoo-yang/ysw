@@ -17,6 +17,7 @@
 
 namespace
 {
+    // Utility to find the shortest squared distance from a point to a line segment
     double DistToSegmentSquared(Math::vec2 p, Math::vec2 v, Math::vec2 w)
     {
         double l2 = (w - v).Dot(w - v);
@@ -36,6 +37,7 @@ YellowLaser::YellowLaser(Math::vec2 in_startPos, Math::vec2 in_direction, Player
 
 void YellowLaser::Update(double dt)
 {
+    // Check if the player has successfully outrun the laser's range
     if (player != nullptr)
     {
         double distanceToPlayer = (player->GetPosition() - startPos).Length();
@@ -48,6 +50,7 @@ void YellowLaser::Update(double dt)
         }
     }
 
+    // Handle laser lifespan expiration
     timer += dt;
     if (timer >= laserDuration)
     {
@@ -55,6 +58,7 @@ void YellowLaser::Update(double dt)
         return;
     }
 
+    // Dynamic tracking and collision updates
     if (player != nullptr)
     {
         UpdateDirection(dt);
@@ -66,21 +70,24 @@ void YellowLaser::Update(double dt)
 
 void YellowLaser::UpdateDirection(double dt)
 {
+    // Calculate vector pointing directly at the player
     Math::vec2 targetDir = (player->GetPosition() - startPos).Normalize();
 
     double currentAngle = std::atan2(currentDir.y, currentDir.x);
     double targetAngle  = std::atan2(targetDir.y, targetDir.x);
 
+    // Normalize angle difference to [-PI, PI] to determine the shortest rotation path
     double diff = targetAngle - currentAngle;
     while (diff <= -PI)
         diff += 2 * PI;
     while (diff > PI)
         diff -= 2 * PI;
 
+    // Apply rotation clamped by the maximum allowed rotation speed
     double maxRotate = rotationSpeed * dt;
     if (std::abs(diff) < maxRotate)
     {
-        currentDir = targetDir;
+        currentDir = targetDir; // Snap perfectly to target if within step range
     }
     else
     {
@@ -93,6 +100,7 @@ void YellowLaser::CalculateLaserPath()
 {
     std::vector<Physics::LineSegment> allSegments;
 
+    // 1. Gather dynamic blocking geometry (Player's Shield)
     if (player != nullptr)
     {
         Shield* shield = player->GetShield();
@@ -106,6 +114,7 @@ void YellowLaser::CalculateLaserPath()
         }
     }
 
+    // 2. Gather static and pushable scene geometry
     auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
     if (gom)
     {
@@ -133,7 +142,7 @@ void YellowLaser::CalculateLaserPath()
             else if (obj->Type() == GameObjectTypes::Gate)
             {
                 auto gate = static_cast<Gate*>(obj);
-                if (!gate->IsOpen())
+                if (!gate->IsOpen()) // Closed gates block the laser
                 {
                     Math::vec2 pos = gate->GetPosition();
                     allSegments.push_back(
@@ -147,8 +156,10 @@ void YellowLaser::CalculateLaserPath()
         }
     }
 
+    // 3. Perform physics raycasting to determine the multi-bounce trajectory
     auto calculatedPath = Physics::CalculateLaserPath(startPos, currentDir, allSegments, 5, maxLaserLength);
 
+    // 4. Flatten the path segments into a list of continuous vertices for rendering
     pathPoints.clear();
     if (!calculatedPath.empty())
     {
@@ -160,6 +171,7 @@ void YellowLaser::CalculateLaserPath()
     }
     else
     {
+        // Fail-safe: Shoot straight forward if no collisions are detected at all
         pathPoints.push_back(startPos);
         pathPoints.push_back(startPos + currentDir * maxLaserLength);
     }
@@ -167,18 +179,24 @@ void YellowLaser::CalculateLaserPath()
 
 void YellowLaser::CheckCollisions()
 {
+    // Iterate over each straight segment of the bounced laser
     for (size_t i = 0; i < pathPoints.size() - 1; ++i)
     {
         Math::vec2 p1 = pathPoints[i];
         Math::vec2 p2 = pathPoints[i + 1];
 
+        // 1. Check intersection with the player
         if (player != nullptr)
         {
             double distSq = DistToSegmentSquared(player->GetPosition(), p1, p2);
+
+            // Damage radius expands the hitbox slightly for forgiveness
             if (distSq < (20.0 + damageRadius) * (20.0 + damageRadius))
             {
                 bool    safe   = false;
                 Shield* shield = player->GetShield();
+
+                // If the player is guarding and the hit occurs on the primary segment (before any bounce), it counts as blocked
                 if (shield && shield->IsGuardUp() && i == 0)
                 {
                     safe = true;
@@ -186,13 +204,15 @@ void YellowLaser::CheckCollisions()
 
                 if (!safe)
                 {
+                    // Apply continuous tick damage to the player
                     player->ApplyLaserDamage(1.0);
                     Engine::GetLogger().LogEvent("Player hit by continuous Laser!");
-                    return;
+                    return; // Prevent multiple damage ticks from different segments in the same frame
                 }
             }
         }
 
+        // 2. Check intersection with puzzle targets
         for (TargetStar* target : targets)
         {
             if (target && !target->IsHit())
@@ -200,7 +220,7 @@ void YellowLaser::CheckCollisions()
                 double r = target->GetRadius();
                 if (DistToSegmentSquared(target->GetPosition(), p1, p2) <= (r + damageRadius) * (r + damageRadius))
                 {
-                    target->OnHit();
+                    target->OnHit(); // Continuously charges the target while intersecting
                     Engine::GetLogger().LogEvent("Target Star activated by Laser!");
                 }
             }
@@ -215,8 +235,10 @@ void YellowLaser::Draw([[maybe_unused]] const Math::TransformationMatrix& camera
     if (pathPoints.size() < 2)
         return;
 
+    // Draw the continuous beam along all calculated reflection points
     for (size_t i = 0; i < pathPoints.size() - 1; ++i)
     {
+        // Draw a thick yellow outer glow followed by a thin white inner core
         renderer.DrawLine(pathPoints[i], pathPoints[i + 1], CS200::WHITE, 4.0);
         renderer.DrawLine(pathPoints[i], pathPoints[i + 1], laserColor, 12.0);
     }

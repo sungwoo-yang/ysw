@@ -6,10 +6,11 @@
 class Player;
 class TargetStar;
 
+// Defines the behavior and attack pattern of the Star enemy
 enum class StarType
 {
-    Yellow,
-    Red
+    Yellow, // Fires continuous or tracking lasers
+    Red     // Fires high-damage lasers that require parrying
 };
 
 class Star : public CS230::GameObject
@@ -31,11 +32,12 @@ public:
     }
 
 private:
+    // State machine defining the attack lifecycle
     enum class State
     {
-        Idle,
-        Warning,
-        Cooldown,
+        Idle,       // Waiting for player to enter range
+        Warning,    // Charging attack and telegraphing path
+        Cooldown,   // Resting after attack
     };
 
     State  currentState;
@@ -44,6 +46,7 @@ private:
     double timer;
     StarType starType;
 
+    // Attack configuration constants
     const double detectionRadius  = 500.0;
     const double chaseRadius      = detectionRadius * 1.5   ;
     const double warningDuration  = 3.0;

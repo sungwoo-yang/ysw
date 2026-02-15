@@ -12,7 +12,7 @@
 void Splash::Load()
 {
     Engine::GetWindow().Clear(CS200::WHITE);
-    timer = displayTime;
+    timer = displayTime;    // Reset display timer on load
 }
 
 void Splash::Update(double dt)
@@ -20,6 +20,8 @@ void Splash::Update(double dt)
     timer -= dt;
 
     auto& input = Engine::GetInput();
+
+    // Transition to the Main Menu if the timer runs out or the user presses Space/Enter
     if (timer <= 0.0 || input.KeyJustPressed(CS230::Input::Keys::Space) || input.KeyJustPressed(CS230::Input::Keys::Enter))
     {
         Engine::GetGameStateManager().PushState<MainMenu>();
@@ -32,18 +34,22 @@ void Splash::Draw()
     auto& renderer = Engine::GetRenderer2D();
 
     Math::ivec2                winSize       = Engine::GetWindow().GetSize();
+
+    // Use NDC matrix for fixed screen-space UI rendering (unaffected by camera)
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(winSize);
 
     renderer.BeginScene(screen_matrix);
 
     CS230::Font& font = Engine::GetFont(0);
 
+    // 1. Render Main Title Text
     auto texture = font.PrintToTexture("DIGIPEN GAME ENGINE", 0xFF0000FF);
     if (texture)
     {
         Math::vec2  scale   = { 2.0, 2.0 };
         Math::ivec2 texSize = texture->GetSize();
 
+        // Calculate position to center the text horizontally and place it slightly above center
         Math::vec2 centerPos = { winSize.x * 0.5, winSize.y * 0.55 };
         Math::vec2 drawPos   = centerPos - Math::vec2{ texSize.x * scale.x * 0.5, texSize.y * scale.y * 0.5 };
 
@@ -51,6 +57,7 @@ void Splash::Draw()
         texture->Draw(transform);
     }
 
+    // 2. Render Subtitle Prompt
     auto subTex = font.PrintToTexture("Press Space to Start", 0x000000FF);
     if (subTex)
     {

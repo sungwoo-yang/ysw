@@ -16,6 +16,7 @@ WorldTextManager::WorldTextManager() : camera(nullptr)
 
 void WorldTextManager::Update([[maybe_unused]] double dt)
 {
+    // Text rendering is immediate-mode per frame, so we clear the queue every update
     textJobs.clear();
 }
 
@@ -28,13 +29,15 @@ Math::vec2 WorldTextManager::WorldToScreen(Math::vec2 worldPos)
 {
     if (camera == nullptr)
     {
-        return { -1000.0, -1000.0 };
+        return { -1000.0, -1000.0 };    // Return off-screen position if no camera is bound
     }
 
+    // Convert World Space -> NDC (Normalized Device Coordinates) [-1, 1]
     Math::TransformationMatrix viewProj = CS200::build_ndc_matrix(Engine::GetWindow().GetSize()) * camera->GetMatrix();
     Math::vec2                 ndcPos   = viewProj * worldPos;
     Math::ivec2                winSize  = Engine::GetWindow().GetSize();
 
+    // Convert NDC [-1, 1] -> Screen Space [0, WindowSize]
     double screenX = (ndcPos.x + 1.0) * 0.5 * static_cast<double>(winSize.x);
     double screenY = (ndcPos.y + 1.0) * 0.5 * static_cast<double>(winSize.y);
 
@@ -48,6 +51,8 @@ void WorldTextManager::ShowTextAbove(CS230::GameObject* obj, const std::string& 
 
     Math::vec2 pos      = obj->GetPosition();
     auto       collider = obj->GetGOComponent<CS230::RectCollision>();
+
+    // Offset the text so it floats cleanly above the object's collision boundary
     if (collider)
     {
         pos.x = obj->GetPosition().x;
@@ -64,6 +69,8 @@ void WorldTextManager::ShowTextBelow(CS230::GameObject* obj, const std::string& 
 
     Math::vec2 pos      = obj->GetPosition();
     auto       collider = obj->GetGOComponent<CS230::RectCollision>();
+
+    // Offset the text so it hangs below the object
     if (collider)
     {
         pos.x = obj->GetPosition().x;
@@ -80,10 +87,12 @@ void WorldTextManager::Draw()
         return;
     }
 
+    // Retrieve the default loaded font
     CS230::Font& font = Engine::GetFont(0);
 
     for (const auto& job : textJobs)
     {
+        // Dynamically generate a texture containing the requested string
         std::shared_ptr<CS230::Texture> textTexture = font.PrintToTexture(job.text, job.color);
 
         if (textTexture == nullptr)
@@ -99,9 +108,11 @@ void WorldTextManager::Draw()
         double scaledWidth  = static_cast<double>(textureSize.x) * scale;
         double scaledHeight = static_cast<double>(textureSize.y) * scale;
 
+        // Center the text horizontally based on the calculated screen position 
         Math::vec2 drawPos_BottomLeft;
         drawPos_BottomLeft.x = screenPos.x - scaledWidth * 0.5;
 
+        // Adjust vertical alignment based on Above/Below setting
         if (job.alignAbove)
         {
             drawPos_BottomLeft.y = screenPos.y;
@@ -113,6 +124,7 @@ void WorldTextManager::Draw()
 
         Math::TransformationMatrix transform = Math::TranslationMatrix(drawPos_BottomLeft) * Math::ScaleMatrix(Math::vec2{ scale, scale });
 
+        // Draw the text UI overlay directly
         textTexture->Draw(transform, CS200::WHITE);
     }
 }

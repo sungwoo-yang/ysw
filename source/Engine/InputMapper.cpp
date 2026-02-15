@@ -6,6 +6,7 @@
 
 namespace CS230
 {
+    // Lazy initialization of the singleton instance
     InputMapper& InputMapper::Instance()
     {
         static InputMapper instance;
@@ -14,25 +15,33 @@ namespace CS230
 
     InputMapper::InputMapper()
     {
+        // Ensure standard controls are available immediately upon creation
         SetDefaultBindings();
     }
 
     void InputMapper::Init()
     {
+        // Attempt to override defaults with user preferences on startup
         LoadBindings();
     }
 
     void InputMapper::SetDefaultBindings()
     {
         bindings.clear();
+        
+        // Standard PC control scheme
         bindings[GameAction::MoveLeft]  = Input::Keys::A;
         bindings[GameAction::MoveRight] = Input::Keys::D;
         bindings[GameAction::MoveUp]    = Input::Keys::W;
         bindings[GameAction::MoveDown]  = Input::Keys::S;
+
+        // Action bindings
         bindings[GameAction::Jump]      = Input::Keys::Space;
         bindings[GameAction::Attack]    = Input::Keys::J;
         bindings[GameAction::Dash]      = Input::Keys::LShift;
         bindings[GameAction::Interact]  = Input::Keys::F;
+
+        // System / UI bindings
         bindings[GameAction::Pause]     = Input::Keys::Escape;
         bindings[GameAction::MenuSelect]= Input::Keys::Enter;
         bindings[GameAction::MenuBack]  = Input::Keys::Escape;
@@ -40,6 +49,7 @@ namespace CS230
 
     bool InputMapper::IsPressed(GameAction action)
     {
+        // Find the physical key associated with the action and poll the core input system
         auto it = bindings.find(action);
         if (it != bindings.end())
         {
@@ -80,13 +90,13 @@ namespace CS230
         {
             return it->second;
         }
-        return Input::Keys::Count;
+        return Input::Keys::Count;  // Returns invalid key if not mapped
     }
 
     std::string InputMapper::GetBindingName(GameAction action) const
     {
         Input::Keys key = GetBinding(action);
-        return to_string(key);
+        return to_string(key);  // Relies on an external to_string utility for keys
     }
 
     std::string InputMapper::ActionToString(GameAction action) const
@@ -110,6 +120,7 @@ namespace CS230
 
     Input::Keys InputMapper::StringToKey(const std::string& str)
     {
+        // Iterate through all possible keys to find a string match
         for (int i = 0; i < static_cast<int>(Input::Keys::Count); ++i)
         {
             Input::Keys key = static_cast<Input::Keys>(i);
@@ -127,6 +138,8 @@ namespace CS230
         if (!file.is_open()) return;
 
         file << "# Key Bindings\n";
+
+        // Serialize the action-to-key mapping into a simple "Action=Key" text format
         for (const auto& [action, key] : bindings)
         {
             file << ActionToString(action) << "=" << to_string(key) << "\n";
@@ -137,6 +150,8 @@ namespace CS230
     void InputMapper::LoadBindings(const std::filesystem::path& filepath)
     {
         std::ifstream file(filepath);
+
+        // If no config file exists, fall back to default controls
         if (!file.is_open())
         {
             Engine::GetLogger().LogEvent("No binding file found. Using defaults.");
@@ -147,12 +162,16 @@ namespace CS230
         std::string line;
         while (std::getline(file, line))
         {
+            // Skip empty lines and comments
             if (line.empty() || line[0] == '#') continue;
 
             std::istringstream iss(line);
             std::string actionStr, keyStr;
+
+            // Parse lines formatted as "Action=Key"
             if (std::getline(iss, actionStr, '=') && std::getline(iss, keyStr))
             {
+                // Match the string representation of the action to the GameAction enum
                 for (int i = 0; i < static_cast<int>(GameAction::Count); ++i)
                 {
                     GameAction act = static_cast<GameAction>(i);
@@ -161,7 +180,7 @@ namespace CS230
                         Input::Keys key = StringToKey(keyStr);
                         if (key != Input::Keys::Count)
                         {
-                            bindings[act] = key;
+                            bindings[act] = key;    // Apply the parsed binding
                         }
                         break;
                     }

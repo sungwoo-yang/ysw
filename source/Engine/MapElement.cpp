@@ -8,8 +8,10 @@ namespace CS230
 {
     MapElement::MapElement(Math::vec2 pos, Polygon polygon) : CS230::GameObject(pos), local_polygon(std::move(polygon))
     {
+        // Explicitly sync the vertex count for the physics and collision systems
         local_polygon.vertexCount = static_cast<int>(local_polygon.vertices.size());
 
+        // Attach Separating Axis Theorem (SAT) collision component for precise polygonal collision
         AddGOComponent(new SATCollision(local_polygon, this));
     }
 
@@ -19,9 +21,11 @@ namespace CS230
 
         const Math::TransformationMatrix& model_matrix = GetMatrix();
 
+        // Polygons require at least a valid line segment (2 points) to be drawn
         if (local_polygon.vertexCount < 2)
             return;
 
+        // Render the polygon wireframe by connecting adjacent vertices
         for (size_t i = 0; i < static_cast<size_t>(local_polygon.vertexCount); ++i)
         {
             Math::vec2 p1 = local_polygon.vertices[i];
@@ -39,11 +43,14 @@ namespace CS230
         Math::TransformationMatrix        mat = GetMatrix();
 
         const auto& verts = local_polygon.vertices;
+
+        // Transform all local polygon edges into absolute world-space line segments
         for (size_t i = 0; i < verts.size(); ++i)
         {
             Math::vec2 p1 = mat * verts[i];
             Math::vec2 p2 = mat * verts[(i + 1) % verts.size()];
 
+            // The 'false' flag indicates that standard map geometry absorbs lasers instead of reflecting them
             segments.push_back({ p1, p2, false });
         }
         return segments;

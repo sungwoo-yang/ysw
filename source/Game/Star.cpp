@@ -19,6 +19,7 @@
 Star::Star(Math::vec2 in_position, Player* in_targetPlayer, const std::vector<TargetStar*>& in_destStars, StarType in_type)
     : CS230::GameObject(in_position), currentState(State::Idle), player(in_targetPlayer), targets(in_destStars), timer(0.0), starType(in_type)
 {
+    // Set visual indicator based on hazard type
     color = (starType == StarType::Red) ? 0xFF0000FF : 0xFFFF00FF;
 }
 
@@ -31,6 +32,7 @@ void Star::Update(double dt)
     Math::vec2 playerPos = player->GetPosition();
     double     distance  = (playerPos - myPos).Length();
 
+    // Core State Machine handling attack logic
     switch (currentState)
     {
         case State::Idle:
@@ -45,6 +47,7 @@ void Star::Update(double dt)
                 }
             }
 
+            // Transition to warning if player enters aggro radius
             if (distance <= detectionRadius)
             {
                 currentState = State::Warning;
@@ -54,6 +57,7 @@ void Star::Update(double dt)
             break;
 
         case State::Warning:
+            // Lose tracking if player moves far enough away
             if (distance > chaseRadius)
             {
                 currentState = State::Idle;
@@ -69,6 +73,7 @@ void Star::Update(double dt)
                 return;
             }
 
+            // Red stars require precise timing; signal the shield component
             if (starType == StarType::Red)
             {
                 Shield* shield = player->GetShield();
@@ -84,6 +89,7 @@ void Star::Update(double dt)
             timer -= dt;
             if (timer <= 0.0)
             {
+                // Warning phase complete, instantiate and fire laser projectile
                 Math::vec2 dir = (player->GetPosition() - GetPosition()).Normalize();
 
                 if (starType == StarType::Yellow)
@@ -107,6 +113,7 @@ void Star::Update(double dt)
             break;
 
         case State::Cooldown:
+            // Rest phase before being able to attack again
             timer -= dt;
             if (timer <= 0.0)
             {
@@ -127,6 +134,7 @@ void Star::Draw([[maybe_unused]] const Math::TransformationMatrix& camera_matrix
     auto showCollision = Engine::GetGameStateManager().GetGSComponent<CS230::ShowCollision>();
     bool isDebug       = (showCollision && showCollision->Enabled());
 
+    // Draw debug proximity circles
     if (isDebug)
     {
         Math::TransformationMatrix detTransform = Math::TranslationMatrix(GetPosition()) * Math::ScaleMatrix({ detectionRadius * 2.0, detectionRadius * 2.0 });
@@ -141,6 +149,7 @@ void Star::Draw([[maybe_unused]] const Math::TransformationMatrix& camera_matrix
         renderer.DrawCircle(rangeTransform, CS200::CLEAR, 0x808080FF, 1.0);
     }
 
+    // Telegraph the attack path visually during the Warning state
     if (currentState == State::Warning && player != nullptr)
     {
         CS200::RGBA lineColor;
@@ -155,6 +164,7 @@ void Star::Draw([[maybe_unused]] const Math::TransformationMatrix& camera_matrix
 
         std::vector<Physics::LineSegment> allSegments;
 
+        // Collect all reflective geometry in the scene for accurate laser path prediction
         Shield* shield = player->GetShield();
         if (shield && shield->IsGuardUp())
         {
@@ -206,6 +216,7 @@ void Star::Draw([[maybe_unused]] const Math::TransformationMatrix& camera_matrix
 
         Math::vec2 dir = (player->GetPosition() - GetPosition()).Normalize();
 
+        // Perform raycasting to simulate bounces and render the anticipated trajectory
         auto path = Physics::CalculateLaserPath(GetPosition(), dir, allSegments, 2, 15000.0);
 
         for (const auto& seg : path)

@@ -6,6 +6,7 @@
 
 PushableMirror::PushableMirror(Math::vec2 in_start_pos, Math::vec2 in_size) : CS230::GameObject(in_start_pos), size(in_size)
 {
+    // Initialize collision boundary based on the provided size
     Math::irect collision_box{
         { static_cast<int>(-size.x / 2.0), static_cast<int>(-size.y / 2.0) },
         {  static_cast<int>(size.x / 2.0),  static_cast<int>(size.y / 2.0) }
@@ -15,16 +16,19 @@ PushableMirror::PushableMirror(Math::vec2 in_start_pos, Math::vec2 in_size) : CS
 
 void PushableMirror::Update(double dt)
 {
+    // Apply continuous gravity to keep the mirror grounded
     velocityY -= gravity * dt;
 
     Math::vec2 vel = GetVelocity();
+
+    // Apply friction to smoothly decelerate horizontal movement after being pushed
     if (std::abs(vel.x) > 0.1)
     {
         vel.x -= vel.x * friction * dt;
     }
     else
     {
-        vel.x = 0.0;
+        vel.x = 0.0; // Complete stop to prevent micro-drifting
     }
 
     SetVelocity({ vel.x, velocityY });
@@ -37,8 +41,10 @@ void PushableMirror::Draw(const Math::TransformationMatrix& camera_matrix)
     auto&                      renderer  = Engine::GetRenderer2D();
     Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix(size);
 
+    // Draw the main body of the pushable block
     renderer.DrawRectangle(transform, 0x00FFFF80, CS200::WHITE, 2.0);
 
+    // Calculate and draw the diagonal reflective surface inside the block
     Math::vec2 half = size * 0.5;
     Math::vec2 p1   = { -half.x, half.y };
     Math::vec2 p2   = { half.x, -half.y };
@@ -79,12 +85,14 @@ void PushableMirror::ResolveCollision(CS230::GameObject* other_object)
 
 void PushableMirror::Push(Math::vec2 pushVelocity)
 {
+    // Apply horizontal impulse from the player
     Math::vec2 currentVel = GetVelocity();
     SetVelocity({ pushVelocity.x, currentVel.y });
 }
 
 std::vector<std::pair<Math::vec2, Math::vec2>> PushableMirror::GetSegments() const
 {
+    // Export the diagonal line in world coordinates for the physics raycaster
     Math::vec2 pos  = GetPosition();
     Math::vec2 half = size * 0.5;
 

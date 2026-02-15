@@ -32,6 +32,7 @@ private:
     Player*                  player;
     std::vector<TargetStar*> targets;
 
+    // Stores the calculated path of the laser after multiple bounces
     struct BeamSegment
     {
         Math::vec2  p1, p2;
@@ -40,6 +41,9 @@ private:
 
     std::vector<BeamSegment> beams;
 
+    // Laser calculations only occur on the first frame it spawns
     bool   isCalculated = false;
+
+    // Duration the laser remains visible on screen
     double lifeTime     = 0.2;
 };

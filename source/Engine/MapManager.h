@@ -18,6 +18,8 @@ namespace CS230
 {
     class Map;
 
+    // Component responsible for managing multiple levels (Maps), handling transitions,
+    // and storing global map data such as collision polygons for the MiniMap.
     class MapManager : public Component
     {
     public:
@@ -31,6 +33,7 @@ namespace CS230
         void LoadMap();
         void Unload();
 
+        // Progressively processes map loading to prevent blocking the main thread
         void Update([[maybe_unused]] double dt) override;
         Map* GetCurrentMap();
 
@@ -47,16 +50,21 @@ namespace CS230
     private:
         std::vector<Map*>    maps;
         int                  currentMapIndex;
-        std::vector<Polygon> miniMapPolygons;
+        std::vector<Polygon> miniMapPolygons;   // Aggregated geometry for UI rendering
     };
 
+    // Represents a single playable level parsed from an SVG file.
+    // Handles the conversion of 2D vector graphic paths into physical game geometry.
     class Map : public Component
     {
     public:
         Map(const std::string& filename);
         ~Map();
 
+        // Opens the file stream for the SVG map asset
         void OpenSVG();
+
+        // Iteratively reads and parses SVG tags, generating terrain and entities
         void ParseSVG();
 
         bool IsLevelLoaded() const
@@ -65,6 +73,7 @@ namespace CS230
         }
 
     private:
+        // Parses the "d" attribute of an SVG <path> into a list of 2D vertices
         std::vector<Math::vec2> parsePathData(const std::string& pathData);
 
         std::ifstream map_file;
@@ -73,6 +82,7 @@ namespace CS230
         char          currentCommand = '\0';
         std::string   currentTagBuffer;
 
+        // Precompiled regular expressions for extracting SVG attributes
         std::regex pathRegex;
         std::regex gIdRegex;
         std::regex transformRegex;
@@ -84,11 +94,14 @@ namespace CS230
         std::regex gEndTagRegex;
         std::regex svgEndTagRegex;
 
+        // SVG Group (<g>) transform states applied to child paths
         Math::vec2  translate       = { 0, 0 };
         float       rotateAngle     = 0;
         Math::vec2  rotatetranslate = { 0, 0 };
         Math::vec2  scale           = { 1.0f, 1.0f };
         std::string fillColor       = "#00000000";
+
+        // Parsing state flags
         bool        IsinG           = false;
         bool        IsTranslate     = false;
         bool        IsRotate        = false;

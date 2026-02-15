@@ -1,8 +1,18 @@
 #include "Mode1.hpp"
 #include "Bonfire.hpp"
+#include "Door.hpp"
+#include "MainMenu.hpp"
+#include "MiniMap.hpp"
+#include "Player.hpp"
+#include "PushableMirror.hpp"
+#include "Sign.hpp"
+#include "Star.hpp"
+#include "TargetStar.hpp"
+#include "WorldTextManager.hpp"
+
 #include "CS200/IRenderer2D.hpp"
 #include "CS200/NDC.hpp"
-#include "Door.hpp"
+
 #include "Engine/Engine.hpp"
 #include "Engine/Font.hpp"
 #include "Engine/GameObjectManager.hpp"
@@ -13,17 +23,15 @@
 #include "Engine/ShowCollision.hpp"
 #include "Engine/TextureManager.hpp"
 #include "Engine/Window.hpp"
-#include "MainMenu.hpp"
-#include "MiniMap.hpp"
-#include "Player.hpp"
-#include "PushableMirror.hpp"
-#include "Sign.hpp"
-#include "Star.hpp"
-#include "TargetStar.hpp"
-#include "WorldTextManager.hpp"
+
+#include "OpenGL/GL.hpp"
+
 #include <algorithm>
+#include <filesystem>
 #include <imgui.h>
+#include <span>
 #include <string>
+#include <vector>
 
 void Mode1::Load()
 {
@@ -56,8 +64,26 @@ void Mode1::Load()
     mapManager->LoadMap();
     AddGSComponent(mapManager);
 
-    textureLayer1_Atmosphere = Engine::GetTextureManager().Load("Assets/textures/layer1_atmosphere.png");
-    textureLayer2_Trees      = Engine::GetTextureManager().Load("Assets/textures/layer2_trees.png");
+    backgroundShader = OpenGL::CreateShader(std::filesystem::path("Assets/shaders/Cradle.vart"), std::filesystem::path("Assets/shaders/Cradle.frag"));
+
+
+    // Create Full Screen Quad (NDC coordinates: -1 to 1)
+    std::vector<float> quadVertices = { -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 1.0f };
+
+
+    backgroundVBO = OpenGL::CreateBuffer(OpenGL::BufferType::Vertices, std::as_bytes(std::span{ quadVertices }));
+
+    OpenGL::VertexBuffer vb;
+    vb.Handle = backgroundVBO;
+    vb.Layout = OpenGL::BufferLayout(
+        {
+            OpenGL::Attribute::Float2, // Location 0: aPos
+            OpenGL::Attribute::Float2  // Location 1: aTexCoord
+        });
+
+    backgroundVAO = OpenGL::CreateVertexArrayObject({ vb });
+
+    // [Removed] textureLayer2_Trees loading
     // textureLayer3_Silhouette = Engine::GetTextureManager().Load("Assets/textures/layer3_silhouette.png");
 
     miniMap = new MiniMap();
@@ -147,7 +173,6 @@ void Mode1::InitGame()
     gom->Add(new Sign({ 800.0, platformY2 + 12.5 }, signSize, "Press 'F' at Bonfire to Save"));
     gom->Add(new Sign({ 1100.0, platformY + 12.5 }, signSize, "Press 'R' to Respawn"));
     gom->Add(new Sign({ 1900.0, platformY2 + 12.5 }, signSize, "Press LShift to Dash"));
-    gom->Add(new Sign({ 2700.0, platformY + 12.5 }, signSize, "Hold 'LShift' to Sprint"));
     gom->Add(new Sign({ 4500.0, platformY + 12.5 }, signSize, "Hold RMB: Shield (Reflects Light)"));
     gom->Add(new Sign({ 5000.0, platformY + 12.5 }, signSize, "Reflect Light to Hit the Star!"));
     gom->Add(new Sign({ 5900.0, platformY + 12.5 }, signSize, "Red Lasers Hurt! Parry with Timed Block!"));
@@ -169,6 +194,9 @@ void Mode1::InitGame()
 void Mode1::Update(double dt)
 {
     UpdateGSComponents(dt);
+
+    // Update shader time
+    shaderTime += dt;
 
     // Transition from loading to gameplay once assets are ready
     if (currentState == State::Loading)
@@ -257,55 +285,33 @@ void Mode1::Draw()
 
     Engine::GetWindow().Clear(CS200::BLACK);
 
-    Math::vec2 camPos  = camera->GetPosition();
-    Math::vec2 winSize = static_cast<Math::vec2>(display_size_int);
-
-    // Render parallax background
-    auto DrawParallaxLayer = [&](std::shared_ptr<CS230::Texture> texture, float parallaxSpeedX, float scale, float offsetX, float offsetY)
+    // Draw Shader Background
     {
-        if (texture)
-        {
-            Math::TransformationMatrix screenMatrix = CS200::build_ndc_matrix(display_size_int);
-            renderer.BeginScene(screenMatrix);
+        GL::UseProgram(backgroundShader.Shader);
 
-            Math::vec2 texSize = static_cast<Math::vec2>(texture->GetSize());
+        GLint resLoc  = GL::GetUniformLocation(backgroundShader.Shader, "u_resolution");
+        GLint timeLoc = GL::GetUniformLocation(backgroundShader.Shader, "u_time");
 
-            double baseScale = winSize.y / texSize.y;
+        // u_resolution
+        GL::Uniform2f(resLoc, static_cast<float>(display_size_int.x), static_cast<float>(display_size_int.y));
 
-            double finalScale = baseScale * static_cast<double>(scale);
-            double worldW     = texSize.x * finalScale;
-            double worldH     = texSize.y * finalScale;
+        // u_time
+        GL::Uniform1f(timeLoc, static_cast<float>(shaderTime));
 
-            double u_offset  = (camPos.x * static_cast<double>(parallaxSpeedX) - static_cast<double>(offsetX)) / worldW;
-            double uv_height = 1.0 / static_cast<double>(scale);
-            double v_offset  = (1.0 - uv_height) * 0.5 - (static_cast<double>(offsetY) / worldH);
+        GL::BindVertexArray(backgroundVAO);
+        GL::DrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        GL::BindVertexArray(0);
+        GL::UseProgram(0);
+    }
 
-            double uv_width = winSize.x / worldW;
-
-            Math::vec2 uv_bl = { u_offset, v_offset };
-            Math::vec2 uv_tr = { u_offset + uv_width, v_offset + uv_height };
-
-            Math::vec2                 centerPos   = { winSize.x * 0.5, winSize.y * 0.5 };
-            Math::TransformationMatrix bgTransform = Math::TranslationMatrix(centerPos) * Math::ScaleMatrix(winSize);
-
-            renderer.DrawQuad(bgTransform, texture->GetHandle(), uv_bl, uv_tr, CS200::WHITE);
-
-            renderer.EndScene();
-        }
-    };
-
-    // Multi-layered parallax background rendering
-    DrawParallaxLayer(textureLayer1_Atmosphere, 0.05f, 1.0f, 0.0f, 0.0f);
-    DrawParallaxLayer(textureLayer2_Trees, 0.2f, 1.5f, -500.0f, 20.0f);
+    // Math::vec2 camPos  = camera->GetPosition();
+    // Math::vec2 winSize = static_cast<Math::vec2>(display_size_int);
 
     // Main world rendering pass
     Math::TransformationMatrix view_projection_matrix = CS200::build_ndc_matrix(display_size_int) * camera->GetMatrix();
     renderer.BeginScene(view_projection_matrix);
     GetGSComponent<CS230::GameObjectManager>()->DrawAll(view_projection_matrix);
     renderer.EndScene();
-
-    // Foreground parallax layer
-    DrawParallaxLayer(textureLayer3_Silhouette, 0.5f, 1.2f, 0.0f, 50.0f);
 
     // HUD / Screen-space UI rendering
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
@@ -327,10 +333,7 @@ void Mode1::Draw()
 
         std::string  countText = "Stars: " + std::to_string(hitCount) + " / " + std::to_string(targetStars.size());
         CS230::Font& font      = Engine::GetFont(0);
-
-        int         hitCountInt   = static_cast<int>(hitCount);
-        int         targetSizeInt = static_cast<int>(targetStars.size());
-        CS200::RGBA textColor     = (hitCountInt == targetSizeInt) ? 0x00FF00FF : CS200::WHITE;
+        CS200::RGBA  textColor = (hitCount == static_cast<int>(targetStars.size())) ? 0x00FF00FF : CS200::WHITE;
 
         auto textTex = font.PrintToTexture(countText, textColor);
         if (textTex)
@@ -376,14 +379,17 @@ void Mode1::DrawImGui()
 
 void Mode1::Unload()
 {
+    // Cleanup shader resources
+    OpenGL::DestroyShader(backgroundShader);
+    GL::DeleteVertexArrays(1, &backgroundVAO);
+    GL::DeleteBuffers(1, &backgroundVBO);
+
     ClearGSComponents();
     player           = nullptr;
     mapManager       = nullptr;
     worldTextManager = nullptr;
     targetStars.clear();
 
-    textureLayer1_Atmosphere = nullptr;
-    textureLayer2_Trees      = nullptr;
     textureLayer3_Silhouette = nullptr;
 
     delete miniMap;

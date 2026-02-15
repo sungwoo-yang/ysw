@@ -15,9 +15,11 @@
 
 namespace
 {
+    // Utility for smooth color interpolation (Easing)
     template <typename FLOAT = double>
     void ease_color_to_target(std::array<float, 4>& current, const std::array<float, 4>& target, FLOAT delta_time, FLOAT weight = 1.0)
     {
+        // Vector arithmetic lambdas for color channels
         auto subtract = [](const std::array<float, 4>& a, const std::array<float, 4>& b) -> std::array<float, 4>
         {
             return { a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3] };
@@ -36,6 +38,7 @@ namespace
             return a;
         };
 
+        // Apply easing factor
         const auto easing = std::min(delta_time * weight, static_cast<FLOAT>(1.0));
         add_assign(current, multiply(easing, subtract(target, current)));
     }
@@ -56,11 +59,13 @@ Shield::Shield(CS230::GameObject* in_owner) : owner(in_owner), shieldHitTimer(1.
 
 void Shield::HandleInput([[maybe_unused]] double dt)
 {
+    // Prevent usage if shield is temporarily disabled due to failed parry
     if (isShieldFrozen)
         return;
 
     auto& input = Engine::GetInput();
 
+    // Coordinate conversion: Screen Space -> OpenGL Space -> World Space
     Math::vec2  mouseScreenPos = input.GetMousePosition();
     Math::ivec2 winSize        = Engine::GetWindow().GetSize();
 
@@ -71,11 +76,13 @@ void Shield::HandleInput([[maybe_unused]] double dt)
 
     Math::vec2 mouseWorldPos = cameraBottomLeft + mouseGLPos;
 
+    // Calculate angle pointing from player to the mouse cursor
     Math::vec2 dir = mouseWorldPos - owner->GetPosition();
     shieldAngle    = std::atan2(dir.y, dir.x);
 
     bool rightClick = input.MouseButtonDown(CS230::Input::MouseButton::Right);
 
+    // Toggle guard state
     if (rightClick)
     {
         if (cooldownTimer <= 0.0 && !isShieldFrozen)
@@ -88,11 +95,12 @@ void Shield::HandleInput([[maybe_unused]] double dt)
         if (isGuarding)
         {
             isGuarding    = false;
-            cooldownTimer = shieldCooldown;
+            cooldownTimer = shieldCooldown; // Apply cooldown after releasing
             Engine::GetLogger().LogDebug("Shield Lowered. Cooldown started.");
         }
     }
 
+    // Capture precise click for parrying
     if (input.MouseButtonJustPressed(CS230::Input::MouseButton::Right))
     {
         if (parryWindowActive)
@@ -104,6 +112,7 @@ void Shield::HandleInput([[maybe_unused]] double dt)
 
 void Shield::TryParry()
 {
+    // Register player's attempt to parry within the valid frame window
     if (parryWindowActive && !isShieldFrozen)
     {
         isParrying = true;
@@ -113,6 +122,7 @@ void Shield::TryParry()
 
 bool Shield::ConsumeParryState()
 {
+    // Evaluates if the shield successfully entered the parry state and clears it
     if (isParrying)
     {
         isParrying = false;
@@ -130,6 +140,7 @@ void Shield::Update(double dt)
 {
     UpdatePosition();
 
+    // Process general cooldown
     if (cooldownTimer > 0.0)
     {
         cooldownTimer -= dt;
@@ -137,6 +148,7 @@ void Shield::Update(double dt)
             cooldownTimer = 0.0;
     }
 
+    // Process penalty freeze timer
     if (isShieldFrozen)
     {
         shieldFrozenTimer += dt;
@@ -156,6 +168,7 @@ void Shield::Update(double dt)
 
     UpdateShieldColor(dt);
 
+    // Reset parry flag if the window closes without being consumed
     if (!parryWindowActive)
     {
         isParrying = false;
@@ -164,16 +177,19 @@ void Shield::Update(double dt)
 
 void Shield::UpdatePosition()
 {
+    // Cache previous position for continuous collision detection (CCD) simulation
     prevShieldStart = shieldStart;
     prevShieldEnd   = shieldEnd;
 
     const Math::vec2 ownerPos = owner->GetPosition();
 
+    // Derive central pivot point using trig
     double dirX = std::cos(shieldAngle);
     double dirY = std::sin(shieldAngle);
 
     shieldCenter = ownerPos + Math::vec2{ dirX * orbitRadius, dirY * orbitRadius };
 
+    // Find orthogonal vector to create the shield line
     double tanX = -dirY;
     double tanY = dirX;
 
@@ -185,6 +201,7 @@ void Shield::UpdatePosition()
 
 void Shield::Draw(CS200::IRenderer2D& renderer, [[maybe_unused]] const Math::TransformationMatrix& camera_matrix) const
 {
+    // Render shield line if it's currently active or frozen (punished state visualization)
     if (isShieldFrozen || IsGuardUp())
     {
         renderer.DrawLine(shieldStart, shieldEnd, shieldColor, 3.0);
@@ -195,6 +212,7 @@ void Shield::HandleHit(bool parrySuccess)
 {
     if (parrySuccess)
     {
+        // Successful parry bypasses all penalties
         isShieldFrozen    = false;
         shieldFrozenTimer = 0.0;
         isGuarding        = false;
@@ -204,6 +222,7 @@ void Shield::HandleHit(bool parrySuccess)
     }
     else
     {
+        // Failed block on red laser results in a red flash and temporary lockdown
         targetShieldColor = CS200::unpack_color(CS200::RED);
         shieldHitTimer    = 0.0;
         Engine::GetLogger().LogEvent("Shield hit by RED laser!");
@@ -214,9 +233,13 @@ std::vector<std::pair<Math::vec2, Math::vec2>> Shield::GetSegments() const
 {
     std::vector<std::pair<Math::vec2, Math::vec2>> segments;
 
+    // Add current frame segment
     segments.push_back({ shieldStart, shieldEnd });
+
+    // Add previous frame segment
     segments.push_back({ prevShieldStart, prevShieldEnd });
 
+    // Add interpolated middle segment to prevent fast lasers from clipping through
     Math::vec2 midStart = (shieldStart + prevShieldStart) * 0.5;
     Math::vec2 midEnd   = (shieldEnd + prevShieldEnd) * 0.5;
     segments.push_back({ midStart, midEnd });
@@ -226,6 +249,7 @@ std::vector<std::pair<Math::vec2, Math::vec2>> Shield::GetSegments() const
 
 void Shield::UpdateShieldColor(double dt)
 {
+    // Checks if the shield is currently flashing red from a hit
     bool isTargetRed = (targetShieldColor[0] > 0.9f && targetShieldColor[1] < 0.1f && targetShieldColor[2] < 0.1f);
 
     if (isTargetRed)
@@ -233,6 +257,7 @@ void Shield::UpdateShieldColor(double dt)
         shieldHitTimer += dt;
         if (shieldHitTimer >= shieldColorRecoveryTime)
         {
+            // Revert target color back to standard Cyan after recovery
             targetShieldColor = CS200::unpack_color(CS200::CYAN);
         }
     }
@@ -244,6 +269,8 @@ void Shield::UpdateShieldColor(double dt)
             targetShieldColor = CS200::unpack_color(CS200::CYAN);
         }
     }
+    
+    // Apply smooth interpolation
     ease_color_to_target(currentShieldColor, targetShieldColor, dt, 5.0);
     shieldColor = CS200::pack_color(currentShieldColor);
 }

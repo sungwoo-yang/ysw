@@ -7,7 +7,6 @@
 class Sign : public CS230::GameObject
 {
 public:
-    // Initialize sign object
     Sign(Math::vec2 in_start_pos, Math::vec2 in_size, std::string in_msg);
 
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
@@ -22,7 +21,7 @@ public:
         return "Sign";
     }
 
-    // Handle player interaction
+    // Called when the player gets close and presses the interaction key
     void Interact(CS230::GameObject* interactor) override;
 
 private:
