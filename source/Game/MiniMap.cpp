@@ -158,8 +158,8 @@ void MiniMap::UpdateFogVisibility()
             if (y >= 0 && y < fogRows && x >= 0 && x < fogCols)
             {
                 // Use squared distance instead of sqrt
-                int dx     = x - centerX;
-                int dy     = y - centerY;
+                int dx = x - centerX;
+                int dy = y - centerY;
 
                 // Reveal fog if within vision
                 int distSq = (dx * dx) + (dy * dy);
@@ -331,13 +331,14 @@ void MiniMap::DrawCameraFrustum(ImDrawList* draw_list, const ImVec2& canvas_min,
     ImVec2      canvas_size = ImVec2(canvas_max.x - canvas_min.x, canvas_max.y - canvas_min.y);
     Math::vec2  camPos      = camera->GetPosition();
     Math::ivec2 winSize     = Engine::GetWindow().GetSize();
-    Math::vec2  camSize     = { (double)winSize.x, (double)winSize.y };
+    Math::vec2  camSize     = { static_cast<float>(winSize.x), static_cast<float>(winSize.y) };
 
     Math::vec2 tl = WorldToMapCanvas({ camPos.x, camPos.y + camSize.y }, canvas_size);
     Math::vec2 br = WorldToMapCanvas({ camPos.x + camSize.x, camPos.y }, canvas_size);
 
     draw_list->AddRect(
-        ImVec2(canvas_min.x + (float)tl.x, canvas_min.y + (float)tl.y), ImVec2(canvas_min.x + (float)br.x, canvas_min.y + (float)br.y), IM_COL32(255, 255, 0, 220), 2.0f, 0, style.cameraLineWidth);
+        ImVec2(canvas_min.x + static_cast<float>(tl.x), canvas_min.y + static_cast<float>(tl.y)), ImVec2(canvas_min.x + static_cast<float>(br.x), canvas_min.y + static_cast<float>(br.y)),
+        IM_COL32(255, 255, 0, 220), 2.0f, 0, style.cameraLineWidth);
 }
 
 void MiniMap::DrawPlayerMarker(ImDrawList* draw_list, const ImVec2& canvas_min, const ImVec2& canvas_max) const
@@ -347,7 +348,7 @@ void MiniMap::DrawPlayerMarker(ImDrawList* draw_list, const ImVec2& canvas_min, 
     ImVec2     canvas_size = ImVec2(canvas_max.x - canvas_min.x, canvas_max.y - canvas_min.y);
     Math::vec2 pos         = WorldToMapCanvas(player->GetPosition(), canvas_size);
 
-    draw_list->AddCircleFilled(ImVec2(canvas_min.x + (float)pos.x, canvas_min.y + (float)pos.y), style.playerMarkerRadius, IM_COL32(0, 220, 130, 255));
+    draw_list->AddCircleFilled(ImVec2(canvas_min.x + static_cast<float> pos.x, canvas_min.y + static_cast<float> pos.y), style.playerMarkerRadius, IM_COL32(0, 220, 130, 255));
 }
 
 void MiniMap::DrawTerrainPolygons(ImDrawList* draw_list, const ImVec2& canvas_min, const ImVec2& canvas_max) const
@@ -366,7 +367,8 @@ void MiniMap::DrawTerrainPolygons(ImDrawList* draw_list, const ImVec2& canvas_mi
             Math::vec2 p2 = WorldToMapCanvas(poly.vertices[(i + 1) % poly.vertices.size()], canvas_size);
 
             draw_list->AddLine(
-                ImVec2(canvas_min.x + (float)p1.x, canvas_min.y + (float)p1.y), ImVec2(canvas_min.x + (float)p2.x, canvas_min.y + (float)p2.y), IM_COL32(120, 200, 255, 190), style.terrainLineWidth);
+                ImVec2(canvas_min.x + static_cast<float>(p1.x), canvas_min.y + static_cast<float>(p1.y)), ImVec2(canvas_min.x + static_cast<float>(p2.x), canvas_min.y + static_cast<float>(p2.y)),
+                IM_COL32(120, 200, 255, 190), style.terrainLineWidth);
         }
     }
 }
@@ -395,8 +397,8 @@ void MiniMap::DrawGameObjects(ImDrawList* draw_list, const ImVec2& canvas_min, c
         }
 
         Math::vec2 pos = WorldToMapCanvas(obj->GetPosition(), canvas_size);
-        float      px  = canvas_min.x + (float)pos.x;
-        float      py  = canvas_min.y + (float)pos.y;
+        float      px  = canvas_min.x + static_cast<float>(pos.x);
+        float      py  = canvas_min.y + static_cast<float>(pos.y);
 
         if (px < canvas_min.x || px > canvas_max.x || py < canvas_min.y || py > canvas_max.y)
             continue;
@@ -438,10 +440,10 @@ void MiniMap::DrawFog(ImDrawList* draw_list, const ImVec2& canvas_min, const ImV
             Math::vec2 p1 = WorldToMapCanvas({ wx1, wy1 }, canvas_size);
             Math::vec2 p2 = WorldToMapCanvas({ wx2, wy2 }, canvas_size);
 
-            float minX = canvas_min.x + (float)std::min(p1.x, p2.x);
-            float minY = canvas_min.y + (float)std::min(p1.y, p2.y);
-            float maxX = canvas_min.x + (float)std::max(p1.x, p2.x);
-            float maxY = canvas_min.y + (float)std::max(p1.y, p2.y);
+            float minX = canvas_min.x + static_cast<float>(std::min(p1.x, p2.x));
+            float minY = canvas_min.y + static_cast<float>(std::min(p1.y, p2.y));
+            float maxX = canvas_min.x + static_cast<float>(std::max(p1.x, p2.x));
+            float maxY = canvas_min.y + static_cast<float>(std::max(p1.y, p2.y));
 
             if (maxX < canvas_min.x || minX > canvas_max.x || maxY < canvas_min.y || minY > canvas_max.y)
                 continue;

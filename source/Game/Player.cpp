@@ -196,12 +196,12 @@ void Player::UpdateProceduralAnimation(double dt)
     // 1. Parameters
     int face = faceRight ? 1 : -1;
 
-    float nearMulSpan = 1.18f;
-    float farMulSpan  = 0.72f;
-    float nearLenMul  = 1.00f;
-    float farLenMul   = 0.92f;
-    float nearYOffset = -2.0f;
-    float farYOffset  = +4.0f;
+    double nearMulSpan = 1.18;
+    double farMulSpan  = 0.72;
+    double nearLenMul  = 1.00;
+    double farLenMul   = 0.92;
+    double nearYOffset = -2.0;
+    double farYOffset  = 4.0;
 
     double currentShoulderSpan = 10.0;
     double currentHipSpan      = 8.0;

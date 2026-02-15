@@ -29,7 +29,7 @@ struct MiniMapStyle
     float      terrainLineWidth   = 1.2f;
 
     bool  enableFog    = true;     
-    float fogTileSize  = 50.0f;    
+    double fogTileSize  = 50.0;    
     float visionRadius = 400.0f;   
     float fogOpacity   = 1.0f;
 };

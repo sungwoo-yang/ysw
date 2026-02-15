@@ -30,7 +30,7 @@ namespace
 }
 
 YellowLaser::YellowLaser(Math::vec2 in_startPos, Math::vec2 in_direction, Player* in_player, const std::vector<TargetStar*>& in_targets)
-    : CS230::GameObject(in_startPos), start(in_startPos), dir(in_direction.Normalize()), player(in_player), targets(in_targets), lifeTime(0.5)
+    : CS230::GameObject(in_startPos), startPos(in_startPos), currentDir(in_direction.Normalize()), player(in_player), targets(in_targets)
 {
 }
 

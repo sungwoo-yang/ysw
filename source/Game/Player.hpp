@@ -125,8 +125,8 @@ private:
     // Half height of collision box (80.0 / 2.0)
     const double collisionHalfHeight = 40.0;
 
-    Shield*         shieldComponent;
-    Skeleton*       skeleton = nullptr;
+    Shield*         shieldComponent = nullptr;
+    Skeleton*       skeleton        = nullptr;
     AnimationEditor animEditor;
 
     Bone* bHips       = nullptr;
@@ -156,10 +156,6 @@ private:
 
     Math::vec2 startPosition;
     Math::vec2 previousPosition;
-
-    Shield*         shieldComponent = nullptr;
-    Skeleton*       skeleton        = nullptr;
-    AnimationEditor animEditor;
 
     double       jumpBufferTimer = 0.0;
     double       coyoteTimer     = 0.0;
