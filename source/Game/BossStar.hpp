@@ -7,6 +7,7 @@
 class Player;
 class TargetStar;
 
+// BossStar class manages the boss's AI behavior and laser attacks
 class BossStar : public CS230::GameObject
 {
 public:
@@ -27,7 +28,7 @@ public:
     }
 
 private:
-    // Boss states
+    // AI State Machine for managing attack cycles
     enum class State
     {
         Idle,
@@ -35,6 +36,7 @@ private:
         Cooldown
     };
 
+    // Toggle between different laser mechanics
     enum class NextLaser
     {
         Red,
@@ -47,8 +49,9 @@ private:
     Player*                  player;
     std::vector<TargetStar*> targets;
 
-    double timer;
+    double timer; // Universal timer for state transitions
 
+    // Combat balancing parameters
     static constexpr double detectionRadius  = 800.0;
     static constexpr double detectionRadiusSq = detectionRadius * detectionRadius;
     static constexpr double warningDuration  = 1.5;

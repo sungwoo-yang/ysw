@@ -8,13 +8,12 @@
 class Gate : public CS230::GameObject
 {
 public:
-    // Initialize gate
     Gate(Math::vec2 in_position, Math::vec2 in_size);
 
     void Update(double dt) override;
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
 
-    // Check collision state
+    // Check if player can pass through based on current state
     bool CanCollideWith(GameObjectTypes other_object_type) override;
 
     [[nodiscard]] GameObjectTypes Type() override
@@ -27,11 +26,9 @@ public:
         return "Gate";
     }
 
-    // Gate State Control
+    // State management methods
     void Open();
     void Close();
-
-    // Check if gate is open
     [[nodiscard]] bool IsOpen() const
     {
         return isOpen;

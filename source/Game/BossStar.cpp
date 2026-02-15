@@ -29,6 +29,7 @@ void BossStar::Update(double dt)
     switch (currentState)
     {
         case State::Idle:
+            // Switch to Warning if player enters detection range
             if (distanceSq <= detectionRadius)
             {
                 currentState = State::Warning;
@@ -49,10 +50,11 @@ void BossStar::Update(double dt)
             timer -= dt;
             if (timer <= 0.0)
             {
+                // Timer finished: Fire Laser
                 Math::vec2 dir = (player->GetPosition() - GetPosition()).Normalize();
                 auto       gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
 
-                // Fire corresponding laser
+                // Alternate laser type after each fire
                 if (nextLaserType == NextLaser::Red)
                 {
                     gom->Add(new RedLaser(GetPosition(), dir, player, targets));
@@ -95,7 +97,6 @@ void BossStar::Draw(const Math::TransformationMatrix& camera_matrix)
 {
     auto& renderer = Engine::GetRenderer2D();
 
-    // Determine boss color based on next laser
     CS200::RGBA bossColor;
     if (nextLaserType == NextLaser::Red)
         bossColor = 0xFF0000FF;
@@ -105,7 +106,7 @@ void BossStar::Draw(const Math::TransformationMatrix& camera_matrix)
     Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix({ size, size });
     renderer.DrawCircle(transform, bossColor);
 
-    // Draw laser trajectory warning
+    // Render Trajectory Warning: Calculates laser path including reflections
     if (currentState == State::Warning && player != nullptr)
     {
         CS200::RGBA lineColor = bossColor;
@@ -115,6 +116,7 @@ void BossStar::Draw(const Math::TransformationMatrix& camera_matrix)
 
         std::vector<Physics::LineSegment> allSegments;
 
+        // Collect all reflective surfaces (Player Shield, Mirrors, Walls, Closed Gates)
         allSegments.reserve(64);
 
         Shield* shield = player->GetShield();

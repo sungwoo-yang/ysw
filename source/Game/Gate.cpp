@@ -6,7 +6,7 @@
 
 Gate::Gate(Math::vec2 in_position, Math::vec2 in_size) : CS230::GameObject(in_position), size(in_size), isOpen(false), color(0xFF00FFFF)
 {
-    // Initialize collision box
+    // Initial state is closed with a collision box
     Math::irect collision_box{
         { static_cast<int>(-size.x / 2.0), static_cast<int>(-size.y / 2.0) },
         {  static_cast<int>(size.x / 2.0),  static_cast<int>(size.y / 2.0) }
@@ -22,7 +22,7 @@ void Gate::Update(double dt)
 
 void Gate::Draw(const Math::TransformationMatrix& camera_matrix)
 {
-    // Draw only when closed
+    // Visuals are only rendered when the gate is closed
     if (!isOpen)
     {
         auto&                      renderer  = Engine::GetRenderer2D();
@@ -34,7 +34,7 @@ void Gate::Draw(const Math::TransformationMatrix& camera_matrix)
 
 bool Gate::CanCollideWith(GameObjectTypes other_object_type)
 {
-    // Ignore all collisions if open
+    // Disable collision logic if the gate is open
     if (isOpen)
         return false;
 
@@ -47,7 +47,7 @@ bool Gate::CanCollideWith(GameObjectTypes other_object_type)
 
 void Gate::Open()
 {
-    // Remove collision box
+    // Change state and remove collision to allow passage
     if (!isOpen)
     {
         isOpen = true;
@@ -58,7 +58,7 @@ void Gate::Open()
 
 void Gate::Close()
 {
-    // Restore collision box
+    // Re-enable state and restore collision to block passage
     if (isOpen)
     {
         isOpen = false;

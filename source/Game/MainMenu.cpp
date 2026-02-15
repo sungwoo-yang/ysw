@@ -14,12 +14,15 @@
 
 void MainMenu::Load()
 {
+    // Clear the background to a dark color on entry
     Engine::GetWindow().Clear(0x111111FF);
     Engine::GetLogger().LogEvent("Main Menu Loaded");
 
+    // Fetch fonts for title and UI text rendering
     CS230::Font& titleFont = Engine::GetFont(0);
     CS230::Font& menuFont  = Engine::GetFont(1);
 
+    // Render static strings into textures for efficient drawing
     titleTexture    = titleFont.PrintToTexture("Ollim", CS200::CYAN);
     startTexture    = menuFont.PrintToTexture("Start Game", CS200::WHITE);
     settingsTexture = menuFont.PrintToTexture("Settings", CS200::WHITE);
@@ -39,10 +42,13 @@ void MainMenu::Load()
     labelResolution   = menuFont.PrintToTexture("Resolution", CS200::GREY);
     labelMode         = menuFont.PrintToTexture("Window Mode", CS200::GREY);
 
+    // Calculate initial positions for all UI rectangles
     SetupButtons();
 
+    // Synchronize the UI state with current engine settings
     auto& settings  = CS230::SettingsManager::Instance().GetSettings();
     pendingResIndex = (settings.resolutionX == 1600) ? 0 : 1;
+
     if (settings.fullscreen)
         pendingMode = WindowMode::Fullscreen;
     else if (settings.borderless)
@@ -53,6 +59,7 @@ void MainMenu::Load()
 
 void MainMenu::SetupButtons()
 {
+    // Determine screen center for layout calculations
     Math::ivec2 winSize = Engine::GetWindow().GetSize();
     double      centerX = static_cast<double>(winSize.x) * 0.5;
     double      centerY = static_cast<double>(winSize.y) * 0.5;
@@ -60,6 +67,7 @@ void MainMenu::SetupButtons()
     double mainStartY = centerY - 50.0;
     double gap        = 70.0;
 
+    // Define hitboxes for the main menu stack
     if (startTexture)
     {
         Math::ivec2 size = startTexture->GetSize();
@@ -85,6 +93,7 @@ void MainMenu::SetupButtons()
         };
     }
 
+    // Define positions for top settings tabs
     double tabY   = static_cast<double>(winSize.y) - 80.0;
     double tabGap = 200.0;
 
@@ -114,6 +123,7 @@ void MainMenu::SetupButtons()
         };
     }
 
+    // Grid layout for display options
     double dispLeftX  = centerX - 250.0;
     double dispRightX = centerX + 100.0;
     double dispY      = centerY + 50.0;
@@ -155,7 +165,7 @@ void MainMenu::SetupButtons()
         };
     }
 
-    // Pre-allocate memory for buttons
+    // Clear and build the dynamic list for key binding buttons
     keyBindButtons.clear();
     keyBindButtons.reserve(static_cast<size_t>(CS230::GameAction::Count));
 
@@ -165,7 +175,6 @@ void MainMenu::SetupButtons()
     double listStartY = tabY - 100.0;
     double rowHeight  = 45.0;
 
-    // Generate key binding list
     for (int i = 0; i < static_cast<int>(CS230::GameAction::Count); ++i)
     {
         CS230::GameAction action  = static_cast<CS230::GameAction>(i);
@@ -192,6 +201,7 @@ void MainMenu::SetupButtons()
 
 void MainMenu::Update([[maybe_unused]] double dt)
 {
+    // Route update logic based on current menu layer
     if (currentState == MenuState::Main)
         UpdateMainMenu(dt);
     else
@@ -204,20 +214,21 @@ void MainMenu::UpdateMainMenu([[maybe_unused]] double dt)
     Math::ivec2 winSize  = Engine::GetWindow().GetSize();
     Math::vec2  mousePos = input.GetMousePosition();
 
-    // Invert mouse Y coordinate
+    // Flip Y coordinate as input is top-left but UI layout is often bottom-left
     mousePos.y = static_cast<double>(winSize.y) - mousePos.y;
 
-    // Check if mouse is hovering
+    // Helper lambda to check if mouse coordinate is inside a rectangle
     auto CheckHover = [&](const Math::rect& rect)
     {
         return mousePos.x >= rect.Left() && mousePos.x <= rect.Right() && mousePos.y >= rect.Bottom() && mousePos.y <= rect.Top();
     };
 
+    // Update hovering status for highlighting
     isStartHovered    = CheckHover(startButtonRect);
     isSettingsHovered = CheckHover(settingsButtonRect);
     isExitHovered     = CheckHover(exitButtonRect);
 
-    // Handle button clicks
+    // Handle clicks for each button
     if (input.MouseButtonJustPressed(CS230::Input::MouseButton::Left))
     {
         if (isStartHovered)
@@ -246,19 +257,24 @@ void MainMenu::UpdateSettingsMenu(double)
     auto&       input    = Engine::GetInput();
     Math::ivec2 winSize  = Engine::GetWindow().GetSize();
     Math::vec2  mousePos = input.GetMousePosition();
-    mousePos.y           = static_cast<double>(winSize.y) - mousePos.y;
 
+    // Adjust mouse Y for internal coordinate consistency
+    mousePos.y = static_cast<double>(winSize.y) - mousePos.y;
+
+    // Local helper to detect mouse clicks within a specific UI rectangle
     auto CheckClick = [&](const Math::rect& rect)
     {
         return input.MouseButtonJustPressed(CS230::Input::MouseButton::Left) && mousePos.x >= rect.Left() && mousePos.x <= rect.Right() && mousePos.y >= rect.Bottom() && mousePos.y <= rect.Top();
     };
 
+    // If the menu is waiting for a key press (rebinding), bypass normal menu clicks
     if (isWaitingForKey)
     {
         UpdateControlsTab();
         return;
     }
 
+    // Tab switching logic
     if (CheckClick(tabDisplayRect))
     {
         Engine::GetLogger().LogEvent("Switched to Display Tab");
@@ -271,6 +287,7 @@ void MainMenu::UpdateSettingsMenu(double)
         SetupButtons();
     }
 
+    // Save settings and return to main menu when 'Back' is clicked
     if (CheckClick(backRect))
     {
         Engine::GetLogger().LogEvent("Back to Main Menu");
@@ -279,6 +296,7 @@ void MainMenu::UpdateSettingsMenu(double)
         CS230::InputMapper::Instance().SaveBindings();
     }
 
+    // Route logic to the active settings tab
     if (currentTab == SettingsTab::Display)
     {
         UpdateDisplayTab();
@@ -301,11 +319,13 @@ void MainMenu::UpdateDisplayTab()
         return input.MouseButtonJustPressed(CS230::Input::MouseButton::Left) && mousePos.x >= rect.Left() && mousePos.x <= rect.Right() && mousePos.y >= rect.Bottom() && mousePos.y <= rect.Top();
     };
 
+    // Resolution selection (Pending state)
     if (CheckClick(res1600Rect))
         pendingResIndex = 0;
     if (CheckClick(res1280Rect))
         pendingResIndex = 1;
 
+    // Window mode selection (Pending state)
     if (CheckClick(windowedRect))
         pendingMode = WindowMode::Windowed;
     if (CheckClick(borderlessRect))
@@ -313,13 +333,14 @@ void MainMenu::UpdateDisplayTab()
     if (CheckClick(fullscreenRect))
         pendingMode = WindowMode::Fullscreen;
 
+    // Apply the selected settings to the actual engine system
     if (CheckClick(applyRect))
     {
         Engine::GetLogger().LogEvent("Applying Display Settings...");
         auto& settingsMgr = CS230::SettingsManager::Instance();
         settingsMgr.SetResolution(resolutions[pendingResIndex].x, resolutions[pendingResIndex].y);
         settingsMgr.SetWindowMode(pendingMode == WindowMode::Fullscreen, pendingMode == WindowMode::Borderless);
-        SetupButtons();
+        SetupButtons(); // Re-center UI elements for the new resolution
     }
 }
 
@@ -328,6 +349,7 @@ void MainMenu::UpdateControlsTab()
     auto& input  = Engine::GetInput();
     auto& mapper = CS230::InputMapper::Instance();
 
+    // Logic to capture the next key press for rebinding
     if (isWaitingForKey)
     {
         if (input.KeyJustPressed(CS230::Input::Keys::Escape))
@@ -338,6 +360,7 @@ void MainMenu::UpdateControlsTab()
             return;
         }
 
+        // Iterate through all possible keys to see which one was pressed
         for (int i = 0; i < static_cast<int>(CS230::Input::Keys::Count); ++i)
         {
             CS230::Input::Keys key = static_cast<CS230::Input::Keys>(i);
@@ -347,7 +370,7 @@ void MainMenu::UpdateControlsTab()
                 Engine::GetLogger().LogEvent("Key Binding Updated: " + mapper.GetBindingName(rebindAction));
                 isWaitingForKey = false;
                 rebindAction    = CS230::GameAction::Count;
-                SetupButtons();
+                SetupButtons(); // Refresh textures to show the new key name
                 break;
             }
         }
@@ -358,6 +381,7 @@ void MainMenu::UpdateControlsTab()
     Math::vec2  mousePos = input.GetMousePosition();
     mousePos.y           = static_cast<double>(winSize.y) - mousePos.y;
 
+    // Detect which action the user wants to rebind
     if (input.MouseButtonJustPressed(CS230::Input::MouseButton::Left))
     {
         for (const auto& btn : keyBindButtons)
@@ -379,6 +403,7 @@ void MainMenu::Draw()
     auto&       renderer = Engine::GetRenderer2D();
     Math::ivec2 winSize  = Engine::GetWindow().GetSize();
 
+    // Global UI projection setup
     renderer.BeginScene(CS200::build_ndc_matrix(winSize));
 
     if (currentState == MenuState::Main)
@@ -391,12 +416,14 @@ void MainMenu::Draw()
 
 void MainMenu::DrawMainMenu()
 {
+    // Draw scaled title text
     if (titleTexture)
     {
         Math::vec2 pos = { static_cast<double>(Engine::GetWindow().GetSize().x) * 0.5 - titleTexture->GetSize().x * 1.5, static_cast<double>(Engine::GetWindow().GetSize().y) * 0.5 + 150.0 };
         titleTexture->Draw(Math::TranslationMatrix(Math::vec2{ pos.x, pos.y }) * Math::ScaleMatrix({ 3.0, 3.0 }), CS200::CYAN);
     }
 
+    // Lambda to draw buttons with hover highlights
     auto DrawBtn = [&](std::shared_ptr<CS230::Texture> tex, Math::rect rect, bool hover)
     {
         if (tex)
@@ -416,12 +443,14 @@ void MainMenu::DrawSettingsMenu()
             tex->Draw(Math::TranslationMatrix(Math::vec2{ rect.point_1.x, rect.point_1.y }), isActive ? CS200::GREEN : CS200::GREY);
     };
 
+    // Render tab headers
     DrawTab(tabDisplayTexture, tabDisplayRect, currentTab == SettingsTab::Display);
     DrawTab(tabControlsTexture, tabControlsRect, currentTab == SettingsTab::Controls);
 
     if (backTexture)
         backTexture->Draw(Math::TranslationMatrix(Math::vec2{ backRect.point_1.x, backRect.point_1.y }), CS200::WHITE);
 
+    // Route rendering to the active settings tab content
     if (currentTab == SettingsTab::Display)
     {
         DrawDisplayTab();
@@ -440,12 +469,14 @@ void MainMenu::DrawDisplayTab()
             tex->Draw(Math::TranslationMatrix(Math::vec2{ rect.point_1.x, rect.point_1.y }), selected ? CS200::CYAN : CS200::GREY);
     };
 
+    // Render Resolution options
     if (labelResolution)
         labelResolution->Draw(Math::TranslationMatrix(Math::vec2{ res1600Rect.Left(), res1600Rect.Top() + 20.0 }), CS200::WHITE);
 
     DrawOption(res1600Texture, res1600Rect, pendingResIndex == 0);
     DrawOption(res1280Texture, res1280Rect, pendingResIndex == 1);
 
+    // Render Window Mode options
     if (labelMode)
         labelMode->Draw(Math::TranslationMatrix(Math::vec2{ windowedRect.Left(), windowedRect.Top() + 20.0 }), CS200::WHITE);
 
@@ -459,6 +490,7 @@ void MainMenu::DrawDisplayTab()
 
 void MainMenu::DrawControlsTab()
 {
+    // Render Window Mode options
     for (const auto& btn : keyBindButtons)
     {
         if (btn.nameTexture)
@@ -466,6 +498,7 @@ void MainMenu::DrawControlsTab()
             btn.nameTexture->Draw(Math::TranslationMatrix(Math::vec2{ btn.rect.Left(), btn.rect.Bottom() }), CS200::WHITE);
         }
 
+        // Show "Press Any Key..." if this specific action is being rebound
         if (isWaitingForKey && rebindAction == btn.action)
         {
             if (waitingTexture)
@@ -476,6 +509,7 @@ void MainMenu::DrawControlsTab()
         }
         else
         {
+            // Show the currently bound key
             if (btn.keyTexture)
             {
                 double x = btn.rect.Right() - btn.keyTexture->GetSize().x;
@@ -518,6 +552,7 @@ void MainMenu::DrawImGui()
     ImGui::Separator();
     ImGui::Text("Mouse Pos (Screen): (%.1f, %.1f)", Engine::GetInput().GetMousePosition().x, Engine::GetInput().GetMousePosition().y);
 
+    // Visual debugging of UI hitboxes
     static bool showDebugRects = false;
     ImGui::Checkbox("Show UI Rects", &showDebugRects);
 
@@ -551,16 +586,16 @@ void MainMenu::DrawImGui()
 void MainMenu::Unload()
 {
     Engine::GetLogger().LogEvent("Main Menu Unloaded");
+
+    // Explicitly release texture memory
     titleTexture.reset();
     startTexture.reset();
     settingsTexture.reset();
     exitTexture.reset();
-
     tabDisplayTexture.reset();
     tabControlsTexture.reset();
     backTexture.reset();
     waitingTexture.reset();
-
     res1600Texture.reset();
     res1280Texture.reset();
     windowedTexture.reset();

@@ -23,6 +23,7 @@ public:
     }
 
 private:
+    // UI states for switching between the title screen and settings
     enum class MenuState
     {
         Main,
@@ -38,13 +39,13 @@ private:
     void UpdateMainMenu(double dt);
     void DrawMainMenu();
 
-    // UI Textures
+    // Visual assets for menu text
     std::shared_ptr<CS230::Texture> titleTexture;
     std::shared_ptr<CS230::Texture> startTexture;
     std::shared_ptr<CS230::Texture> settingsTexture;
     std::shared_ptr<CS230::Texture> exitTexture;
 
-    // Button Rects
+    // Interactive button regions for mouse detection
     Math::rect startButtonRect;
     Math::rect settingsButtonRect;
     Math::rect exitButtonRect;
@@ -57,7 +58,7 @@ private:
     void DrawSettingsMenu();
     void SetupButtons();
 
-    // Tab UI
+    // Tab textures and their screen areas
     std::shared_ptr<CS230::Texture> tabDisplayTexture;
     std::shared_ptr<CS230::Texture> tabControlsTexture;
     std::shared_ptr<CS230::Texture> backTexture;
@@ -69,7 +70,7 @@ private:
     void UpdateDisplayTab();
     void DrawDisplayTab();
 
-    // Display Settings UI
+    // Display-specific textures (Resolutions, Modes)
     std::shared_ptr<CS230::Texture> res1600Texture;
     std::shared_ptr<CS230::Texture> res1280Texture;
     std::shared_ptr<CS230::Texture> windowedTexture;
@@ -102,7 +103,7 @@ private:
     void UpdateControlsTab();
     void DrawControlsTab();
 
-    // Key Bind Button Data
+    // Internal data structure for rendering the key binding list
     struct KeyBindButton
     {
         CS230::GameAction               action;
@@ -114,6 +115,7 @@ private:
 
     std::vector<KeyBindButton> keyBindButtons;
 
+    // State variables for the input remapping process
     CS230::GameAction               rebindAction    = CS230::GameAction::Count;
     bool                            isWaitingForKey = false;
     std::shared_ptr<CS230::Texture> waitingTexture;

@@ -19,7 +19,7 @@ public:
 
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
 
-    // Interact with Door
+    // Handles level transition interaction
     void Interact(CS230::GameObject* interactor) override;
 
 private:
