@@ -73,7 +73,7 @@ namespace
 }
 
 Player::Player(Math::vec2 in_start_pos)
-    : CS230::GameObject(in_start_pos), isJumping(true), velocityY(0.0), faceRight(true), startPosition(in_start_pos), previousPosition(in_start_pos), shieldComponent(nullptr),
+    : CS230::GameObject(in_start_pos), isJumping(true), velocityY(0.0), faceRight(true), shieldComponent(nullptr), startPosition(in_start_pos), previousPosition(in_start_pos),
       healthState(HealthState::Full), playerHp(5.0), maxPlayerHp(5.0), recoverDelayTimer(0.0), tookDamageThisFrame(false), invincibilityTimer(0.0)
 {
     shieldComponent = new Shield(this);

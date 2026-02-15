@@ -129,7 +129,7 @@ void MiniMap::ResizeFogGrid()
     fogCols = static_cast<int>(std::ceil(width / style.fogTileSize));
     fogRows = static_cast<int>(std::ceil(height / style.fogTileSize));
 
-    fogVisited.assign(fogRows, std::vector<bool>(fogCols, false));
+    fogVisited.assign(static_cast<size_t>(fogRows), std::vector<bool>(static_cast<size_t>(fogCols), false));
 }
 
 void MiniMap::UpdateFogVisibility()
@@ -148,7 +148,7 @@ void MiniMap::UpdateFogVisibility()
     int centerY = static_cast<int>((playerPos.y - worldBounds.Bottom()) / style.fogTileSize);
 
     // Cache squared radius for performance
-    int radiusGrid = static_cast<int>(std::ceil(style.visionRadius / style.fogTileSize));
+    int radiusGrid = static_cast<int>(std::ceil(static_cast<double>(style.visionRadius) / static_cast<double>(style.fogTileSize)));
     int radiusSq   = radiusGrid * radiusGrid;
 
     for (int y = centerY - radiusGrid; y <= centerY + radiusGrid; ++y)
@@ -165,7 +165,7 @@ void MiniMap::UpdateFogVisibility()
                 int distSq = (dx * dx) + (dy * dy);
                 if (distSq <= radiusSq)
                 {
-                    fogVisited[y][x] = true;
+                    fogVisited[static_cast<size_t>(y)][static_cast<size_t>(x)] = true;
                 }
             }
         }
@@ -212,8 +212,8 @@ void MiniMap::DrawImGui()
             if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
             {
                 ImVec2 delta = ImGui::GetIO().MouseDelta;
-                fullMapCamPos.x -= delta.x / fullMapScale;
-                fullMapCamPos.y += delta.y / fullMapScale;
+                fullMapCamPos.x -= static_cast<double>(delta.x) / fullMapScale;
+                fullMapCamPos.y += static_cast<double>(delta.y) / fullMapScale;
             }
         }
 
@@ -261,12 +261,12 @@ Math::vec2 MiniMap::WorldToMapCanvas(const Math::vec2& world_position, const str
         double u = relX / camSize.x;
         double v = relY / camSize.y;
 
-        return { u * canvas_size.x, (1.0 - v) * canvas_size.y };
+        return { u * static_cast<double>(canvas_size.x), (1.0 - v) * static_cast<double>(canvas_size.y) };
     }
     else
     {
-        double centerX = canvas_size.x * 0.5;
-        double centerY = canvas_size.y * 0.5;
+        double centerX = static_cast<double>(canvas_size.x) * 0.5;
+        double centerY = static_cast<double>(canvas_size.y) * 0.5;
 
         double dx = (world_position.x - fullMapCamPos.x) * fullMapScale;
         double dy = (world_position.y - fullMapCamPos.y) * fullMapScale;
@@ -348,7 +348,7 @@ void MiniMap::DrawPlayerMarker(ImDrawList* draw_list, const ImVec2& canvas_min, 
     ImVec2     canvas_size = ImVec2(canvas_max.x - canvas_min.x, canvas_max.y - canvas_min.y);
     Math::vec2 pos         = WorldToMapCanvas(player->GetPosition(), canvas_size);
 
-    draw_list->AddCircleFilled(ImVec2(canvas_min.x + static_cast<float> pos.x, canvas_min.y + static_cast<float> pos.y), style.playerMarkerRadius, IM_COL32(0, 220, 130, 255));
+    draw_list->AddCircleFilled(ImVec2(canvas_min.x + static_cast<float>(pos.x), canvas_min.y + static_cast<float>(pos.y)), style.playerMarkerRadius, IM_COL32(0, 220, 130, 255));
 }
 
 void MiniMap::DrawTerrainPolygons(ImDrawList* draw_list, const ImVec2& canvas_min, const ImVec2& canvas_max) const
@@ -391,7 +391,7 @@ void MiniMap::DrawGameObjects(ImDrawList* draw_list, const ImVec2& canvas_min, c
 
             if (gridY >= 0 && gridY < fogRows && gridX >= 0 && gridX < fogCols)
             {
-                if (!fogVisited[gridY][gridX])
+                if (!fogVisited[static_cast<size_t>(gridY)][static_cast<size_t>(gridX)])
                     continue;
             }
         }
@@ -429,7 +429,7 @@ void MiniMap::DrawFog(ImDrawList* draw_list, const ImVec2& canvas_min, const ImV
     {
         for (int x = 0; x < fogCols; ++x)
         {
-            if (fogVisited[y][x])
+            if (fogVisited[static_cast<size_t>(y)][static_cast<size_t>(x)])
                 continue;
 
             double wx1 = worldBounds.Left() + x * style.fogTileSize;
