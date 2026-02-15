@@ -2,9 +2,9 @@
 #include "Engine/Camera.hpp"
 #include "Engine/GameState.hpp"
 #include "Engine/Rect.hpp"
+#include "Engine/Texture.hpp"
 #include "MiniMap.hpp"
-#include "Engine/Texture.hpp" 
-#include <memory>            
+#include <memory>
 
 class Player;
 class WorldTextManager;
@@ -32,6 +32,7 @@ public:
     }
 
 private:
+    // Deferred initialization once the map is fully loaded
     void InitGame();
 
     enum class State
@@ -42,21 +43,25 @@ private:
 
     State currentState = State::Loading;
 
-    CS230::Camera* camera;
-    Player* player;
+    // Core scene components
+    CS230::Camera*     camera;
+    Player*            player;
     CS230::MapManager* mapManager;
-    WorldTextManager* worldTextManager;
-    Star* shooterStar;
-    Star* targetStar;
-    YellowLaser* yellowLaser;
-    MiniMap* miniMap;
+    WorldTextManager*  worldTextManager;
+    MiniMap*           miniMap;
 
+    // Gameplay objectives
+    std::vector<TargetStar*> targetStars;
+    Star*              shooterStar;
+    Star*              targetStar;
+    YellowLaser*       yellowLaser;
+
+    // Parallax background textures
     std::shared_ptr<CS230::Texture> textureLayer1_Atmosphere;
-    std::shared_ptr<CS230::Texture> textureLayer2_Trees; 
+    std::shared_ptr<CS230::Texture> textureLayer2_Trees;
     std::shared_ptr<CS230::Texture> textureLayer3_Silhouette;
 
-    std::vector<TargetStar*> targetStars;
-    
+    // Level spatial constraints
     Math::rect level1_boundary = {
         {  -500.f,  2000.f },
         { 10000.f, -2000.f }

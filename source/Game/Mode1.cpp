@@ -29,6 +29,7 @@ void Mode1::Load()
 {
     currentState = State::Loading;
 
+    // Initialize core game systems
     AddGSComponent(new CS230::GameObjectManager());
 #ifdef DEVELOPER_VERSION
     AddGSComponent(new CS230::ShowCollision());
@@ -39,6 +40,7 @@ void Mode1::Load()
             { 800, 600 }
     });
 
+    // Define camera bounds to match level geometry
     Math::ivec2 winSize = Engine::GetWindow().GetSize();
     camera->SetLimit(
         Math::irect{
@@ -48,6 +50,7 @@ void Mode1::Load()
 
     AddGSComponent(camera);
 
+    // Load level map from SVG data
     mapManager = new CS230::MapManager();
     mapManager->AddMap(new CS230::Map("Assets/maps/Tutorial.svg"));
     mapManager->LoadMap();
@@ -69,6 +72,7 @@ void Mode1::InitGame()
     worldTextManager->SetCamera(camera);
     AddGSComponent(worldTextManager);
 
+    // Create player and link to UI systems
     player = new Player({ 0.0, 800.0 });
     gom->Add(player);
 
@@ -83,8 +87,8 @@ void Mode1::InitGame()
     Math::ivec2 winSize = Engine::GetWindow().GetSize();
     camera->SetPosition(player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.5 });
 
+    // Populate level with interactive stars and targets
     targetStars.clear();
-
     targetStars.reserve(7);
 
     double t1_x = 4500.0;
@@ -133,6 +137,7 @@ void Mode1::InitGame()
     Star* yellowStar2 = new Star({ y2_x, y2_y }, player, targetStars, StarType::Yellow);
     gom->Add(yellowStar2);
 
+    // Tutorial signs to guide the player
     double     platformY  = 200;
     double     platformY2 = 500.0;
     Math::vec2 signSize   = { 50.0, 25.0 };
@@ -148,6 +153,7 @@ void Mode1::InitGame()
     gom->Add(new Sign({ 5900.0, platformY + 12.5 }, signSize, "Red Lasers Hurt! Parry with Timed Block!"));
     gom->Add(new Sign({ 7900.0, platformY + 12.5 }, signSize, "Door"));
 
+    // Placement of checkpoints (Bonfires)
     Math::vec2 bonfireSize = { 25.0, 25.0 };
     gom->Add(new Bonfire({ 900.0, platformY2 + 12.5 }, bonfireSize));
     gom->Add(new Bonfire({ 6000.0, platformY + 12.5 }, bonfireSize));
@@ -164,7 +170,7 @@ void Mode1::Update(double dt)
 {
     UpdateGSComponents(dt);
 
-    // Wait for map load
+    // Transition from loading to gameplay once assets are ready
     if (currentState == State::Loading)
     {
         if (mapManager->GetCurrentMap() && mapManager->GetCurrentMap()->IsLevelLoaded())
@@ -176,7 +182,7 @@ void Mode1::Update(double dt)
         return;
     }
 
-    // Toggle minimap
+    // Input handling for UI toggles
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::M))
     {
         if (miniMap)
@@ -189,12 +195,13 @@ void Mode1::Update(double dt)
     if (player != nullptr && player->interactionTarget == nullptr)
         player->isInteracting = false;
 
-    // Update camera target
+    // Smooth camera tracking of the player
     if (player != nullptr)
     {
         Math::vec2 winSize   = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
         Math::vec2 targetPos = player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.3 };
 
+        // Clamp camera position within level boundaries
         double minX = level1_boundary.Left();
         double maxX = level1_boundary.Right() - winSize.x;
 
@@ -206,11 +213,13 @@ void Mode1::Update(double dt)
         camera->SetPosition(targetPos);
     }
 
+    // Move to end
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
     {
         player->SetPosition({ 8000, 300 });
     }
 
+    // Scene transition back to main menu
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))
     {
         Engine::GetGameStateManager().Clear();
@@ -225,9 +234,9 @@ void Mode1::Draw()
     CS200::IRenderer2D& renderer         = Engine::GetRenderer2D();
     Math::ivec2         display_size_int = Engine::GetWindow().GetSize();
 
-    // Render loading screen
     if (currentState == State::Loading)
     {
+        // Simple loading screen draw logic
         Engine::GetWindow().Clear(CS200::BLACK);
         Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
         renderer.BeginScene(screen_matrix);
@@ -285,18 +294,20 @@ void Mode1::Draw()
         }
     };
 
+    // Multi-layered parallax background rendering
     DrawParallaxLayer(textureLayer1_Atmosphere, 0.05f, 1.0f, 0.0f, 0.0f);
     DrawParallaxLayer(textureLayer2_Trees, 0.2f, 1.5f, -500.0f, 20.0f);
 
-    // Draw game objects
+    // Main world rendering pass
     Math::TransformationMatrix view_projection_matrix = CS200::build_ndc_matrix(display_size_int) * camera->GetMatrix();
     renderer.BeginScene(view_projection_matrix);
     GetGSComponent<CS230::GameObjectManager>()->DrawAll(view_projection_matrix);
     renderer.EndScene();
 
+    // Foreground parallax layer
     DrawParallaxLayer(textureLayer3_Silhouette, 0.5f, 1.2f, 0.0f, 50.0f);
 
-    // Draw UI texts
+    // HUD / Screen-space UI rendering
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
     renderer.BeginScene(screen_matrix);
 

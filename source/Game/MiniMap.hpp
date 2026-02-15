@@ -7,6 +7,7 @@
 
 class Player;
 
+// Forward declarations to minimize header dependencies
 namespace CS230
 {
     class Camera;
@@ -28,10 +29,10 @@ struct MiniMapStyle
     bool       showTerrain        = true;
     float      terrainLineWidth   = 1.2f;
 
-    bool  enableFog    = true;     
-    double fogTileSize  = 50.0;    
-    float visionRadius = 400.0f;   
-    float fogOpacity   = 1.0f;
+    bool   enableFog    = true;
+    double fogTileSize  = 50.0;
+    float  visionRadius = 400.0f;
+    float  fogOpacity   = 1.0f;
 };
 
 enum class MiniMapMode
@@ -46,58 +47,63 @@ public:
     MiniMap();
 
     void Update(double dt);
+    void DrawImGui();
 
-    // Attach system components
-    void SetWorldBounds(Math::rect bounds);
+    // System attachment methods for data synchronization
     void AttachPlayer(Player* player_ptr);
     void AttachCamera(CS230::Camera* camera_ptr);
     void AttachMapManager(CS230::MapManager* map_manager_ptr);
     void AttachGameObjectManager(CS230::GameObjectManager* gom_ptr);
 
+    void SetWorldBounds(Math::rect bounds);
     void SetStyle(const MiniMapStyle& style_config);
     void SetWindowTitle(std::string title_text);
-    void SetVisible(bool enabled);
 
-    [[nodiscard]] bool IsVisible() const;
-
+    // Visibility and mode control logic
+    void        SetVisible(bool enabled);
+    bool        IsVisible() const;
     void        SetMode(MiniMapMode new_mode);
-    [[nodiscard]] MiniMapMode GetMode() const;
+    MiniMapMode GetMode() const;
     void        ToggleMode();
 
     void ResetFog();
-    void DrawImGui();
 
 private:
-    // World to Canvas Conversion
+    // Internal coordinate transformation: World Space -> UI Canvas Space
     Math::vec2 WorldToMapCanvas(const Math::vec2& world_position, const struct ImVec2& canvas_size) const;
-    
-    // Rendering Passes
+
+    // Layered rendering helper methods
     void DrawGrid(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
     void DrawLevelBounds(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
     void DrawCameraFrustum(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
     void DrawPlayerMarker(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
     void DrawTerrainPolygons(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
     void DrawGameObjects(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
-    
-    // Fog of War
-    void ResizeFogGrid();
-    void UpdateFogVisibility();
     void DrawFog(struct ImDrawList* draw_list, const struct ImVec2& canvas_min, const struct ImVec2& canvas_max) const;
 
-    Math::rect                worldBounds;
-    MiniMapStyle              style;
-    std::string               windowTitle;
-    Player* player;
-    CS230::Camera* camera;
-    CS230::MapManager* mapManager;
-    CS230::GameObjectManager* gameObjectManager = nullptr;
-    bool                      visible;
+    // Fog of War management
+    void ResizeFogGrid();
+    void UpdateFogVisibility();
 
-    MiniMapMode currentMode   = MiniMapMode::Mini;
-    Math::vec2  fullMapCamPos = { 0.0, 0.0 };
-    double      fullMapScale  = 0.5;
-    
-    std::vector<std::vector<bool>> fogVisited; 
+    Math::rect  worldBounds;
+    std::string windowTitle;
+
+    // Pointers to required engine systems
+    Player*                   player;
+    CS230::Camera*            camera;
+    CS230::MapManager*        mapManager;
+    CS230::GameObjectManager* gameObjectManager = nullptr;
+
+    MiniMapStyle style;
+    MiniMapMode  currentMode = MiniMapMode::Mini;
+    bool         visible;
+
+    // Fog of war state tracking
+    std::vector<std::vector<bool>> fogVisited;
     int                            fogRows = 0;
     int                            fogCols = 0;
+
+    // Full map navigation state
+    Math::vec2 fullMapCamPos = { 0.0, 0.0 };
+    double     fullMapScale  = 0.5;
 };

@@ -27,6 +27,7 @@ MiniMap::MiniMap()
 }),
       windowTitle("Minimap"), player(nullptr), camera(nullptr), mapManager(nullptr), visible(true)
 {
+    // Initialize fog of war grid on creation
     ResetFog();
 }
 
@@ -35,6 +36,7 @@ void MiniMap::Update([[maybe_unused]] double dt)
     if (!visible || player == nullptr)
         return;
 
+    // Update fog of war based on player position if enabled
     if (style.enableFog)
     {
         UpdateFogVisibility();
@@ -44,6 +46,8 @@ void MiniMap::Update([[maybe_unused]] double dt)
 void MiniMap::SetWorldBounds(Math::rect bounds)
 {
     worldBounds = bounds;
+
+    // Recalculate fog grid dimensions to match new world boundaries
     if (style.enableFog)
     {
         ResizeFogGrid();
@@ -94,6 +98,8 @@ bool MiniMap::IsVisible() const
 void MiniMap::SetMode(MiniMapMode new_mode)
 {
     currentMode = new_mode;
+
+    // Capture player position as initial camera focus for full map view
     if (currentMode == MiniMapMode::Full && player != nullptr)
     {
         fullMapCamPos = player->GetPosition();
@@ -126,9 +132,11 @@ void MiniMap::ResizeFogGrid()
     if (width <= 0 || height <= 0)
         return;
 
+    // Calculate number of columns and rows for the fog visibility grid
     fogCols = static_cast<int>(std::ceil(width / style.fogTileSize));
     fogRows = static_cast<int>(std::ceil(height / style.fogTileSize));
 
+    // Re-initialize visibility state for the entire grid
     fogVisited.assign(static_cast<size_t>(fogRows), std::vector<bool>(static_cast<size_t>(fogCols), false));
 }
 
@@ -139,29 +147,29 @@ void MiniMap::UpdateFogVisibility()
 
     Math::vec2 playerPos = player->GetPosition();
 
-    // Skip if player is out of bounds
+    // Prevent grid access if player wanders out of defined level bounds
     if (playerPos.x < worldBounds.Left() || playerPos.x > worldBounds.Right() || playerPos.y < worldBounds.Bottom() || playerPos.y > worldBounds.Top())
         return;
 
-    // Calculate grid index
+    // Map world coordinates to grid indices
     int centerX = static_cast<int>((playerPos.x - worldBounds.Left()) / style.fogTileSize);
     int centerY = static_cast<int>((playerPos.y - worldBounds.Bottom()) / style.fogTileSize);
 
-    // Cache squared radius for performance
+    // Convert vision radius to grid units
     int radiusGrid = static_cast<int>(std::ceil(static_cast<double>(style.visionRadius) / static_cast<double>(style.fogTileSize)));
     int radiusSq   = radiusGrid * radiusGrid;
 
+    // Iterate through a local sub-grid around the player to reveal tiles
     for (int y = centerY - radiusGrid; y <= centerY + radiusGrid; ++y)
     {
         for (int x = centerX - radiusGrid; x <= centerX + radiusGrid; ++x)
         {
             if (y >= 0 && y < fogRows && x >= 0 && x < fogCols)
             {
-                // Use squared distance instead of sqrt
                 int dx = x - centerX;
                 int dy = y - centerY;
 
-                // Reveal fog if within vision
+                // Mark tile as visited if within the squared Euclidean distance
                 int distSq = (dx * dx) + (dy * dy);
                 if (distSq <= radiusSq)
                 {
@@ -177,12 +185,14 @@ void MiniMap::DrawImGui()
     if (!visible || player == nullptr || camera == nullptr)
         return;
 
+    // Remove default ImGui window decorations for a cleaner map appearance
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
 
     ImVec2 targetSize, targetPos;
     ImVec2 viewportPos  = ImGui::GetMainViewport()->Pos;
     ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
 
+    // Adjust UI size and position based on current view mode
     if (currentMode == MiniMapMode::Full)
     {
         targetSize = ImVec2(1280.0f, 720.0f);
@@ -204,6 +214,7 @@ void MiniMap::DrawImGui()
             canvas_min.x + (currentMode == MiniMapMode::Full ? 1280.0f : static_cast<float>(style.canvasSize.x)),
             canvas_min.y + (currentMode == MiniMapMode::Full ? 720.0f : static_cast<float>(style.canvasSize.y)));
 
+        // Enable map panning using mouse drag in Full mode
         if (currentMode == MiniMapMode::Full)
         {
             canvas_max = ImVec2(canvas_min.x + ImGui::GetContentRegionAvail().x, canvas_min.y + ImGui::GetContentRegionAvail().y);
@@ -219,17 +230,20 @@ void MiniMap::DrawImGui()
 
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
+        // Draw background and border
         draw_list->AddRectFilled(canvas_min, canvas_max, IM_COL32(18, 21, 29, 255));
         draw_list->AddRect(canvas_min, canvas_max, IM_COL32(255, 255, 255, 200), 4.0f, 0, 2.0f);
 
         draw_list->PushClipRect(canvas_min, canvas_max, true);
 
+        // Sequence of map layer rendering
         if (style.showGrid)
             DrawGrid(draw_list, canvas_min, canvas_max);
         DrawLevelBounds(draw_list, canvas_min, canvas_max);
         DrawTerrainPolygons(draw_list, canvas_min, canvas_max);
         DrawGameObjects(draw_list, canvas_min, canvas_max);
 
+        // Apply fog of war overlay in Full mode
         if (currentMode == MiniMapMode::Full && style.enableFog)
         {
             DrawFog(draw_list, canvas_min, canvas_max);
@@ -246,6 +260,7 @@ void MiniMap::DrawImGui()
 
 Math::vec2 MiniMap::WorldToMapCanvas(const Math::vec2& world_position, const struct ImVec2& canvas_size) const
 {
+    // Mode-specific coordinate conversion (Relative to player vs Fixed world)
     if (currentMode == MiniMapMode::Mini)
     {
         if (!camera)
@@ -284,6 +299,7 @@ void MiniMap::DrawGrid(ImDrawList* draw_list, const ImVec2& canvas_min, const Im
     const float height = canvas_max.y - canvas_min.y;
     const int   lines  = static_cast<int>(style.gridDivisions);
 
+    // Draw reference lines to provide scale to the minimap
     for (int i = 1; i < lines; ++i)
     {
         const float t = static_cast<float>(i) / static_cast<float>(lines);
@@ -336,6 +352,7 @@ void MiniMap::DrawCameraFrustum(ImDrawList* draw_list, const ImVec2& canvas_min,
     Math::vec2 tl = WorldToMapCanvas({ camPos.x, camPos.y + camSize.y }, canvas_size);
     Math::vec2 br = WorldToMapCanvas({ camPos.x + camSize.x, camPos.y }, canvas_size);
 
+    // Visualize the main game camera's view area on the map
     draw_list->AddRect(
         ImVec2(canvas_min.x + static_cast<float>(tl.x), canvas_min.y + static_cast<float>(tl.y)), ImVec2(canvas_min.x + static_cast<float>(br.x), canvas_min.y + static_cast<float>(br.y)),
         IM_COL32(255, 255, 0, 220), 2.0f, 0, style.cameraLineWidth);
@@ -357,6 +374,7 @@ void MiniMap::DrawTerrainPolygons(ImDrawList* draw_list, const ImVec2& canvas_mi
         return;
     ImVec2 canvas_size = ImVec2(canvas_max.x - canvas_min.x, canvas_max.y - canvas_min.y);
 
+    // Draw static map collision geometry as wireframes
     for (const auto& poly : mapManager->GetMiniMapPolygons())
     {
         if (poly.vertices.size() < 2)
@@ -381,9 +399,11 @@ void MiniMap::DrawGameObjects(ImDrawList* draw_list, const ImVec2& canvas_min, c
 
     for (CS230::GameObject* obj : gameObjectManager->GetObjects())
     {
+        // Exclude specific types from appearing on the map
         if (obj->Type() == GameObjectTypes::Player || obj->Type() == GameObjectTypes::Floor || obj->Type() == GameObjectTypes::Particle)
             continue;
 
+        // Skip rendering objects hidden by fog of war
         if (currentMode == MiniMapMode::Full && style.enableFog && !fogVisited.empty())
         {
             int gridX = static_cast<int>((obj->GetPosition().x - worldBounds.Left()) / style.fogTileSize);
@@ -403,6 +423,7 @@ void MiniMap::DrawGameObjects(ImDrawList* draw_list, const ImVec2& canvas_min, c
         if (px < canvas_min.x || px > canvas_max.x || py < canvas_min.y || py > canvas_max.y)
             continue;
 
+        // Represent different game object types with unique shapes/colors
         switch (obj->Type())
         {
             case GameObjectTypes::Bonfire: draw_list->AddTriangleFilled(ImVec2(px, py - 4), ImVec2(px - 4, py + 4), ImVec2(px + 4, py + 4), IM_COL32(255, 140, 0, 255)); break;
@@ -425,6 +446,7 @@ void MiniMap::DrawFog(ImDrawList* draw_list, const ImVec2& canvas_min, const ImV
     ImVec2 canvas_size = ImVec2(canvas_max.x - canvas_min.x, canvas_max.y - canvas_min.y);
     ImU32  fogColor    = IM_COL32(0, 0, 0, static_cast<int>(style.fogOpacity * 255.0f));
 
+    // Fill in unvisited grid cells with black overlay
     for (int y = 0; y < fogRows; ++y)
     {
         for (int x = 0; x < fogCols; ++x)

@@ -5,7 +5,7 @@
 
 Mirror::Mirror(Math::vec2 in_position, Math::vec2 in_size, float in_rotation) : CS230::GameObject(in_position, static_cast<double>(in_rotation), { 1.0, 1.0 }), size(in_size)
 {
-    // Set collision box
+    // Define a rectangle collision area based on the mirror dimensions
     Math::irect collision_box{
         { static_cast<int>(-size.x / 2.0), static_cast<int>(-size.y / 2.0) },
         {  static_cast<int>(size.x / 2.0),  static_cast<int>(size.y / 2.0) }
@@ -18,10 +18,10 @@ void Mirror::Draw(const Math::TransformationMatrix& camera_matrix)
     auto&                      renderer  = Engine::GetRenderer2D();
     Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix(size);
 
-    // Draw mirror base
+    // Render the structural base of the mirror
     renderer.DrawRectangle(transform, 0x00FFFF80, CS200::WHITE, 2.0);
 
-    // Draw reflective surface line
+    // Render a distinct line representing the reflective face
     Math::vec2 half = size * 0.5;
     Math::vec2 p1   = { -half.x, 0 };
     Math::vec2 p2   = { half.x, 0 };
@@ -39,7 +39,7 @@ Physics::LineSegment Mirror::GetReflectiveSegment()
     Math::vec2 p1   = { -half.x, 0.0 };
     Math::vec2 p2   = { half.x, 0.0 };
 
-    // Convert local to world coordinates
+    // Transform local segment endpoints into world space for laser intersection tests
     Math::vec2 worldP1 = mat * p1;
     Math::vec2 worldP2 = mat * p2;
 

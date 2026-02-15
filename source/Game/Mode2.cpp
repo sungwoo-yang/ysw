@@ -26,8 +26,7 @@ void Mode2::Load()
 
     AddGSComponent(new CS230::GameObjectManager());
 
-// Fixed typo for developer version macro
-#ifdef DEVERLOPER_VERSION
+#ifdef DEVELOPER_VERSION
     AddGSComponent(new CS230::ShowCollision());
 #endif
 
@@ -44,6 +43,7 @@ void Mode2::Load()
     });
     AddGSComponent(camera);
 
+    // Load boss-specific map geometry
     mapManager = new CS230::MapManager();
     mapManager->AddMap(new CS230::Map("Assets/maps/Boss.svg"));
     mapManager->LoadMap();
@@ -52,23 +52,26 @@ void Mode2::Load()
 
 void Mode2::InitGame()
 {
-    // Cache manager pointer
     auto gom = GetGSComponent<CS230::GameObjectManager>();
 
     player = new Player({ 0.0, 400.0 });
     gom->Add(player);
 
+    // Setup puzzle elements: hit the target using mirrors to unlock the path
     puzzleTarget = new TargetStar({ 500.0, 400.0 });
     gom->Add(puzzleTarget);
 
     std::vector<TargetStar*> targets     = { puzzleTarget };
     Star*                    laserSource = new Star({ 300.0, 600.0 }, player, targets, StarType::Yellow);
     gom->Add(laserSource);
+
+    // Fixed mirror for the puzzle
     Mirror* reflectMirror = new Mirror({ 800.0, 300.0 }, { 120.0, 10.0 }, -0.785398f);
     gom->Add(reflectMirror);
 
     std::vector<TargetStar*> bossTargets = { puzzleTarget };
 
+    // Final boss object
     BossStar* boss = new BossStar({ 1500.0, 600.0 }, player, bossTargets);
     gom->Add(boss);
 
@@ -91,14 +94,12 @@ void Mode2::Update(double dt)
         return;
     }
 
-    // Cache manager to prevent multiple lookups
     auto gom = GetGSComponent<CS230::GameObjectManager>();
 
-    // Update all objects and resolve collisions
     gom->UpdateAll(dt);
     gom->CollisionTest();
 
-    // Find gate reference once
+    // Logic to handle puzzle gate unlocking
     if (puzzleGate == nullptr)
     {
         for (auto obj : gom->GetObjects())
@@ -111,7 +112,7 @@ void Mode2::Update(double dt)
         }
     }
 
-    // Check puzzle target status
+    // Trigger gate opening if the puzzle target is activated by light
     if (puzzleTarget != nullptr && puzzleTarget->IsHit())
     {
         if (puzzleGate != nullptr && !puzzleGate->IsOpen())
@@ -139,6 +140,7 @@ void Mode2::Draw()
 
     if (currentState == State::Loading)
     {
+        // Draw boss stage loading text
         Engine::GetWindow().Clear(CS200::BLACK);
         Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
         renderer.BeginScene(screen_matrix);
@@ -160,11 +162,13 @@ void Mode2::Draw()
 
     Engine::GetWindow().Clear(0x202020FF);
 
+    // Standard game object rendering pass
     Math::TransformationMatrix view_projection_matrix = CS200::build_ndc_matrix(display_size_int) * camera->GetMatrix();
     renderer.BeginScene(view_projection_matrix);
     GetGSComponent<CS230::GameObjectManager>()->DrawAll(view_projection_matrix);
     renderer.EndScene();
 
+    // World text overlay (Sign contents, etc.)
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
     renderer.BeginScene(screen_matrix);
     if (worldTextManager != nullptr)

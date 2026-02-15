@@ -6,23 +6,21 @@
 class Mirror : public CS230::GameObject
 {
 public:
-    // Initialize mirror
     Mirror(Math::vec2 in_position, Math::vec2 in_size, float in_rotation = 0.0f);
-
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
 
-    // Get reflective physics segment
-    [[nodiscard]] Physics::LineSegment GetReflectiveSegment();
-
-    [[nodiscard]] GameObjectTypes Type() override
+    GameObjectTypes Type() override
     {
         return GameObjectTypes::Mirror;
     }
 
-    [[nodiscard]] std::string TypeName() override
+    std::string TypeName() override
     {
         return "Mirror";
     }
+
+    // Returns the world-space segment used for reflecting laser beams
+    Physics::LineSegment GetReflectiveSegment();
 
 private:
     Math::vec2 size;

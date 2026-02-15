@@ -38,16 +38,16 @@ private:
 
     State currentState = State::Loading;
 
-    CS230::Camera*     camera           = nullptr;
+    // Pointers for stage-specific logic and entities
     Player*            player           = nullptr;
+    CS230::Camera*     camera           = nullptr;
     CS230::MapManager* mapManager       = nullptr;
+    TargetStar*        puzzleTarget     = nullptr;
+    Gate*              puzzleGate       = nullptr;
     WorldTextManager*  worldTextManager = nullptr;
 
     Math::rect level_boundary = {
         {    0.0,    0.0 },
         { 2560.0, 1440.0 }
     };
-
-    Gate*       puzzleGate   = nullptr;
-    TargetStar* puzzleTarget     = nullptr;
 };
