@@ -1,3 +1,0 @@
-Animation: NewAnim
-Duration: 1
-Loop: true
