@@ -13,6 +13,7 @@
 #include "CS200/IRenderer2D.hpp"
 #include "CS200/NDC.hpp"
 
+#include "Engine/AudioManager.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/Font.hpp"
 #include "Engine/GameObjectManager.hpp"
@@ -88,6 +89,9 @@ void Mode1::Load()
 
     miniMap = new MiniMap();
     miniMap->SetWorldBounds(level1_boundary);
+
+    AudioManager::LoadSound("BGM_Virgo", "Assets/sounds/Virgo.mp3", AudioTypes::BGM);
+    AudioManager::LoadSound("SFX_Landing", "Assets/sounds/Landing_Effect.mp3", AudioTypes::SFX);
 }
 
 void Mode1::InitGame()
@@ -189,6 +193,8 @@ void Mode1::InitGame()
 
     PushableMirror* box = new PushableMirror({ 8500.0, 300.0 }, { 80.0, 80.0 });
     gom->Add(box);
+
+    AudioManager::Play("BGM_Virgo");
 }
 
 void Mode1::Update(double dt)
@@ -379,7 +385,8 @@ void Mode1::DrawImGui()
 
 void Mode1::Unload()
 {
-    // Cleanup shader resources
+    AudioManager::StopBGM();
+
     OpenGL::DestroyShader(backgroundShader);
     GL::DeleteVertexArrays(1, &backgroundVAO);
     GL::DeleteBuffers(1, &backgroundVBO);

@@ -177,4 +177,6 @@ private:
     // I-frames (Invincibility frames) after taking damage
     double       invincibilityTimer    = 0.0;
     const double invincibilityDuration = 1.0;
+
+    bool wasJumpingLastFrame = false;
 };

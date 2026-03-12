@@ -17,8 +17,11 @@ set(SOURCE_CODE
     CS200/RGBA.hpp
 
     Engine/Physics/Reflection.hpp Engine/Physics/Reflection.cpp
-    Engine/AnimationEditor.hpp Engine/AnimationEditor.cpp
     Engine/Animation.hpp Engine/Animation.cpp
+    Engine/AnimationEditor.hpp Engine/AnimationEditor.cpp
+    Engine/Audio.hpp Engine/Audio.cpp
+    Engine/AudioManager.hpp Engine/AudioManager.cpp
+    Engine/AudioTypes.hpp
     Engine/Camera.hpp Engine/Camera.cpp
     Engine/Collision.hpp Engine/Collision.cpp
     Engine/Component.hpp

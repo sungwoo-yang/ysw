@@ -1,11 +1,14 @@
 #include "Player.hpp"
 #include "CS200/IRenderer2D.hpp"
+
+#include "Engine/AudioManager.hpp"
 #include "Engine/Collision.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/GameObject.hpp"
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
+
 #include "PushableMirror.hpp"
 #include "Shield.hpp"
 #include "WorldTextManager.hpp"
@@ -152,6 +155,8 @@ void Player::Update(double dt)
 {
     interactionTarget = nullptr;
     previousPosition  = GetPosition();
+
+    wasJumpingLastFrame = isJumping;
 
     // Process invincibility timer
     if (invincibilityTimer > 0.0)
@@ -629,6 +634,12 @@ void Player::ResolveCollision(GameObject* other_object)
         // Resolve penetration by shifting player out of the overlapping axis
         if (velocityY <= 0 && was_above && horizontal_overlap)
         {
+            if (wasJumpingLastFrame)
+            {
+                AudioManager::Play("SFX_Landing");
+                wasJumpingLastFrame = false;
+            }
+
             // Landing on top of a surface
             SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
             velocityY   = 0.0;
