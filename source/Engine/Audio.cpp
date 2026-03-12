@@ -1,8 +1,18 @@
 #include "Audio.hpp"
+#include "Path.hpp"
 #include <iostream>
 
 Audio::Audio(const std::filesystem::path& filePath, AudioTypes audioType) : filepath(filePath.string()), type(audioType), sfx(nullptr), bgm(nullptr)
 {
+    try
+    {
+        this->filepath = assets::locate_asset(filePath).string();
+    }
+    catch (const std::exception& e)
+    {
+        this->filepath = filePath.string();
+    }
+
     if (type == AudioTypes::SFX)
     {
         // Load sound effect (support .wav, .ogg, etc.)
