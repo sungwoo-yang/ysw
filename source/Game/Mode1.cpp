@@ -90,8 +90,8 @@ void Mode1::Load()
     miniMap = new MiniMap();
     miniMap->SetWorldBounds(level1_boundary);
 
-    AudioManager::LoadSound("BGM_Virgo", "Assets/sounds/Virgo.mp3", AudioTypes::BGM);
-    AudioManager::LoadSound("SFX_Landing", "Assets/sounds/Landing_Effect.mp3", AudioTypes::SFX);
+    AudioManager::LoadSound("BGM_Virgo", std::filesystem::path("Assets/sounds/Virgo.wav"), AudioTypes::BGM);
+    AudioManager::LoadSound("SFX_Landing", std::filesystem::path("Assets/sounds/Landing_Effect.wav"), AudioTypes::SFX);
 }
 
 void Mode1::InitGame()

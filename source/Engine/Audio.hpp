@@ -1,12 +1,13 @@
 #pragma once
 #include "AudioTypes.hpp"
 #include <SDL2/SDL_mixer.h>
+#include <filesystem>
 #include <string>
 
 class Audio
 {
 public:
-    Audio(const std::string& filePath, AudioTypes audioType);
+    Audio(const std::filesystem::path& filePath, AudioTypes audioType);
     ~Audio();
 
     AudioTypes GetType() const

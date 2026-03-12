@@ -4,6 +4,12 @@
 
 void AudioManager::Initialize()
 {
+    int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
+    if ((Mix_Init(flags) & flags) != flags)
+    {
+        std::cerr << "[AudioManager Error] Mix_Init 실패: " << Mix_GetError() << std::endl;
+    }
+
     // Initialize with 44100Hz, default format, stereo (2 channels), and 2048 byte chunk size
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
     {
@@ -23,7 +29,7 @@ void AudioManager::Shutdown()
     Mix_CloseAudio();
 }
 
-void AudioManager::LoadSound(const std::string& name, const std::string& filePath, AudioTypes audioType)
+void AudioManager::LoadSound(const std::string& name, const std::filesystem::path& filePath, AudioTypes audioType)
 {
     // Prevent loading the same sound multiple times
     if (audioMap.find(name) != audioMap.end())

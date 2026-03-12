@@ -39,7 +39,12 @@ else()
         # on    Mac : brew install sdl2_mixer
         # on Ubuntu : apt install libsdl2-mixer-dev
         find_package(SDL2_mixer REQUIRED)
-        target_include_directories(the_sdl2_mixer SYSTEM INTERFACE ${SDL2_MIXER_INCLUDE_DIRS})
-        target_link_libraries(the_sdl2_mixer INTERFACE ${SDL2_MIXER_LIBRARIES})
+        
+        if(TARGET SDL2_mixer::SDL2_mixer)
+            target_link_libraries(the_sdl2_mixer INTERFACE SDL2_mixer::SDL2_mixer)
+        else()
+            target_include_directories(the_sdl2_mixer SYSTEM INTERFACE ${SDL2_MIXER_INCLUDE_DIRS})
+            target_link_libraries(the_sdl2_mixer INTERFACE ${SDL2_MIXER_LIBRARIES})
+        endif()
     endif()
 endif()

@@ -10,7 +10,7 @@ public:
     static void Shutdown();
 
     // Load and caches an audio file into the manager
-    static void LoadSound(const std::string& name, const std::string& filePath, AudioTypes audioType);
+    static void LoadSound(const std::string& name, const std::filesystem::path& filePath, AudioTypes audioType);
 
     // Plays the loaded sound by its assigned name
     static void Play(const std::string& name);

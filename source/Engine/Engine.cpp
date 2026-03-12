@@ -11,6 +11,8 @@
 #include "CS200/ImmediateRenderer2D.hpp"
 #include "CS200/NDC.hpp"
 #include "CS200/RenderingAPI.hpp"
+
+#include "AudioManager.hpp"
 #include "FPS.hpp"
 #include "Font.hpp"
 #include "GameState.hpp"
@@ -111,6 +113,7 @@ void Engine::Start(std::string_view window_title)
     impl->logger.LogEvent("Developer Build");
 #endif
     impl->window.Start(window_title);
+    AudioManager::Initialize();
     auto& window = impl->window;
 
     const auto window_size = window.GetSize();
@@ -127,6 +130,7 @@ void Engine::Stop()
 {
     impl->renderer2D.Shutdown();
     impl->gameStateManager.Clear();
+    AudioManager::Shutdown();
     ImGuiHelper::Shutdown();
     impl->logger.LogEvent("Engine Stopped");
 }

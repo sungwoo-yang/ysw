@@ -1,7 +1,7 @@
 #include "Audio.hpp"
 #include <iostream>
 
-Audio::Audio(const std::string& filePath, AudioTypes audioType) : filepath(filePath), type(audioType), sfx(nullptr), bgm(nullptr)
+Audio::Audio(const std::filesystem::path& filePath, AudioTypes audioType) : filepath(filePath.string()), type(audioType), sfx(nullptr), bgm(nullptr)
 {
     if (type == AudioTypes::SFX)
     {
@@ -26,11 +26,13 @@ Audio::Audio(const std::string& filePath, AudioTypes audioType) : filepath(fileP
 Audio::~Audio()
 {
     // Free audio memory to prevent memory leaks
-    if (sfx) {
+    if (sfx)
+    {
         Mix_FreeChunk(sfx);
         sfx = nullptr;
     }
-    if (bgm) {
+    if (bgm)
+    {
         Mix_FreeMusic(bgm);
         bgm = nullptr;
     }
