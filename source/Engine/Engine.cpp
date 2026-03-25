@@ -11,7 +11,6 @@
 #include "CS200/ImmediateRenderer2D.hpp"
 #include "CS200/NDC.hpp"
 #include "CS200/RenderingAPI.hpp"
-
 #include "AudioManager.hpp"
 #include "FPS.hpp"
 #include "Font.hpp"

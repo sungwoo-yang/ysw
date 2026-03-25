@@ -101,8 +101,8 @@ private:
     const double spineLenLower = 10.0; // Spine
     const double neckLen       = 3.0;
 
-    const double shoulderSpan = 18.0; // Narrower shoulders
-    const double hipSpan      = 12.0;
+    // const double shoulderSpan = 18.0;
+    // const double hipSpan      = 12.0;
 
     const double upperArmLen = 14.0;
     const double foreArmLen  = 14.0;
@@ -153,7 +153,7 @@ private:
     // Platforming assist timers (Game feel improvements)
     double       jumpBufferTimer = 0.0;
     double       coyoteTimer     = 0.0;
-    const double jumpBufferTime  = 0.1;
+    // const double jumpBufferTime  = 0.1;
     const double coyoteTime      = 0.1;
 
     // Health and damage system
@@ -178,5 +178,6 @@ private:
     double       invincibilityTimer    = 0.0;
     const double invincibilityDuration = 1.0;
 
+    // Landing Sounds
     bool wasJumpingLastFrame = false;
 };

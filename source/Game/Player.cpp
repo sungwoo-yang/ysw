@@ -156,6 +156,7 @@ void Player::Update(double dt)
     interactionTarget = nullptr;
     previousPosition  = GetPosition();
 
+    // Jumping State
     wasJumpingLastFrame = isJumping;
 
     // Process invincibility timer
@@ -634,11 +635,13 @@ void Player::ResolveCollision(GameObject* other_object)
         // Resolve penetration by shifting player out of the overlapping axis
         if (velocityY <= 0 && was_above && horizontal_overlap)
         {
+            // Landing Sounds
             if (wasJumpingLastFrame)
             {
                 AudioManager::Play("SFX_Landing");
                 wasJumpingLastFrame = false;
             }
+
 
             // Landing on top of a surface
             SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
@@ -878,15 +881,15 @@ void Player::DrawImGui()
         float      p[2] = { static_cast<float>(pos.x), static_cast<float>(pos.y) };
         if (ImGui::DragFloat2("Position", p))
         {
-            SetPosition({ p[0], p[1] });
+            SetPosition({ static_cast<double>(p[0]), static_cast<double>(p[1]) });
         }
 
         Math::vec2 vel  = GetVelocity();
         float      v[2] = { static_cast<float>(vel.x), static_cast<float>(vel.y) };
         if (ImGui::DragFloat2("Velocity", v))
         {
-            SetVelocity({ v[0], v[1] });
-            velocityY = v[1];
+            SetVelocity({ static_cast<double>(v[0]), static_cast<double>(v[1]) });
+            velocityY = static_cast<double>(v[1]);
         }
 
         ImGui::Separator();
