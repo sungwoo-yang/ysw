@@ -54,7 +54,7 @@ private:
     MiniMap*           miniMap;
 
     // Gameplay objectives
-    std::vector<TargetStar*> targetStars;
+    // std::vector<TargetStar*> targetStars;
     // Star*                    shooterStar;
     // Star*                    targetStar;
     // YellowLaser*             yellowLaser;

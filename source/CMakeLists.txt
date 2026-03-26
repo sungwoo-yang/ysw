@@ -64,6 +64,8 @@ set(SOURCE_CODE
     Game/BossStar.hpp Game/BossStar.cpp
     Game/Door.hpp Game/Door.cpp
     Game/Gate.hpp Game/Gate.cpp
+    Game/HostileStar.hpp Game/HostileStar.cpp
+    Game/Laser.hpp Game/Laser.cpp
     Game/MainMenu.hpp Game/MainMenu.cpp
     Game/MiniMap.hpp Game/MiniMap.cpp
     Game/Mirror.hpp Game/Mirror.cpp
@@ -71,12 +73,13 @@ set(SOURCE_CODE
     Game/Mode2.hpp Game/Mode2.cpp
     Game/Player.hpp Game/Player.cpp
     Game/PushableMirror.hpp Game/PushableMirror.cpp
+    Game/PuzzleStar.hpp Game/PuzzleStar.cpp
     Game/RedLaser.hpp Game/RedLaser.cpp
     Game/Shield.hpp Game/Shield.cpp
     Game/Sign.hpp Game/Sign.cpp
     Game/Splash.hpp Game/Splash.cpp
     Game/Star.hpp Game/Star.cpp
-    Game/TargetStar.hpp Game/TargetStar.cpp
+    Game/WhiteLaser.hpp Game/WhiteLaser.cpp
     Game/WorldTextManager.hpp Game/WorldTextManager.cpp
     Game/YellowLaser.hpp Game/YellowLaser.cpp
 

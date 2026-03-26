@@ -1,20 +1,12 @@
+// RedLaser.hpp
 #pragma once
-#include "CS200/RGBA.hpp"
-#include "Engine/GameObject.hpp"
-#include "Engine/GameObjectTypes.hpp"
-#include "Engine/Vec2.hpp"
-#include <vector>
+#include "Laser.hpp"
 
-class Player;
-class TargetStar;
-
-class RedLaser : public CS230::GameObject
+class RedLaser : public Laser
 {
 public:
-    RedLaser(Math::vec2 in_startPos, Math::vec2 in_direction, Player* in_player, const std::vector<TargetStar*>& in_targets);
-
+    RedLaser(Math::vec2 startPos, Math::vec2 dir, Player* player, const std::vector<TargetStar*>& targets);
     void Update(double dt) override;
-    void Draw(const Math::TransformationMatrix& camera_matrix) override;
 
     GameObjectTypes Type() override
     {
@@ -27,23 +19,6 @@ public:
     }
 
 private:
-    Math::vec2               start;
-    Math::vec2               dir;
-    Player*                  player;
-    std::vector<TargetStar*> targets;
-
-    // Stores the calculated path of the laser after multiple bounces
-    struct BeamSegment
-    {
-        Math::vec2  p1, p2;
-        CS200::RGBA color;
-    };
-
-    std::vector<BeamSegment> beams;
-
-    // Laser calculations only occur on the first frame it spawns
-    bool   isCalculated = false;
-
-    // Duration the laser remains visible on screen
-    double lifeTime     = 0.2;
+    bool   isCalculated   = false;
+    double visualLifeTime = 0.2; // 계산 후 화면에 0.2초만 그려짐
 };

@@ -1,21 +1,17 @@
 #pragma once
-#include "CS200/RGBA.hpp"
-#include "Engine/GameObject.hpp"
-#include "Engine/GameObjectTypes.hpp"
-#include <vector>
+#include "Engine/GameObjectTypes.hpp" // 누락 방지!
+#include "Star.hpp"
 
-class Player;
-class TargetStar;
-
-// BossStar class manages the boss's AI behavior and laser attacks
-class BossStar : public CS230::GameObject
+class BossStar : public Star
 {
 public:
-    BossStar(Math::vec2 in_position, Player* in_player, const std::vector<TargetStar*>& in_targets);
+    BossStar(Math::vec2 pos, Player* player, const std::vector<TargetStar*>& targets);
 
     void Update(double dt) override;
-    void Draw(const Math::TransformationMatrix& camera_matrix) override;
-    void TakeDamage(double damage);
+
+    // Star 부모 클래스의 순수 가상 함수 구현
+    void        OnWarningComplete() override;
+    CS200::RGBA GetTelegraphColor() const override;
 
     GameObjectTypes Type() override
     {
@@ -28,33 +24,7 @@ public:
     }
 
 private:
-    // AI State Machine for managing attack cycles
-    enum class State
-    {
-        Idle,
-        Warning,
-        Cooldown
-    };
+    int attackStep; // 0: Red, 1: Red, 2: Yellow 순서를 기억하는 카운터
 
-    // Toggle between different laser mechanics
-    enum class NextLaser
-    {
-        Red,
-        Yellow
-    };
-
-    State     currentState;
-    NextLaser nextLaserType;
-
-    Player*                  player;
-    std::vector<TargetStar*> targets;
-
-    double timer; // Universal timer for state transitions
-
-    // Combat balancing parameters
-    static constexpr double detectionRadius  = 800.0;
-    static constexpr double detectionRadiusSq = detectionRadius * detectionRadius;
-    static constexpr double warningDuration  = 1.5;
-    static constexpr double cooldownDuration = 5.0;
-    static constexpr double size             = 80.0;
+    const double parryWindowTime = 0.5; // 빨간색 레이저 발사 직전 패링 가능 시간
 };

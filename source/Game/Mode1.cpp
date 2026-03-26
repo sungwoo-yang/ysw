@@ -139,7 +139,7 @@ void Mode1::InitGame()
     Math::ivec2 winSize = Engine::GetWindow().GetSize();
     camera->SetPosition(player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.5 });
 
-    targetStars.clear();
+    // targetStars.clear();
 
     // double t1_x = 4500.0;
     // double t1_y = 750.0;
@@ -335,37 +335,7 @@ void Mode1::Draw()
 
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
     renderer.BeginScene(screen_matrix);
-
-    if (worldTextManager != nullptr)
-    {
-        worldTextManager->Draw();
-    }
-
-    if (!targetStars.empty())
-    {
-        int hitCount = 0;
-        for (auto* star : targetStars)
-        {
-            if (star && star->IsHit())
-                hitCount++;
-        }
-
-        std::string  countText = "Stars: " + std::to_string(hitCount) + " / " + std::to_string(targetStars.size());
-        CS230::Font& font      = Engine::GetFont(0);
-        CS200::RGBA  textColor = (hitCount == static_cast<int>(targetStars.size())) ? 0x00FF00FF : CS200::WHITE;
-
-        auto textTex = font.PrintToTexture(countText, textColor);
-        if (textTex)
-        {
-            Math::vec2                 scale     = { 0.8, 0.8 };
-            Math::ivec2                texSize   = textTex->GetSize();
-            double                     textWidth = texSize.x * scale.x;
-            Math::vec2                 drawPos   = { static_cast<double>(display_size_int.x) - textWidth - 20.0, static_cast<double>(display_size_int.y) - 50.0 };
-            Math::TransformationMatrix transform = Math::TranslationMatrix(drawPos) * Math::ScaleMatrix(scale);
-            textTex->Draw(transform);
-        }
-    }
-
+    
     renderer.EndScene();
 }
 
@@ -407,8 +377,7 @@ void Mode1::Unload()
     player           = nullptr;
     mapManager       = nullptr;
     worldTextManager = nullptr;
-    targetStars.clear();
-
+    
     // [Removed] textureLayer2_Trees cleanup
     textureLayer3_Silhouette = nullptr;
 

@@ -1,178 +1,72 @@
 #include "BossStar.hpp"
-#include "CS200/IRenderer2D.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/GameObjectManager.hpp"
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Logger.hpp"
-#include "Engine/MapElement.h"
-#include "Engine/Physics/Reflection.hpp"
-#include "Game/Gate.hpp"
-#include "Game/Mirror.hpp"
 #include "Player.hpp"
-#include "PushableMirror.hpp"
 #include "RedLaser.hpp"
 #include "Shield.hpp"
 #include "YellowLaser.hpp"
 
-BossStar::BossStar(Math::vec2 in_position, Player* in_player, const std::vector<TargetStar*>& in_targets)
-    : CS230::GameObject(in_position), currentState(State::Idle), nextLaserType(NextLaser::Yellow), player(in_player), targets(in_targets), timer(0.0)
+BossStar::BossStar(Math::vec2 pos, Player* in_player, const std::vector<TargetStar*>& in_targets) : Star(pos, in_player, in_targets), attackStep(0) // 첫 공격은 Red(0)부터 시작
 {
+    // 보스전의 템포에 맞게 조정 (기존 BossStar 밸런스 참고)
+    detectionRadius  = 800.0;
+    chaseRadius      = 1600.0; // 보스방에서는 플레이어를 끝까지 물고 늘어짐
+    warningDuration  = 1.5;
+    cooldownDuration = 3.0; // 패턴 사이의 간격
 }
 
 void BossStar::Update(double dt)
 {
-    if (player == nullptr)
-        return;
+    // 1. 부모의 기본 상태 머신(대기->경고->발사 대기) 실행
+    HandleBasicAI(dt);
 
-    double distanceSq = (player->GetPosition() - GetPosition()).LengthSquared();
-
-    switch (currentState)
+    // 2. 현재 쏠 레이저가 '빨간색(패링용)'이고, Warning 상태일 때 패링 윈도우 개방
+    if (attackStep < 2 && currentState == State::Warning)
     {
-        case State::Idle:
-            // Switch to Warning if player enters detection range
-            if (distanceSq <= detectionRadius)
-            {
-                currentState = State::Warning;
-                timer        = warningDuration;
-                Engine::GetLogger().LogEvent("Boss Detected Player! Charging Laser...");
-            }
-            break;
-
-        case State::Warning:
-            // Cancel charge if player escapes
-            if (distanceSq > detectionRadius * 2.25)
-            {
-                currentState = State::Idle;
-                timer        = 0.0;
-                return;
-            }
-
-            timer -= dt;
-            if (timer <= 0.0)
-            {
-                // Timer finished: Fire Laser
-                Math::vec2 dir = (player->GetPosition() - GetPosition()).Normalize();
-                auto       gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
-
-                // Alternate laser type after each fire
-                if (nextLaserType == NextLaser::Red)
-                {
-                    gom->Add(new RedLaser(GetPosition(), dir, player, targets));
-                    nextLaserType = NextLaser::Yellow;
-                    Engine::GetLogger().LogEvent("Boss Fired Red Laser!");
-                }
-                else
-                {
-                    gom->Add(new YellowLaser(GetPosition(), dir, player, targets));
-                    nextLaserType = NextLaser::Red;
-                    Engine::GetLogger().LogEvent("Boss Fired Yellow Laser!");
-                }
-
-                currentState = State::Cooldown;
-                timer        = cooldownDuration;
-            }
-            break;
-
-        case State::Cooldown:
-            timer -= dt;
-            if (timer <= 0.0)
-            {
-                if (distanceSq <= detectionRadius)
-                {
-                    currentState = State::Warning;
-                    timer        = warningDuration;
-                }
-                else
-                {
-                    currentState = State::Idle;
-                }
-            }
-            break;
+        Shield* shield = player->GetShield();
+        if (shield != nullptr)
+        {
+            if (timer <= parryWindowTime)
+                shield->SetParryWindowActive(true);
+            else
+                shield->SetParryWindowActive(false);
+        }
     }
 
     CS230::GameObject::Update(dt);
 }
 
-void BossStar::Draw(const Math::TransformationMatrix& camera_matrix)
+void BossStar::OnWarningComplete()
 {
-    auto& renderer = Engine::GetRenderer2D();
+    Math::vec2 dir = (player->GetPosition() - GetPosition()).Normalize();
+    auto       gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
 
-    CS200::RGBA bossColor;
-    if (nextLaserType == NextLaser::Red)
-        bossColor = 0xFF0000FF;
-    else
-        bossColor = 0xFFFF00FF;
-
-    Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix({ size, size });
-    renderer.DrawCircle(transform, bossColor);
-
-    // Render Trajectory Warning: Calculates laser path including reflections
-    if (currentState == State::Warning && player != nullptr)
+    if (attackStep < 2)
     {
-        CS200::RGBA lineColor = bossColor;
-        if (static_cast<int>(timer * 10) % 2 == 0)
-            lineColor = CS200::WHITE;
-        lineColor = (lineColor & 0xFFFFFF00) | 0x80;
-
-        std::vector<Physics::LineSegment> allSegments;
-
-        // Collect all reflective surfaces (Player Shield, Mirrors, Walls, Closed Gates)
-        allSegments.reserve(64);
-
-        Shield* shield = player->GetShield();
-        if (shield && shield->IsGuardUp())
-        {
-            auto segs = shield->GetSegments();
-            for (auto& s : segs)
-                allSegments.push_back({ s.first, s.second, true });
-        }
-
-        auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
-        if (gom != nullptr)
-        {
-            for (auto obj : gom->GetObjects())
-            {
-                if (obj->Type() == GameObjectTypes::Mirror)
-                {
-                    allSegments.push_back(static_cast<Mirror*>(obj)->GetReflectiveSegment());
-                }
-                else if (obj->Type() == GameObjectTypes::PushableMirror)
-                {
-                    auto mirror = static_cast<PushableMirror*>(obj);
-                    auto segs   = mirror->GetSegments();
-                    for (auto& s : segs)
-                        allSegments.push_back({ s.first, s.second, true });
-                }
-                else if (obj->Type() == GameObjectTypes::Floor)
-                {
-                    auto segs = static_cast<CS230::MapElement*>(obj)->GetWallSegments();
-                    allSegments.insert(allSegments.end(), segs.begin(), segs.end());
-                }
-                else if (obj->Type() == GameObjectTypes::Gate)
-                {
-                    auto gate = static_cast<Gate*>(obj);
-                    if (!gate->IsOpen())
-                    {
-                        Math::vec2 p = gate->GetPosition();
-                        allSegments.push_back(
-                            {
-                                { p.x - 50, p.y },
-                                { p.x + 50, p.y },
-                                false
-                        });
-                    }
-                }
-            }
-        }
-
-        Math::vec2 dir  = (player->GetPosition() - GetPosition()).Normalize();
-        auto       path = Physics::CalculateLaserPath(GetPosition(), dir, allSegments, 2, 2000.0);
-
-        for (const auto& seg : path)
-        {
-            renderer.DrawLine(seg.first, seg.second, lineColor, 3.0);
-        }
+        // Step 0, 1: 빨간색 레이저 발사
+        if (player->GetShield())
+            player->GetShield()->SetParryWindowActive(false);
+        gom->Add(new RedLaser(GetPosition(), dir, player, targets));
+        Engine::GetLogger().LogEvent("Boss Fired Red Laser! (Parry Required)");
+    }
+    else
+    {
+        // Step 2: 노란색 레이저 발사
+        gom->Add(new YellowLaser(GetPosition(), dir, player, targets));
+        Engine::GetLogger().LogEvent("Boss Fired Yellow Laser! (Evade)");
     }
 
-    CS230::GameObject::Draw(camera_matrix);
+    // 다음 패턴으로 넘어가기 (0 -> 1 -> 2 -> 0 반복)
+    attackStep = (attackStep + 1) % 3;
+}
+
+CS200::RGBA BossStar::GetTelegraphColor() const
+{
+    // 현재 attackStep에 맞춰 예고선 색상 변경
+    if (attackStep < 2)
+        return 0xFF0000FF; // Red
+    else
+        return 0xFFFF00FF; // Yellow
 }
