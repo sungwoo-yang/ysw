@@ -20,8 +20,7 @@ public:
     }
 
     void SetParried(bool parried);
-    bool IsBlockedByShield() override { return isParried; }
 
 private:
-    bool isParried = false; 
+    bool isParried = false;
 };
