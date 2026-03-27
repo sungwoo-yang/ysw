@@ -111,6 +111,9 @@ void Laser::CheckTargetIntersections(double hitRadius)
 
 void Laser::Draw(const Math::TransformationMatrix& camera_matrix)
 {
+    if (!isActive)
+        return;
+
     auto& renderer = Engine::GetRenderer2D();
 
     if (pathPoints.size() < 2)
@@ -138,6 +141,11 @@ void Laser::SetDirection(Math::vec2 newDir)
 void Laser::SetIsActive(bool active)
 {
     isActive = active;
+
+    if (!isActive)
+    {
+        pathPoints.clear();
+    }
 }
 
 bool Laser::IsActive() const

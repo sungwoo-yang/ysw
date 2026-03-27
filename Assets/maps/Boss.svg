@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Created with Inkscape (http://www.inkscape.org/) -->
-
 <svg
    width="2560"
    height="1440"
@@ -25,8 +23,8 @@
      inkscape:document-units="px"
      showguides="false"
      inkscape:zoom="0.53680556"
-     inkscape:cx="290.60802"
-     inkscape:cy="438.70634"
+     inkscape:cx="1571.3325"
+     inkscape:cy="593.3247"
      inkscape:window-width="1920"
      inkscape:window-height="991"
      inkscape:window-x="-9"
@@ -65,68 +63,33 @@
        id="rect6-5"
        style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:5.78888"
        d="M 1922.8944,522.89444 H 3837.1056 V 917.1056 H 1922.8944 Z" />
-    <rect
+    <path
        style="fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
        id="P_W_R_S_01"
-       width="49.02"
-       height="49.019608"
-       x="250.4902"
-       y="250.4902"
-       inkscape:transform-center-x="1.8263526"
-       inkscape:transform-center-y="-18.263457" />
-    <rect
+       d="M 250.4902,250.4902 L 299.5102,250.4902 L 299.5102,299.5098 L 250.4902,299.5098 Z" />
+    <path
        style="fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
-       id="P_R_S_S_02"
-       width="49.02"
-       height="49.019608"
-       x="500.4902"
-       y="250.4902"
-       inkscape:transform-center-x="1.8263526"
-       inkscape:transform-center-y="-18.263457" />
-    <rect
-       style="fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
+       id="P_R_B_S_02"
+       d="m 750.4902,250.4902 h 49.02 v 49.0196 h -49.02 z" />
+    <path
+       style="fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.98;stroke-dasharray:none;stroke-opacity:1"
        id="P_Y_B_SW_03"
-       width="49.02"
-       height="49.019608"
-       x="750.49017"
-       y="250.4902"
-       inkscape:transform-center-x="1.8263526"
-       inkscape:transform-center-y="-18.263457" />
-    <rect
+       d="m 1250.49,250.4902 h 49.02 v 49.0196 h -49.02 z" />
+    <path
        style="fill:#ffff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
        id="H_Y_01"
-       width="49.02"
-       height="49.019608"
-       x="1250.4902"
-       y="250.4902"
-       inkscape:transform-center-x="1.8263526"
-       inkscape:transform-center-y="-18.263457" />
-    <rect
+       d="m 1750.4902,250.4902 h 49.02 v 49.0196 h -49.02 z" />
+    <path
        style="fill:#ffffff;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
        id="T_01"
-       width="49.02"
-       height="49.019608"
-       x="1500.4902"
-       y="250.4902"
-       inkscape:transform-center-x="1.8263526"
-       inkscape:transform-center-y="-18.263457" />
-    <rect
+       d="m 2000.4902,250.4902 h 49.02 v 49.0196 h -49.02 z" />
+    <path
        style="fill:#ffff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
        id="H_R_02"
-       width="49.02"
-       height="49.019608"
-       x="1750.4902"
-       y="250.4902"
-       inkscape:transform-center-x="1.8263526"
-       inkscape:transform-center-y="-18.263457" />
-    <rect
+       d="m 2250.4902,250.4902 h 49.02 v 49.0196 h -49.02 z" />
+    <path
        style="fill:#ff00ff;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
        id="B_01"
-       width="49.02"
-       height="49.019608"
-       x="2250.4902"
-       y="250.4902"
-       inkscape:transform-center-x="1.8263526"
-       inkscape:transform-center-y="-18.263457" />
+       d="m 2750.4902,62.340137 h 49.02 v 49.019603 h -49.02 z" />
   </g>
 </svg>

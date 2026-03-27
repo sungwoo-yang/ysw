@@ -42,6 +42,11 @@ public:
         return "PuzzleStar";
     }
 
+    CS200::RGBA GetBodyColor() const override
+    {
+        return 0x00FF00FF;
+    }
+
     void SetPattern(Pattern newPattern);
     void SetAimDirection(Math::vec2 newDir);
 

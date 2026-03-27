@@ -17,6 +17,8 @@ public:
 
     virtual void        OnWarningComplete()       = 0;
     virtual CS200::RGBA GetTelegraphColor() const = 0;
+    virtual CS200::RGBA GetBodyColor() const      = 0;
+
 protected:
     enum class State
     {
@@ -27,7 +29,7 @@ protected:
     State  currentState;
     double timer;
 
-    Player*                  player;
+    Player* player;
 
     double detectionRadius  = 600.0;
     double chaseRadius      = 900.0;

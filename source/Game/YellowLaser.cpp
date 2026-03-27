@@ -9,44 +9,29 @@ YellowLaser::YellowLaser(Math::vec2 in_startPos, Math::vec2 dir, Player* in_play
     color = 0xFFFF00FF;
 }
 
-void YellowLaser::Update(double dt)
+void YellowLaser::Update([[maybe_unused]]double dt)
 {
-    lifeTime += dt;
-    if (lifeTime >= maxLifeTime || player == nullptr)
-    {
-        Destroy();
-        return;
-    }
-
-    Math::vec2 targetDir    = (player->GetPosition() - startPos).Normalize();
-    double     currentAngle = std::atan2(direction.y, direction.x);
-    double     targetAngle  = std::atan2(targetDir.y, targetDir.x);
-
-    double diff = targetAngle - currentAngle;
-    while (diff <= -PI)
-        diff += 2 * PI;
-    while (diff > PI)
-        diff -= 2 * PI;
-
-    double maxRotate = rotationSpeed * dt;
-    currentAngle += (std::abs(diff) < maxRotate) ? diff : ((diff > 0) ? maxRotate : -maxRotate);
-    direction = Math::vec2{ std::cos(currentAngle), std::sin(currentAngle) };
-
-    CalculatePath(5, 2500.0);
+    if (!isActive) return;
+    
+    // 하얀색 레이저처럼 반사되며 쭉 뻗어나감 (최대 5번 반사)
+    CalculatePath(5, 3000.0);
     CheckTargetIntersections(15.0);
 
+    if (player == nullptr) return;
+
+    // 플레이어 피격 판정
     for (size_t i = 0; i < pathPoints.size() - 1; ++i)
     {
-        Math::vec2 p1 = pathPoints[i];
-
-        if ((player->GetPosition() - p1).Length() < 30.0)
+        if (DistToSegmentSquared(player->GetPosition(), pathPoints[i], pathPoints[i + 1]) < 30.0 * 30.0)
         {
             Shield* shield = player->GetShield();
-
+            
+            // 방패로 막지 못했을 경우 약한 데미지
             if (!(shield && shield->IsGuardUp() && i == 0))
             {
                 player->ApplyLaserDamage(1.0);
             }
+            break; // 한 번 맞으면 중복 데미지 방지
         }
     }
 }

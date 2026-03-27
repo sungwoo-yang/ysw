@@ -43,8 +43,6 @@ void PuzzleStar::Update(double dt)
         isFirstFrame = false;
     }
 
-    Star::Update(dt);
-
     switch (currentPattern)
     {
         case Pattern::Static:
@@ -78,7 +76,6 @@ void PuzzleStar::Update(double dt)
                     if (myLaser != nullptr)
                     {
                         myLaser->SetIsActive(isLaserOn);
-                        myLaser->SetVisible(isLaserOn);
                     }
                 }
 

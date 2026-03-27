@@ -71,7 +71,7 @@ void Star::Draw(const Math::TransformationMatrix& camera_matrix)
     auto& renderer = Engine::GetRenderer2D();
 
     Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix({ 40.0, 40.0 });
-    renderer.DrawCircle(transform, GetTelegraphColor());
+    renderer.DrawCircle(transform, GetBodyColor());
 
     if (currentState == State::Warning)
     {
