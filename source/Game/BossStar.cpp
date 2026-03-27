@@ -29,7 +29,6 @@ void BossStar::Update(double dt)
         }
         else
         {
-            // 노란 레이저를 쏘고 있을 때만 유도 로직 적용
             if (activeLaser->TypeName() == "YellowLaser")
             {
                 Math::vec2 targetDir    = (player->GetPosition() - GetPosition()).Normalize();

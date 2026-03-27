@@ -24,7 +24,7 @@ void TargetStar::Update(double dt)
         if (hitTimer >= activationTime)
         {
             isHit = true;
-            color = 0xFFFF00FF; // Change visual color to Yellow to indicate activation
+            color = 0x00FF00FF; // Change visual color to Yellow to indicate activation
         }
     }
     else

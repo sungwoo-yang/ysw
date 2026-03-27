@@ -29,8 +29,12 @@ protected:
     std::vector<TargetStar*> targets;
     CS200::RGBA              color;
     bool                     isActive = true;
+    std::vector<Math::vec2>  pathPoints;
 
-    std::vector<Math::vec2> pathPoints;
+    virtual bool IsBlockedByShield() const
+    {
+        return true;
+    }
 
     void CalculatePath(int maxBounces, double maxLength);
     void CheckTargetIntersections(double hitRadius);

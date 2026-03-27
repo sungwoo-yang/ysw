@@ -23,11 +23,30 @@ void Laser::CalculatePath(int maxBounces, double maxLength)
     if (player != nullptr)
     {
         Shield* shield = player->GetShield();
-        if (shield && shield->IsGuardUp())
+
+        if (shield && shield->IsGuardUp() && IsBlockedByShield())
         {
             auto segs = shield->GetSegments();
-            for (const auto& s : segs)
-                allSegments.push_back({ s.first, s.second, true });
+
+            if (!segs.empty())
+            {
+                Math::vec2 p1      = segs[0].first;
+                Math::vec2 p2      = segs[0].second;
+                Math::vec2 wallVec = p2 - p1;
+                Math::vec2 normal  = Math::vec2{ -wallVec.y, wallVec.x }.Normalize();
+
+                Math::vec2 shieldCenter = { (p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5 };
+                if ((shieldCenter - player->GetPosition()).Dot(normal) < 0)
+                {
+                    normal = -normal;
+                }
+
+                if (direction.Dot(normal) < 0)
+                {
+                    for (const auto& s : segs)
+                        allSegments.push_back({ s.first, s.second, true });
+                }
+            }
         }
     }
 
@@ -90,19 +109,27 @@ void Laser::CalculatePath(int maxBounces, double maxLength)
 
 void Laser::CheckTargetIntersections(double hitRadius)
 {
+    auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
+    if (gom == nullptr)
+        return;
+
     for (size_t i = 0; i < pathPoints.size() - 1; ++i)
     {
         Math::vec2 p1 = pathPoints[i];
         Math::vec2 p2 = pathPoints[i + 1];
 
-        for (TargetStar* target : targets)
+        for (auto obj : gom->GetObjects())
         {
-            if (target && !target->IsHit())
+            if (obj->Type() == GameObjectTypes::Target)
             {
-                double r = target->GetRadius();
-                if (DistToSegmentSquared(target->GetPosition(), p1, p2) <= (r + hitRadius) * (r + hitRadius))
+                TargetStar* target = static_cast<TargetStar*>(obj);
+                if (target && !target->IsHit())
                 {
-                    target->OnHit();
+                    double r = target->GetRadius();
+                    if (DistToSegmentSquared(target->GetPosition(), p1, p2) <= (r + hitRadius) * (r + hitRadius))
+                    {
+                        target->OnHit();
+                    }
                 }
             }
         }

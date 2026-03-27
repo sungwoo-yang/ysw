@@ -38,7 +38,7 @@ public:
 
 private:
     StarType     currentStarType;
-    const double parryWindowTime = 0.5;
+    const double parryWindowTime = 0.2;
 
     Laser*     activeLaser           = nullptr;
     double     firingTimer           = 0.0;

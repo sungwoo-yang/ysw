@@ -10,21 +10,12 @@
 
 HostileStar::HostileStar(Math::vec2 pos, Player* in_player, StarType type) : Star(pos, in_player), currentStarType(type)
 {
-    warningDuration = 4.0;
-
-    if (currentStarType == StarType::Red)
-    {
-        cooldownDuration = 4.0;
-    }
-    else
-    {
-        cooldownDuration = 9.0;
-    }
+    warningDuration  = 4.0;
+    cooldownDuration = 4.0;
 }
 
 void HostileStar::Update(double dt)
 {
-    // 레이저를 발사 중인 상태 (Firing State)
     if (activeLaser != nullptr)
     {
         firingTimer += dt;
@@ -35,7 +26,6 @@ void HostileStar::Update(double dt)
         }
         else
         {
-            // 노란색일 때만 유도(회전) 로직 실행
             if (currentStarType == StarType::Yellow)
             {
                 Math::vec2 targetDir    = (player->GetPosition() - GetPosition()).Normalize();
@@ -59,11 +49,9 @@ void HostileStar::Update(double dt)
     }
     else
     {
-        // 레이저 발사 중이 아닐 때만 다음 경고/쿨타임 타이머 진행
         HandleBasicAI(dt);
     }
 
-    // 패링 윈도우 로직
     if (currentStarType == StarType::Red && currentState == State::Warning)
     {
         Shield* shield = player->GetShield();
@@ -89,7 +77,6 @@ void HostileStar::OnWarningComplete()
         bool    parrySuccess = false;
         Shield* shield       = player->GetShield();
 
-        // 발사 순간에 플레이어의 패링 상태를 체크
         if (shield && shield->ConsumeParryState())
         {
             shield->HandleHit(true);
@@ -102,7 +89,6 @@ void HostileStar::OnWarningComplete()
 
         RedLaser* rLaser = new RedLaser(GetPosition(), dir, player);
 
-        // 패링 성공 시 레이저 데미지 비활성화 (시각 효과만 남김)
         if (parrySuccess)
         {
             rLaser->SetParried(true);
@@ -111,7 +97,7 @@ void HostileStar::OnWarningComplete()
         gom->Add(rLaser);
         activeLaser           = rLaser;
         firingTimer           = 0.0;
-        currentFiringDuration = 0.2; // 빨간 레이저는 짧은 버스트
+        currentFiringDuration = 0.2;
         laserDirection        = dir;
     }
     else
@@ -121,7 +107,7 @@ void HostileStar::OnWarningComplete()
 
         activeLaser           = yLaser;
         firingTimer           = 0.0;
-        currentFiringDuration = 5.0; // 노란 레이저는 5초 유지
+        currentFiringDuration = 5.0;
         laserDirection        = dir;
         rotationSpeed         = 1.5;
     }
@@ -131,7 +117,7 @@ CS200::RGBA HostileStar::GetTelegraphColor() const
 {
     if (currentStarType == StarType::Red && currentState == State::Warning && timer <= parryWindowTime)
     {
-        return 0x00FFFFFF; // 청록색(Cyan)
+        return 0x00FFFFFF;
     }
     return (currentStarType == StarType::Red) ? 0xFF0000FF : 0xFFFF00FF;
 }
