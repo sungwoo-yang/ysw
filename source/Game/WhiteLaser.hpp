@@ -9,16 +9,6 @@ public:
 
     void Update(double dt) override;
 
-    void SetStartPos(Math::vec2 newPos)
-    {
-        startPos = newPos;
-    }
-
-    void SetDirection(Math::vec2 newDir)
-    {
-        direction = newDir.Normalize();
-    }
-
     GameObjectTypes Type() override
     {
         return GameObjectTypes::Laser;

@@ -2,7 +2,7 @@
 #include "Engine/GameObjectTypes.hpp"
 #include "Star.hpp"
 
-class WhiteLaser;
+class Laser;
 
 class PuzzleStar : public Star
 {
@@ -46,16 +46,17 @@ public:
     void SetAimDirection(Math::vec2 newDir);
 
 private:
-    LaserType   currentType;
-    Pattern     currentPattern;
-    Math::vec2  aimDirection;
-    WhiteLaser* myLaser;
+    LaserType  currentType;
+    Pattern    currentPattern;
+    Math::vec2 aimDirection;
+    Laser*     myLaser;
 
+    bool isFirstFrame = true;
 
     double rotationSpeed = 0.5;
 
     double       blinkTimer    = 0.0;
-    const double blinkInterval = 2;
+    const double blinkInterval = 2.0;
     bool         isLaserOn     = true;
 
     void SetLaserActive(bool active);

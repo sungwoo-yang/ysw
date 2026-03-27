@@ -125,6 +125,16 @@ void Laser::Draw(const Math::TransformationMatrix& camera_matrix)
     CS230::GameObject::Draw(camera_matrix);
 }
 
+void Laser::SetStartPos(Math::vec2 newPos)
+{
+    startPos = newPos;
+}
+
+void Laser::SetDirection(Math::vec2 newDir)
+{
+    direction = newDir.Normalize();
+}
+
 void Laser::SetIsActive(bool active)
 {
     isActive = active;

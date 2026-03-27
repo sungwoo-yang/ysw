@@ -19,13 +19,16 @@ void WhiteLaser::Update([[maybe_unused]] double dt)
 
     auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
 
+    if (gom == nullptr)
+        return;
+
     for (auto obj : gom->GetObjects())
     {
         if (obj->Type() == GameObjectTypes::Target)
         {
             TargetStar* target    = static_cast<TargetStar*>(obj);
             Math::vec2  targetPos = target->GetPosition();
-            double      hitRad = target->GetRadius();
+            double      hitRad    = target->GetRadius();
 
             for (size_t i = 0; i < pathPoints.size() - 1; ++i)
             {

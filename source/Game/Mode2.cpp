@@ -200,7 +200,6 @@ void Mode2::Update(double dt)
         if (mapManager->GetCurrentMap() && mapManager->GetCurrentMap()->IsLevelLoaded())
         {
             Engine::GetLogger().LogEvent("Map Loading Complete! Starting Game...");
-            InitGame();
             currentState = State::Playing;
         }
         return;

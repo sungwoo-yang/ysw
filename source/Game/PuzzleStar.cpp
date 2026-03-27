@@ -10,8 +10,6 @@
 PuzzleStar::PuzzleStar(Math::vec2 pos, Player* in_player, LaserType type, Pattern pattern, Math::vec2 initialDir)
     : Star(pos, in_player), currentType(type), currentPattern(pattern), aimDirection(initialDir.Normalize()), myLaser(nullptr)
 {
-    myLaser = new WhiteLaser(GetPosition(), aimDirection, player);
-    Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>()->Add(myLaser);
 }
 
 PuzzleStar::~PuzzleStar()
@@ -24,6 +22,26 @@ PuzzleStar::~PuzzleStar()
 
 void PuzzleStar::Update(double dt)
 {
+    if (isFirstFrame)
+    {
+        switch (currentType)
+        {
+            case LaserType::White: myLaser = new WhiteLaser(GetPosition(), aimDirection, player); break;
+            case LaserType::Yellow: myLaser = new YellowLaser(GetPosition(), aimDirection, player); break;
+            case LaserType::Red: myLaser = new RedLaser(GetPosition(), aimDirection, player); break;
+        }
+
+        Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>()->Add(myLaser);
+
+        if (currentPattern == Pattern::Blink && !isLaserOn)
+        {
+            myLaser->SetIsActive(false);
+            myLaser->SetVisible(false);
+        }
+
+        isFirstFrame = false;
+    }
+
     Star::Update(dt);
 
     switch (currentPattern)
@@ -72,11 +90,20 @@ void PuzzleStar::Update(double dt)
     CS230::GameObject::Update(dt);
 }
 
+void PuzzleStar::OnWarningComplete()
+{
+}
+
 void PuzzleStar::SetLaserActive(bool active)
 {
     if (active && myLaser == nullptr)
     {
-        myLaser = new WhiteLaser(GetPosition(), aimDirection, player);
+        switch (currentType)
+        {
+            case LaserType::White: myLaser = new WhiteLaser(GetPosition(), aimDirection, player); break;
+            case LaserType::Yellow: myLaser = new YellowLaser(GetPosition(), aimDirection, player); break;
+            case LaserType::Red: myLaser = new RedLaser(GetPosition(), aimDirection, player); break;
+        }
         Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>()->Add(myLaser);
     }
     else if (!active && myLaser != nullptr)
@@ -95,16 +122,4 @@ void PuzzleStar::SetPattern(Pattern newPattern)
 void PuzzleStar::SetAimDirection(Math::vec2 newDir)
 {
     aimDirection = newDir.Normalize();
-}
-
-void PuzzleStar::OnWarningComplete()
-{
-    auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
-
-    switch (currentType)
-    {
-        case LaserType::White: gom->Add(new WhiteLaser(GetPosition(), aimDirection, player)); break;
-        case LaserType::Yellow: gom->Add(new YellowLaser(GetPosition(), aimDirection, player)); break;
-        case LaserType::Red: gom->Add(new RedLaser(GetPosition(), aimDirection, player)); break;
-    }
 }

@@ -16,6 +16,9 @@ public:
     void Update(double dt) override = 0;
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
 
+    void SetStartPos(Math::vec2 newPos);
+    void SetDirection(Math::vec2 newDir);
+
     void SetIsActive(bool active);
     bool IsActive() const;
 
