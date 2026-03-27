@@ -53,7 +53,7 @@ void Mode1::Load()
     // 4. Set Factory BEFORE calling LoadMap
     mapManager->SetGameObjectFactory(
         [this](GameObjectTypes /*type*/, Math::vec2 pos, const std::string& color, const std::string& id) -> CS230::GameObject*
-        {   
+        {
             if (this->player == nullptr)
                 return nullptr;
 
@@ -116,8 +116,8 @@ void Mode1::Load()
     currentState = State::Loading;
 
     // Audio
-    AudioManager::LoadSound("BGM_Virgo", std::filesystem::path("Assets/sounds/Virgo.wav"), AudioTypes::BGM);
-    AudioManager::LoadSound("SFX_Landing", std::filesystem::path("Assets/sounds/Landing_Effect.wav"), AudioTypes::SFX);
+    AudioManager::LoadSound("BGM_Virgo", std::filesystem::path("Assets/sounds/Virgo.mp3"), AudioTypes::BGM);
+    AudioManager::LoadSound("SFX_Landing", std::filesystem::path("Assets/sounds/Landing_Effect.mp3"), AudioTypes::SFX);
 }
 
 void Mode1::InitGame()
