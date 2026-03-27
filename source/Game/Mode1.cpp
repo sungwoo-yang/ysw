@@ -1,7 +1,5 @@
 #include "Mode1.hpp"
 #include "Bonfire.hpp"
-#include "CS200/IRenderer2D.hpp"
-#include "CS200/NDC.hpp"
 #include "Door.hpp"
 #include "Gate.hpp"
 #include "MainMenu.hpp"
@@ -12,6 +10,9 @@
 #include "Star.hpp"
 #include "TargetStar.hpp"
 #include "WorldTextManager.hpp"
+
+#include "CS200/IRenderer2D.hpp"
+#include "CS200/NDC.hpp"
 
 #include "Engine/AudioManager.hpp"
 #include "Engine/BackgroundElement.hpp"
@@ -52,7 +53,7 @@ void Mode1::Load()
     // 4. Set Factory BEFORE calling LoadMap
     mapManager->SetGameObjectFactory(
         [this](GameObjectTypes /*type*/, Math::vec2 pos, const std::string& color, const std::string& id) -> CS230::GameObject*
-        {
+        {   
             if (this->player == nullptr)
                 return nullptr;
 
@@ -265,7 +266,7 @@ void Mode1::Update(double dt)
 
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
     {
-        player->SetPosition({ 8000, 300 });
+        player->SetPosition({ 4500, 300 });
     }
 
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))
@@ -335,7 +336,7 @@ void Mode1::Draw()
 
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
     renderer.BeginScene(screen_matrix);
-    
+
     renderer.EndScene();
 }
 
@@ -377,7 +378,7 @@ void Mode1::Unload()
     player           = nullptr;
     mapManager       = nullptr;
     worldTextManager = nullptr;
-    
+
     // [Removed] textureLayer2_Trees cleanup
     textureLayer3_Silhouette = nullptr;
 

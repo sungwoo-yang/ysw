@@ -10,11 +10,14 @@ class TargetStar;
 class Laser : public CS230::GameObject
 {
 public:
-    Laser(Math::vec2 startPos, Math::vec2 dir, Player* player, const std::vector<TargetStar*>& targets);
+    Laser(Math::vec2 in_startPos, Math::vec2 dir, Player* in_player);
     virtual ~Laser() = default;
 
-    void Update(double dt) override = 0; // Instant냐 Continuous냐에 따라 다름
+    void Update(double dt) override = 0;
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
+
+    void SetIsActive(bool active);
+    bool IsActive() const;
 
 protected:
     Math::vec2               startPos;
@@ -22,10 +25,12 @@ protected:
     Player*                  player;
     std::vector<TargetStar*> targets;
     CS200::RGBA              color;
+    bool                     isActive = true;
 
-    // 계산된 레이저의 정점들 (반사 지점들)
     std::vector<Math::vec2> pathPoints;
 
-    void CalculatePath(int maxBounces, double maxLength); // 공통 물리 로직
-    void CheckTargetIntersections(double hitRadius);      // 공통 타겟 충돌 로직
+    void CalculatePath(int maxBounces, double maxLength);
+    void CheckTargetIntersections(double hitRadius);
+
+    static double DistToSegmentSquared(Math::vec2 p, Math::vec2 a, Math::vec2 b);
 };

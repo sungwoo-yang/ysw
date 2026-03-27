@@ -7,15 +7,14 @@ class HostileStar : public Star
 public:
     enum class StarType
     {
-        Yellow, // 노란색: 지속 추격 레이저 발사
-        Red     // 빨간색: 짧고 강력한 패링 전용 레이저 발사
+        Yellow,
+        Red
     };
 
-    HostileStar(Math::vec2 pos, Player* player, const std::vector<TargetStar*>& targets, StarType type);
+    HostileStar(Math::vec2 pos, Player* player, StarType type);
 
     void Update(double dt) override;
 
-    // Star 부모 클래스의 순수 가상 함수 구현
     void        OnWarningComplete() override;
     CS200::RGBA GetTelegraphColor() const override;
 
@@ -29,7 +28,9 @@ public:
         return "HostileStar";
     }
 
+    void SetStarType(StarType newType);
+
 private:
     StarType     currentStarType;
-    const double parryWindowTime = 0.5; // 빨간색 레이저 발사 직전 패링 가능 시간
+    const double parryWindowTime = 0.5;
 };

@@ -45,6 +45,7 @@ private:
     TargetStar*        puzzleTarget     = nullptr;
     Gate*              puzzleGate       = nullptr;
     WorldTextManager*  worldTextManager = nullptr;
+    std::vector<TargetStar*> targetStars;
 
     Math::rect level_boundary = {
         {    0.0,    0.0 },

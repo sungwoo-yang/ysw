@@ -1,7 +1,19 @@
 #include "Mode2.hpp"
 #include "BossStar.hpp"
+#include "Gate.hpp"
+#include "HostileStar.hpp"
+#include "Mirror.hpp"
+#include "Player.hpp"
+#include "PuzzleStar.hpp"
+#include "Sign.hpp"
+#include "Star.hpp"
+#include "TargetStar.hpp"
+#include "WorldTextManager.hpp"
+#include "YellowLaser.hpp"
+
 #include "CS200/IRenderer2D.hpp"
 #include "CS200/NDC.hpp"
+
 #include "Engine/Camera.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/Font.hpp"
@@ -10,15 +22,21 @@
 #include "Engine/MapManager.h"
 #include "Engine/ShowCollision.hpp"
 #include "Engine/Window.hpp"
-#include "Gate.hpp"
-#include "Mirror.hpp"
-#include "Player.hpp"
-#include "Sign.hpp"
-#include "Star.hpp"
-#include "TargetStar.hpp"
-#include "WorldTextManager.hpp"
-#include "YellowLaser.hpp"
+
 #include <imgui.h>
+
+std::vector<std::string> SplitID(const std::string& s, char delimiter)
+{
+    std::vector<std::string> tokens;
+    std::string              token;
+    std::istringstream       tokenStream(s);
+    while (std::getline(tokenStream, token, delimiter))
+    {
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
 
 void Mode2::Load()
 {
@@ -43,6 +61,8 @@ void Mode2::Load()
     });
     AddGSComponent(camera);
 
+    InitGame();
+
     // Load boss-specific map geometry
     mapManager = new CS230::MapManager();
     mapManager->AddMap(new CS230::Map("Assets/maps/Boss.svg"));
@@ -57,25 +77,117 @@ void Mode2::InitGame()
     player = new Player({ 0.0, 400.0 });
     gom->Add(player);
 
-    // Setup puzzle elements: hit the target using mirrors to unlock the path
-    puzzleTarget = new TargetStar({ 500.0, 400.0 });
-    gom->Add(puzzleTarget);
+    // Star
+    mapManager->SetGameObjectFactory(
+        [this](GameObjectTypes /*type*/, Math::vec2 pos, const std::string& color, const std::string& id) -> CS230::GameObject*
+        {
+            if (this->player == nullptr)
+                return nullptr;
 
-    std::vector<TargetStar*> targets     = { puzzleTarget };
-    Star*                    laserSource = new Star({ 300.0, 600.0 }, player, targets, StarType::Yellow);
-    gom->Add(laserSource);
+            // TargetStar : T_(Num)
+            if (color == "#ffffff")
+            {
+                auto* target = new TargetStar(pos);
+                target->SetName(id);
 
-    // Fixed mirror for the puzzle
-    Mirror* reflectMirror = new Mirror({ 800.0, 300.0 }, { 120.0, 10.0 }, -0.785398f);
-    gom->Add(reflectMirror);
+                return target;
+            }
 
-    std::vector<TargetStar*> bossTargets = { puzzleTarget };
+            // PuzzleStar : P_(Type)_(Pattern)_(Direction)_(Num)
+            if (color == "#00ff00")
+            {
+                auto parts = SplitID(id, '_');
 
-    // Final boss object
-    BossStar* boss = new BossStar({ 1500.0, 600.0 }, player, bossTargets);
-    gom->Add(boss);
+                if (parts.size() >= 5 && parts[0] == "P")
+                {
+                    PuzzleStar::LaserType type = PuzzleStar::LaserType::White;
+                    if (parts[1] == "Y")
+                    {
+                        type = PuzzleStar::LaserType::Yellow;
+                    }
+                    else if (parts[1] == "R")
+                    {
+                        type = PuzzleStar::LaserType::Red;
+                    }
 
-    gom->Add(new Sign({ 200.0, 250.0 }, { 80.0, 40.0 }, "Hit Target -> Open Gate"));
+                    PuzzleStar::Pattern pattern = PuzzleStar::Pattern::Static;
+                    if (parts[2] == "R")
+                    {
+                        pattern = PuzzleStar::Pattern::Rotating;
+                    }
+                    else if (parts[2] == "B")
+                    {
+                        pattern = PuzzleStar::Pattern::Blink;
+                    }
+
+                    Math::vec2  dir  = { 0, -1 };
+                    std::string dStr = parts[3];
+
+                    if (dStr == "N")
+                    {
+                        dir = { 0, 1 };
+                    }
+                    else if (dStr == "S")
+                    {
+                        dir = { 0, -1 };
+                    }
+                    else if (dStr == "E")
+                    {
+                        dir = { 1, 0 };
+                    }
+                    else if (dStr == "W")
+                    {
+                        dir = { -1, 0 };
+                    }
+                    else if (dStr == "NE")
+                    {
+                        dir = { 0.707, 0.707 };
+                    }
+                    else if (dStr == "NW")
+                    {
+                        dir = { -0.707, 0.707 };
+                    }
+                    else if (dStr == "SE")
+                    {
+                        dir = { 0.707, -0.707 };
+                    }
+                    else if (dStr == "SW")
+                    {
+                        dir = { -0.707, -0.707 };
+                    }
+
+                    auto* star = new PuzzleStar(pos, this->player, type, pattern, dir);
+                    star->SetName(id);
+
+                    return star;
+                }
+            }
+            // HostileStar : H_(Type)_(Num)
+            if (color == "#ffff00")
+            {
+                HostileStar::StarType type = HostileStar::StarType::Yellow;
+
+                if (id.find("_R_") != std::string::npos)
+                {
+                    type = HostileStar::StarType::Red;
+                }
+
+                auto* star = new HostileStar(pos, this->player, type);
+                star->SetName(id);
+
+                return star;
+            }
+            // BossStar : B_(Num)
+            if (color == "#ff00ff")
+            {
+                auto* star = new BossStar(pos, this->player);
+                star->SetName(id);
+
+                return star;
+            }
+
+            return nullptr;
+        });
 }
 
 void Mode2::Update(double dt)

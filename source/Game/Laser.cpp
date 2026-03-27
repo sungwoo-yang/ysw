@@ -12,25 +12,7 @@
 #include "TargetStar.hpp"
 #include <algorithm>
 
-namespace
-{
-    // 선분과 점 사이의 최단 거리의 제곱을 구하는 유틸리티 함수
-    double DistToSegmentSquared(Math::vec2 p, Math::vec2 v, Math::vec2 w)
-    {
-        double l2 = (w - v).Dot(w - v);
-        if (l2 == 0.0)
-            return (p - v).Dot(p - v);
-
-        double t              = ((p - v).Dot(w - v)) / l2;
-        t                     = std::max(0.0, std::min(1.0, t));
-        Math::vec2 projection = v + (w - v) * t;
-
-        return (p - projection).Dot(p - projection);
-    }
-}
-
-Laser::Laser(Math::vec2 startPos, Math::vec2 dir, Player* in_player, const std::vector<TargetStar*>& in_targets)
-    : CS230::GameObject(startPos), startPos(startPos), direction(dir.Normalize()), player(in_player), targets(in_targets), color(CS200::WHITE)
+Laser::Laser(Math::vec2 in_startPos, Math::vec2 dir, Player* in_player) : CS230::GameObject(in_startPos), startPos(in_startPos), direction(dir.Normalize()), player(in_player), color(CS200::WHITE)
 {
 }
 
@@ -90,7 +72,6 @@ void Laser::CalculatePath(int maxBounces, double maxLength)
 
     auto calculatedPath = Physics::CalculateLaserPath(startPos, direction, allSegments, maxBounces, maxLength);
 
-    // 계산된 세그먼트들을 그리기 편하도록 정점(Point) 리스트로 평탄화합니다.
     pathPoints.clear();
     if (!calculatedPath.empty())
     {
@@ -102,7 +83,6 @@ void Laser::CalculatePath(int maxBounces, double maxLength)
     }
     else
     {
-        // 충돌이 아예 없으면 앞으로 일직선
         pathPoints.push_back(startPos);
         pathPoints.push_back(startPos + direction * maxLength);
     }
@@ -110,7 +90,6 @@ void Laser::CalculatePath(int maxBounces, double maxLength)
 
 void Laser::CheckTargetIntersections(double hitRadius)
 {
-    // 계산된 레이저 경로들을 순회하며 퍼즐 타겟이 맞았는지 검사합니다.
     for (size_t i = 0; i < pathPoints.size() - 1; ++i)
     {
         Math::vec2 p1 = pathPoints[i];
@@ -123,7 +102,7 @@ void Laser::CheckTargetIntersections(double hitRadius)
                 double r = target->GetRadius();
                 if (DistToSegmentSquared(target->GetPosition(), p1, p2) <= (r + hitRadius) * (r + hitRadius))
                 {
-                    target->OnHit(); // 닿아있는 동안 활성화 신호를 보냄
+                    target->OnHit();
                 }
             }
         }
@@ -144,4 +123,26 @@ void Laser::Draw(const Math::TransformationMatrix& camera_matrix)
     }
 
     CS230::GameObject::Draw(camera_matrix);
+}
+
+void Laser::SetIsActive(bool active)
+{
+    isActive = active;
+}
+
+bool Laser::IsActive() const
+{
+    return isActive;
+}
+
+double Laser::DistToSegmentSquared(Math::vec2 p, Math::vec2 a, Math::vec2 b)
+{
+    double l2 = (b - a).LengthSquared();
+    if (l2 == 0.0)
+        return (p - a).LengthSquared();
+
+    double     t          = std::max(0.0, std::min(1.0, (p - a).Dot(b - a) / l2));
+    Math::vec2 projection = a + (b - a) * t;
+
+    return (p - projection).LengthSquared();
 }

@@ -54,6 +54,15 @@ namespace CS230
             return componentmanager.GetComponent<T>();
         }
 
+        void SetName(const std::string& new_name);
+        std::string GetName() const;
+
+        void SetVisible(bool visible);
+        bool IsVisible() const;
+
+        void SetIsActive(bool active);
+        bool IsActive() const;
+
         void Destroy();
         bool Destroyed() const;
 
@@ -104,10 +113,14 @@ namespace CS230
         Math::TransformationMatrix object_matrix;
         bool                       matrix_outdated = true;
 
-        double     rotation;
-        Math::vec2 scale;
-        Math::vec2 position;
-        Math::vec2 velocity;
+        double      rotation;
+        Math::vec2  scale;
+        Math::vec2  position;
+        Math::vec2  velocity;
+
+        std::string name;
+        bool isVisible = true;
+        bool isActive = true;
 
         class State_None : public State
         {

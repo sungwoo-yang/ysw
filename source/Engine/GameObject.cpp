@@ -153,6 +153,36 @@ namespace CS230
         current_state->Enter(this);
     }
 
+    void GameObject::SetName(const std::string& new_name)
+    {
+        name = new_name;
+    }
+
+    std::string GameObject::GetName() const
+    {
+        return name;
+    }
+
+    void GameObject::SetVisible(bool visible)
+    {
+        isVisible = visible;
+    }
+
+    bool GameObject::IsVisible() const
+    {
+        return isVisible;
+    }
+
+    void GameObject::SetIsActive(bool active)
+    {
+        isActive = active;
+    }
+
+    bool GameObject::IsActive() const
+    {
+        return isActive;
+    }
+
     void GameObject::Destroy()
     {
         destroy = true;

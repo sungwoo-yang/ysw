@@ -52,7 +52,10 @@ namespace CS230
     {
         for (auto object : objects)
         {
-            object->Draw(camera_matrix);
+            if (object->IsVisible())
+            {
+                object->Draw(camera_matrix);
+            }
         }
     }
 

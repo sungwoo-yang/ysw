@@ -79,6 +79,7 @@ set(SOURCE_CODE
     Game/Sign.hpp Game/Sign.cpp
     Game/Splash.hpp Game/Splash.cpp
     Game/Star.hpp Game/Star.cpp
+    Game/TargetStar.hpp Game/TargetStar.cpp 
     Game/WhiteLaser.hpp Game/WhiteLaser.cpp
     Game/WorldTextManager.hpp Game/WorldTextManager.cpp
     Game/YellowLaser.hpp Game/YellowLaser.cpp

@@ -1,18 +1,40 @@
 #include "WhiteLaser.hpp"
+#include "Engine/Engine.hpp"
+#include "Engine/GameObjectManager.hpp"
+#include "Engine/GameStateManager.hpp"
+#include "TargetStar.hpp"
 
-WhiteLaser::WhiteLaser(Math::vec2 in_startPos, Math::vec2 in_dir, Player* in_player, const std::vector<TargetStar*>& in_targets) : Laser(in_startPos, in_dir, in_player, in_targets)
+WhiteLaser::WhiteLaser(Math::vec2 in_startPos, Math::vec2 in_dir, Player* in_player) : Laser(in_startPos, in_dir, in_player)
 {
-    // 흰색 레이저 설정
     color = 0xFFFFFFFF;
 }
 
-void WhiteLaser::Update(double dt)
+void WhiteLaser::Update([[maybe_unused]] double dt)
 {
-    // 1. 매 프레임마다 레이저의 반사 경로를 다시 계산합니다.
-    CalculatePath(maxBounces, maxLength);
+    if (!isActive)
+        return;
 
-    // 2. 계산된 경로를 바탕으로 퍼즐 타겟(TargetStar)과 충돌했는지 검사합니다.
+    CalculatePath(maxBounces, maxLength);
     CheckTargetIntersections(hitRadius);
 
-    // 참고: 플레이어에게 데미지를 입히는 코드는 의도적으로 제외되었습니다.
+    auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
+
+    for (auto obj : gom->GetObjects())
+    {
+        if (obj->Type() == GameObjectTypes::Target)
+        {
+            TargetStar* target    = static_cast<TargetStar*>(obj);
+            Math::vec2  targetPos = target->GetPosition();
+            double      hitRad = target->GetRadius();
+
+            for (size_t i = 0; i < pathPoints.size() - 1; ++i)
+            {
+                if (DistToSegmentSquared(targetPos, pathPoints[i], pathPoints[i + 1]) < hitRad * hitRad)
+                {
+                    target->OnHit();
+                    break;
+                }
+            }
+        }
+    }
 }

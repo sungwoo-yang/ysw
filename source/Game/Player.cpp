@@ -802,9 +802,9 @@ void Player::Draw(const Math::TransformationMatrix& camera_matrix)
 
         const auto& currentDrawOrder = faceRight ? drawOrderRight : drawOrderLeft;
 
-        for (const auto& name : currentDrawOrder)
+        for (const auto& pName : currentDrawOrder)
         {
-            Bone* b = skeleton->GetBone(name);
+            Bone* b = skeleton->GetBone(pName);
             if (b)
             {
                 renderer.DrawLine(b->worldStartPos, b->worldEndPos, CS200::WHITE, 2.0);
