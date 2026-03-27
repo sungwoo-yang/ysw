@@ -48,7 +48,6 @@ void Mode2::Load()
     AddGSComponent(new CS230::ShowCollision());
 #endif
 
-
     camera = new CS230::Camera(
         Math::rect{
             {   0,   0 },
@@ -61,10 +60,11 @@ void Mode2::Load()
     });
     AddGSComponent(camera);
 
-    InitGame();
-
     // Load boss-specific map geometry
     mapManager = new CS230::MapManager();
+
+    InitGame();
+
     mapManager->AddMap(new CS230::Map("Assets/maps/Boss.svg"));
     mapManager->LoadMap();
     AddGSComponent(mapManager);

@@ -10,6 +10,7 @@
 PuzzleStar::PuzzleStar(Math::vec2 pos, Player* in_player, LaserType type, Pattern pattern, Math::vec2 initialDir)
     : Star(pos, in_player), currentType(type), currentPattern(pattern), aimDirection(initialDir.Normalize()), myLaser(nullptr)
 {
+    Engine::GetLogger().LogEvent("Puzzle Complete");
 }
 
 PuzzleStar::~PuzzleStar()
