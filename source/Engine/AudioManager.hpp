@@ -17,7 +17,8 @@ public:
     static void StopBGM();
 
     // Adjusts the volume for all sounds and music
-    static void SetVolume(int volume);
+    static void SetBGMVolume(int volume);
+    static void SetSFXVolume(int volume);
 
 private:
     inline static std::unordered_map<std::string, Audio*> audioMap;

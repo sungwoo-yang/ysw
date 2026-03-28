@@ -34,11 +34,15 @@ namespace CS230
         [[nodiscard]] int                 GetResolutionWidth() const;
         [[nodiscard]] int                 GetResolutionHeight() const;
         [[nodiscard]] float               GetMasterVolume() const;
+        [[nodiscard]] float               GetBGMVolume() const;
+        [[nodiscard]] float               GetSFXVolume() const;
 
         // Setters
         void SetResolution(int width, int height);
         void SetWindowMode(bool fullscreen, bool borderless);
         void SetMasterVolume(float volume);
+        void SetBGMVolume(float volume);
+        void SetSFXVolume(float volume);
         void SetShowFPS(bool show);
 
         // Apply all settings to engine

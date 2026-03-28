@@ -1,6 +1,7 @@
 #include "MainMenu.hpp"
 #include "CS200/IRenderer2D.hpp"
 #include "CS200/NDC.hpp"
+#include "Engine/AudioManager.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/Font.hpp"
 #include "Engine/GameStateManager.hpp"
@@ -30,6 +31,7 @@ void MainMenu::Load()
 
     tabDisplayTexture  = menuFont.PrintToTexture("Display", CS200::WHITE);
     tabControlsTexture = menuFont.PrintToTexture("Controls", CS200::WHITE);
+    tabSoundTexture    = menuFont.PrintToTexture("Sound", CS200::WHITE);
     backTexture        = menuFont.PrintToTexture("Back", CS200::WHITE);
     waitingTexture     = menuFont.PrintToTexture("Press Any Key...", CS200::YELLOW);
 
@@ -41,6 +43,15 @@ void MainMenu::Load()
     applyTexture      = menuFont.PrintToTexture("Apply Settings", CS200::GREEN);
     labelResolution   = menuFont.PrintToTexture("Resolution", CS200::GREY);
     labelMode         = menuFont.PrintToTexture("Window Mode", CS200::GREY);
+
+    // Sound
+    labelBGM = menuFont.PrintToTexture("BGM Volume", CS200::GREY);
+    labelSFX = menuFont.PrintToTexture("SFX Volume", CS200::GREY);
+
+    auto& settingsMgr = CS230::SettingsManager::Instance();
+    bgmLevel          = static_cast<int>(settingsMgr.GetBGMVolume() * 10.0f);
+    sfxLevel          = static_cast<int>(settingsMgr.GetSFXVolume() * 10.0f);
+    UpdateVolumeTextures();
 
     // Calculate initial positions for all UI rectangles
     SetupButtons();
@@ -95,22 +106,33 @@ void MainMenu::SetupButtons()
 
     // Define positions for top settings tabs
     double tabY   = static_cast<double>(winSize.y) - 80.0;
-    double tabGap = 200.0;
+    double tabGap = 300.0;
 
     if (tabDisplayTexture)
     {
         Math::ivec2 size = tabDisplayTexture->GetSize();
+        double      x    = centerX - tabGap - (size.x / 2.0);
         tabDisplayRect   = {
-            { centerX - tabGap / 2.0 - size.x,          tabY },
-            {          centerX - tabGap / 2.0, tabY + size.y }
+            {          x,          tabY },
+            { x + size.x, tabY + size.y }
         };
     }
     if (tabControlsTexture)
     {
         Math::ivec2 size = tabControlsTexture->GetSize();
+        double      x    = centerX - (size.x / 2.0);
         tabControlsRect  = {
-            {          centerX + tabGap / 2.0,          tabY },
-            { centerX + tabGap / 2.0 + size.x, tabY + size.y }
+            {          x,          tabY },
+            { x + size.x, tabY + size.y }
+        };
+    }
+    if (tabSoundTexture)
+    {
+        Math::ivec2 size = tabSoundTexture->GetSize();
+        double      x    = centerX + tabGap - (size.x / 2.0);
+        tabSoundRect     = {
+            {          x,          tabY },
+            { x + size.x, tabY + size.y }
         };
     }
 
@@ -197,6 +219,31 @@ void MainMenu::SetupButtons()
         };
         keyBindButtons.push_back(btn);
     }
+
+    double bgmBarY    = centerY + 60.0;
+    double sfxBarY    = centerY - 160.0;
+    double blockGap   = 55.0;
+    double totalWidth = 10 * blockGap;
+    double startX     = centerX - (totalWidth / 2.0) + (blockGap / 2.0);
+
+    for (int i = 0; i < 10; ++i)
+    {
+        bgmBarRects[i] = {
+            { startX + i * blockGap - 20.0,        bgmBarY },
+            { startX + i * blockGap + 20.0, bgmBarY + 30.0 }
+        };
+        sfxBarRects[i] = {
+            { startX + i * blockGap - 20.0,        sfxBarY },
+            { startX + i * blockGap + 20.0, sfxBarY + 30.0 }
+        };
+    }
+}
+
+void MainMenu::UpdateVolumeTextures()
+{
+    CS230::Font& menuFont = Engine::GetFont(1);
+    valBGMTexture         = menuFont.PrintToTexture(std::to_string(bgmLevel), CS200::WHITE);
+    valSFXTexture         = menuFont.PrintToTexture(std::to_string(sfxLevel), CS200::WHITE);
 }
 
 void MainMenu::Update([[maybe_unused]] double dt)
@@ -286,6 +333,11 @@ void MainMenu::UpdateSettingsMenu(double)
         currentTab = SettingsTab::Controls;
         SetupButtons();
     }
+    if (CheckClick(tabSoundRect))
+    {
+        Engine::GetLogger().LogEvent("Switched to Sound Tab");
+        currentTab = SettingsTab::Sound;
+    }
 
     // Save settings and return to main menu when 'Back' is clicked
     if (CheckClick(backRect))
@@ -301,9 +353,13 @@ void MainMenu::UpdateSettingsMenu(double)
     {
         UpdateDisplayTab();
     }
-    else
+    else if (currentTab == SettingsTab::Controls)
     {
         UpdateControlsTab();
+    }
+    else if (currentTab == SettingsTab::Sound)
+    {
+        UpdateSoundTab();
     }
 }
 
@@ -397,6 +453,56 @@ void MainMenu::UpdateControlsTab()
     }
 }
 
+void MainMenu::UpdateSoundTab()
+{
+    auto&       input    = Engine::GetInput();
+    Math::ivec2 winSize  = Engine::GetWindow().GetSize();
+    Math::vec2  mousePos = input.GetMousePosition();
+    mousePos.y           = static_cast<double>(winSize.y) - mousePos.y;
+
+    auto CheckClick = [&](const Math::rect& rect)
+    {
+        return input.MouseButtonJustPressed(CS230::Input::MouseButton::Left) && mousePos.x >= rect.Left() && mousePos.x <= rect.Right() && mousePos.y >= rect.Bottom() && mousePos.y <= rect.Top();
+    };
+
+    bool volumeChanged = false;
+
+    for (int i = 0; i < 10; ++i)
+    {
+        if (CheckClick(bgmBarRects[i]))
+        {
+            if (i == 0 && bgmLevel == 1)
+                bgmLevel = 0;
+            else
+                bgmLevel = i + 1;
+            volumeChanged = true;
+        }
+
+        if (CheckClick(sfxBarRects[i]))
+        {
+            if (i == 0 && sfxLevel == 1)
+                sfxLevel = 0;
+            else
+                sfxLevel = i + 1;
+            volumeChanged = true;
+        }
+    }
+
+    if (volumeChanged)
+    {
+        UpdateVolumeTextures();
+
+        float bgmFloat = static_cast<float>(bgmLevel) / 10.0f;
+        float sfxFloat = static_cast<float>(sfxLevel) / 10.0f;
+
+        CS230::SettingsManager::Instance().SetBGMVolume(bgmFloat);
+        CS230::SettingsManager::Instance().SetSFXVolume(sfxFloat);
+
+        AudioManager::SetBGMVolume(static_cast<int>(bgmFloat * 128.0f));
+        AudioManager::SetSFXVolume(static_cast<int>(sfxFloat * 128.0f));
+    }
+}
+
 void MainMenu::Draw()
 {
     Engine::GetWindow().Clear(0x111111FF);
@@ -446,6 +552,7 @@ void MainMenu::DrawSettingsMenu()
     // Render tab headers
     DrawTab(tabDisplayTexture, tabDisplayRect, currentTab == SettingsTab::Display);
     DrawTab(tabControlsTexture, tabControlsRect, currentTab == SettingsTab::Controls);
+    DrawTab(tabSoundTexture, tabSoundRect, currentTab == SettingsTab::Sound);
 
     if (backTexture)
         backTexture->Draw(Math::TranslationMatrix(Math::vec2{ backRect.point_1.x, backRect.point_1.y }), CS200::WHITE);
@@ -455,9 +562,13 @@ void MainMenu::DrawSettingsMenu()
     {
         DrawDisplayTab();
     }
-    else
+    else if (currentTab == SettingsTab::Controls)
     {
         DrawControlsTab();
+    }
+    else if (currentTab == SettingsTab::Sound)
+    {
+        DrawSoundTab();
     }
 }
 
@@ -516,6 +627,64 @@ void MainMenu::DrawControlsTab()
                 btn.keyTexture->Draw(Math::TranslationMatrix(Math::vec2{ x, btn.rect.Bottom() }), CS200::YELLOW);
             }
         }
+    }
+}
+
+void MainMenu::DrawSoundTab()
+{
+    auto&       renderer = Engine::GetRenderer2D();
+    Math::ivec2 winSize  = Engine::GetWindow().GetSize();
+    double      centerX  = winSize.x * 0.5;
+    double      centerY  = winSize.y * 0.5;
+
+    // BGM Rendering
+    if (labelBGM)
+        labelBGM->Draw(Math::TranslationMatrix(Math::vec2{ centerX - labelBGM->GetSize().x / 2.0, centerY + 120.0 }), CS200::WHITE);
+
+    for (int i = 0; i < 10; ++i)
+    {
+        double width       = bgmBarRects[i].Right() - bgmBarRects[i].Left();
+        double height      = bgmBarRects[i].Top() - bgmBarRects[i].Bottom();
+        double rectCenterX = bgmBarRects[i].Left() + width / 2.0;
+        double rectCenterY = bgmBarRects[i].Bottom() + height / 2.0;
+
+        Math::TransformationMatrix transform = Math::TranslationMatrix(Math::vec2{ rectCenterX, rectCenterY }) * Math::ScaleMatrix(Math::vec2{ width, height });
+
+        if (i < bgmLevel)
+            renderer.DrawRectangle(transform, CS200::GREEN, CS200::WHITE, 2.0);
+        else
+            renderer.DrawRectangle(transform, CS200::CLEAR, CS200::GREY, 2.0);
+    }
+
+    if (valBGMTexture)
+    {
+        double scaledWidth = valBGMTexture->GetSize().x * 0.5;
+        valBGMTexture->Draw(Math::TranslationMatrix(Math::vec2{ centerX - scaledWidth / 2.0, centerY - 10 }) * Math::ScaleMatrix(Math::vec2{ 0.8, 0.8 }), CS200::YELLOW);
+    }
+
+    // SFX Rendering
+    if (labelSFX)
+        labelSFX->Draw(Math::TranslationMatrix(Math::vec2{ centerX - labelSFX->GetSize().x / 2.0, centerY - 100.0 }), CS200::WHITE);
+
+    for (int i = 0; i < 10; ++i)
+    {
+        double width       = sfxBarRects[i].Right() - sfxBarRects[i].Left();
+        double height      = sfxBarRects[i].Top() - sfxBarRects[i].Bottom();
+        double rectCenterX = sfxBarRects[i].Left() + width / 2.0;
+        double rectCenterY = sfxBarRects[i].Bottom() + height / 2.0;
+
+        Math::TransformationMatrix transform = Math::TranslationMatrix(Math::vec2{ rectCenterX, rectCenterY }) * Math::ScaleMatrix(Math::vec2{ width, height });
+
+        if (i < sfxLevel)
+            renderer.DrawRectangle(transform, CS200::GREEN, CS200::WHITE, 2.0);
+        else
+            renderer.DrawRectangle(transform, CS200::CLEAR, CS200::GREY, 2.0);
+    }
+
+    if (valSFXTexture)
+    {
+        double scaledWidth = valSFXTexture->GetSize().x * 0.5;
+        valSFXTexture->Draw(Math::TranslationMatrix(Math::vec2{ centerX - scaledWidth / 2.0, centerY - 230.0 }) * Math::ScaleMatrix(Math::vec2{ 0.8, 0.8 }), CS200::YELLOW);
     }
 }
 

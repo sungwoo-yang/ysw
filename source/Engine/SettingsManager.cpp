@@ -39,6 +39,16 @@ namespace CS230
         return currentSettings.masterVolume;
     }
 
+    float SettingsManager::GetBGMVolume() const
+    {
+        return currentSettings.bgmVolume;
+    }
+
+    float SettingsManager::GetSFXVolume() const
+    {
+        return currentSettings.sfxVolume;
+    }
+
     void SettingsManager::SetResolution(int width, int height)
     {
         currentSettings.resolutionX = width;
@@ -60,6 +70,18 @@ namespace CS230
     {
         // Clamp volume between 0.0 and 1.0
         currentSettings.masterVolume = std::clamp(volume, 0.0f, 1.0f);
+    }
+
+    void SettingsManager::SetBGMVolume(float volume)
+    {
+        // Clamp volume between 0.0 and 1.0
+        currentSettings.bgmVolume = std::clamp(volume, 0.0f, 1.0f);
+    }
+
+    void SettingsManager::SetSFXVolume(float volume)
+    {
+        // Clamp volume between 0.0 and 1.0
+        currentSettings.sfxVolume = std::clamp(volume, 0.0f, 1.0f);
     }
 
     void SettingsManager::SetShowFPS(bool show)
@@ -117,6 +139,10 @@ namespace CS230
                             currentSettings.borderless = (value == "1" || value == "true");
                         else if (key == "MasterVolume")
                             currentSettings.masterVolume = std::stof(value);
+                        else if (key == "BGMVolume")
+                            currentSettings.bgmVolume = std::stof(value);
+                        else if (key == "SFXVolume")
+                            currentSettings.sfxVolume = std::stof(value);
                         else if (key == "ShowFPS")
                             currentSettings.showFPS = (value == "1" || value == "true");
                     }
@@ -144,6 +170,8 @@ namespace CS230
         file << "Fullscreen=" << (currentSettings.fullscreen ? "1" : "0") << "\n";
         file << "Borderless=" << (currentSettings.borderless ? "1" : "0") << "\n";
         file << "MasterVolume=" << currentSettings.masterVolume << "\n";
+        file << "BGMVolume=" << currentSettings.bgmVolume << "\n";
+        file << "SFXVolume=" << currentSettings.sfxVolume << "\n";
         file << "ShowFPS=" << (currentSettings.showFPS ? "1" : "0") << "\n";
 
         Engine::GetLogger().LogEvent(std::string("Settings Saved to ") + filepath.string());

@@ -67,9 +67,14 @@ void AudioManager::StopBGM()
     Mix_HaltMusic();
 }
 
-void AudioManager::SetVolume(int volume)
+void AudioManager::SetBGMVolume(int volume)
+{
+    // Volume ranges from 0 to MIX_MAX_VOLUME (normally 128)
+    Mix_VolumeMusic(volume); // Set volume for BGM
+}
+
+void AudioManager::SetSFXVolume(int volume)
 {
     // Volume ranges from 0 to MIX_MAX_VOLUME (normally 128)
     Mix_Volume(-1, volume);  // Set volume for all SFX channels
-    Mix_VolumeMusic(volume); // Set volume for BGM
 }

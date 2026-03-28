@@ -33,7 +33,8 @@ private:
     enum class SettingsTab
     {
         Display,
-        Controls
+        Controls,
+        Sound
     };
 
     void UpdateMainMenu(double dt);
@@ -61,10 +62,12 @@ private:
     // Tab textures and their screen areas
     std::shared_ptr<CS230::Texture> tabDisplayTexture;
     std::shared_ptr<CS230::Texture> tabControlsTexture;
+    std::shared_ptr<CS230::Texture> tabSoundTexture;
     std::shared_ptr<CS230::Texture> backTexture;
 
     Math::rect tabDisplayRect;
     Math::rect tabControlsRect;
+    Math::rect tabSoundRect;
     Math::rect backRect;
 
     void UpdateDisplayTab();
@@ -103,6 +106,22 @@ private:
     void UpdateControlsTab();
     void DrawControlsTab();
 
+    // Sound Settings
+    void UpdateSoundTab();
+    void DrawSoundTab();
+    void UpdateVolumeTextures();
+
+    std::shared_ptr<CS230::Texture> labelBGM;
+    std::shared_ptr<CS230::Texture> labelSFX;
+    std::shared_ptr<CS230::Texture> valBGMTexture;
+    std::shared_ptr<CS230::Texture> valSFXTexture;
+
+    Math::rect bgmBarRects[10];
+    Math::rect sfxBarRects[10];
+
+    int bgmLevel = 10;
+    int sfxLevel = 10;
+    
     // Internal data structure for rendering the key binding list
     struct KeyBindButton
     {
