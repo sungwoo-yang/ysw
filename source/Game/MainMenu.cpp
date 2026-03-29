@@ -15,6 +15,8 @@
 
 void MainMenu::Load()
 {
+    AudioManager::StopBGM();
+
     // Clear the background to a dark color on entry
     Engine::GetWindow().Clear(0x111111FF);
     Engine::GetLogger().LogEvent("Main Menu Loaded");

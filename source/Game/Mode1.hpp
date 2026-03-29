@@ -7,6 +7,7 @@
 #include "OpenGL/Buffer.hpp"
 #include "OpenGL/Shader.hpp"
 #include "OpenGL/VertexArray.hpp"
+#include <map>
 #include <memory>
 
 class Player;
@@ -47,11 +48,12 @@ private:
     State currentState = State::Loading;
 
     // Core scene components
-    CS230::Camera*     camera;
-    Player*            player;
-    CS230::MapManager* mapManager;
-    WorldTextManager*  worldTextManager;
-    MiniMap*           miniMap;
+    CS230::Camera*                     camera;
+    Player*                            player;
+    CS230::MapManager*                 mapManager;
+    WorldTextManager*                  worldTextManager;
+    MiniMap*                           miniMap;
+    std::map<std::string, std::string> signTexts;
 
     // Gameplay objectives
     // std::vector<TargetStar*> targetStars;

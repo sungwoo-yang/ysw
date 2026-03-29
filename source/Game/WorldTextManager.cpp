@@ -29,7 +29,7 @@ Math::vec2 WorldTextManager::WorldToScreen(Math::vec2 worldPos)
 {
     if (camera == nullptr)
     {
-        return { -1000.0, -1000.0 };    // Return off-screen position if no camera is bound
+        return { -1000.0, -1000.0 }; // Return off-screen position if no camera is bound
     }
 
     // Convert World Space -> NDC (Normalized Device Coordinates) [-1, 1]
@@ -56,7 +56,7 @@ void WorldTextManager::ShowTextAbove(CS230::GameObject* obj, const std::string& 
     if (collider)
     {
         pos.x = obj->GetPosition().x;
-        pos.y = collider->WorldBoundary().Top() + 100.0;
+        pos.y = collider->WorldBoundary().Top() + 10.0;
     }
 
     textJobs.push_back({ text, pos, true, scale, color });
@@ -108,7 +108,7 @@ void WorldTextManager::Draw()
         double scaledWidth  = static_cast<double>(textureSize.x) * scale;
         double scaledHeight = static_cast<double>(textureSize.y) * scale;
 
-        // Center the text horizontally based on the calculated screen position 
+        // Center the text horizontally based on the calculated screen position
         Math::vec2 drawPos_BottomLeft;
         drawPos_BottomLeft.x = screenPos.x - scaledWidth * 0.5;
 

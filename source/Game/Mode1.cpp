@@ -45,10 +45,16 @@ void Mode1::Load()
 
     // 2. Create Player Before Loading Map (Crucial for Factory)
     player = new Player({ 0.0, -400.0 });
-    Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>()->Add(player);
 
     // 3. Initialize MapManager
     mapManager = new CS230::MapManager();
+
+    signTexts = {
+        { "sign_01",                  "A/D to Move" },
+        { "sign_02",           "W or Space to Jump" },
+        { "sign_03", "Press 'F' at Bonfire to Save" },
+        { "sign_04",         "Press LShift to Dash" }
+    };
 
     // 4. Set Factory BEFORE calling LoadMap
     mapManager->SetGameObjectFactory(
@@ -69,12 +75,20 @@ void Mode1::Load()
 
             if (color == "#00ff00")
             {
-                return new Sign(pos, this->player->GetPosition(), "test message");
+                std::string message = "Test Message";
+
+                auto it = signTexts.find(id);
+                if (it != signTexts.end())
+                {
+                    message = it->second;
+                }
+
+                return new Sign(pos, { 100, 100 }, message);
             }
 
             if (color == "#ff0000")
             {
-                return new Bonfire(pos, this->player->GetPosition());
+                return new Bonfire(pos, { 100, 100 });
             }
 
             return nullptr;
@@ -124,10 +138,11 @@ void Mode1::InitGame()
 {
     auto gom = GetGSComponent<CS230::GameObjectManager>();
 
+    gom->Add(player);
+
     worldTextManager = new WorldTextManager();
     worldTextManager->SetCamera(camera);
     AddGSComponent(worldTextManager);
-
 
     if (miniMap)
     {
@@ -140,81 +155,6 @@ void Mode1::InitGame()
     Math::ivec2 winSize = Engine::GetWindow().GetSize();
     camera->SetPosition(player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.5 });
 
-    // targetStars.clear();
-
-    // double t1_x = 4500.0;
-    // double t1_y = 750.0;
-    // double t2_x = 4800.0;
-    // double t2_y = 1000.0;
-    // double t3_x = 5200.0;
-    // double t4_x = 5500.0;
-    // double t5_x = 6500.0;
-    // double t6_x = 7500.0;
-    // double t7_x = 8800.0;
-
-    // TargetStar* t1 = new TargetStar({ t1_x, t1_y });
-    // gom->Add(t1);
-    // targetStars.push_back(t1);
-    // TargetStar* t2 = new TargetStar({ t2_x, t2_y });
-    // gom->Add(t2);
-    // targetStars.push_back(t2);
-    // TargetStar* t3 = new TargetStar({ t3_x, t2_y });
-    // gom->Add(t3);
-    // targetStars.push_back(t3);
-    // TargetStar* t4 = new TargetStar({ t4_x, t1_y });
-    // gom->Add(t4);
-    // targetStars.push_back(t4);
-    // TargetStar* t5 = new TargetStar({ t5_x, t1_y });
-    // gom->Add(t5);
-    // targetStars.push_back(t5);
-    // TargetStar* t6 = new TargetStar({ t6_x, t1_y });
-    // gom->Add(t6);
-    // targetStars.push_back(t6);
-    // TargetStar* t7 = new TargetStar({ t7_x, t1_y });
-    // gom->Add(t7);
-    // targetStars.push_back(t7);
-
-    // double y1_x = 5000.0;
-    // double y1_y = 750.0;
-    // double r1_x = 7000.0;
-    // double r1_y = 750.0;
-    // double y2_x = 9000.0;
-    // double y2_y = 250.0;
-
-    // Star* yellowStar = new Star({ y1_x, y1_y }, player, targetStars, StarType::Yellow);
-    // gom->Add(yellowStar);
-    // Star* redStar = new Star({ r1_x, r1_y }, player, targetStars, StarType::Red);
-    // gom->Add(redStar);
-    // Star* yellowStar2 = new Star({ y2_x, y2_y }, player, targetStars, StarType::Yellow);
-    // gom->Add(yellowStar2);
-
-    // double     platformY  = 200;
-    // double     platformY2 = 500.0;
-    // Math::vec2 signSize   = { 50.0, 25.0 };
-
-    // gom->Add(new Sign({ 0.0, platformY + 12.5 }, signSize, "A/D to Move"));
-    // gom->Add(new Sign({ 200.0, platformY + 12.5 }, signSize, "W or Space to Jump"));
-    // gom->Add(new Sign({ 800.0, platformY2 + 12.5 }, signSize, "Press 'F' at Bonfire to Save"));
-    // gom->Add(new Sign({ 1100.0, platformY + 12.5 }, signSize, "Press 'R' to Respawn"));
-    // gom->Add(new Sign({ 1900.0, platformY2 + 12.5 }, signSize, "Press LShift to Dash"));
-    // gom->Add(new Sign({ 2700.0, platformY + 12.5 }, signSize, "Hold 'LShift' to Sprint"));
-    // gom->Add(new Sign({ 4500.0, platformY + 12.5 }, signSize, "Hold RMB: Shield (Reflects Light)"));
-    // gom->Add(new Sign({ 5000.0, platformY + 12.5 }, signSize, "Reflect Light to Hit the Star!"));
-    // gom->Add(new Sign({ 5900.0, platformY + 12.5 }, signSize, "Red Lasers Hurt! Parry with Timed Block!"));
-    // gom->Add(new Sign({ 7900.0, platformY + 12.5 }, signSize, "Door"));
-
-    // Math::vec2 bonfireSize = { 25.0, 25.0 };
-    // gom->Add(new Bonfire({ 900.0, platformY2 + 12.5 }, bonfireSize));
-    // gom->Add(new Bonfire({ 6000.0, platformY + 12.5 }, bonfireSize));
-    // gom->Add(new Bonfire({ 7800.0, platformY + 12.5 }, bonfireSize));
-
-    // Math::vec2 doorSize = { 80, 120 };
-    // gom->Add(new Door({ 10000.0, platformY + 60.0 }, doorSize));
-
-    // PushableMirror* box = new PushableMirror({ 8500.0, 300.0 }, { 80.0, 80.0 });
-    // gom->Add(box);
-
-    // Background Music
     AudioManager::Play("BGM_Virgo");
 }
 
@@ -336,6 +276,11 @@ void Mode1::Draw()
 
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
     renderer.BeginScene(screen_matrix);
+
+    if (worldTextManager != nullptr)
+    {
+        worldTextManager->Draw();
+    }
 
     renderer.EndScene();
 }
