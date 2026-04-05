@@ -66,8 +66,12 @@ namespace Physics
         Math::vec2   currentDir = initialDir.Normalize();
         const double epsilon    = 0.1;
 
+        double remainingLength = maxLength;
+
         for (int bounce = 0; bounce <= maxBounces; ++bounce)
         {
+            if (remainingLength <= 0.0) break;
+
             double     closestT = std::numeric_limits<double>::infinity();
             Math::vec2 closestIntersection;
             Math::vec2 surfaceNormal;
@@ -97,9 +101,11 @@ namespace Physics
                 }
             }
 
-            if (intersectedIndex != -1)
+            if (intersectedIndex != -1 && closestT <= remainingLength)
             {
                 path.emplace_back(currentPos, closestIntersection);
+                
+                remainingLength -= closestT;
 
                 if (segments[static_cast<size_t>(intersectedIndex)].isReflective)
                 {
@@ -116,7 +122,7 @@ namespace Physics
             else
             {
                 // No hit
-                Math::vec2 endPoint = currentPos + currentDir * maxLength;
+                Math::vec2 endPoint = currentPos + currentDir * remainingLength;
                 path.push_back({ currentPos, endPoint });
                 break;
             }

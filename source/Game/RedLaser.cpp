@@ -3,6 +3,7 @@
 #include "Engine/Engine.hpp"
 #include "Engine/Logger.hpp"
 #include "Player.hpp"
+#include "RedHitParticle.hpp"
 #include "Shield.hpp"
 
 RedLaser::RedLaser(Math::vec2 in_startPos, Math::vec2 dir, Player* in_player) : Laser(in_startPos, dir, in_player)
@@ -15,9 +16,22 @@ void RedLaser::Update([[maybe_unused]] double dt)
     if (!isActive)
         return;
 
-    int bounces = isParried ? 5 : 0;
+    int bounces = 0;
     CalculatePath(bounces, 3000.0);
     CheckTargetIntersections(15.0);
+
+    if (isParried && !hasEmittedParryParticle && pathPoints.size() >= 2)
+    {
+        Math::vec2 hitPos = pathPoints.back();
+
+        auto particleManager = Engine::GetGameStateManager().GetGSComponent<CS230::ParticleManager<RedHitParticle>>();
+        if (particleManager)
+        {
+            particleManager->Emit(30, hitPos, { 0.0, 0.0 }, -direction * 2.0, PI);
+        }
+
+        hasEmittedParryParticle = true;
+    }
 
     if (player == nullptr)
         return;
@@ -28,7 +42,7 @@ void RedLaser::Update([[maybe_unused]] double dt)
         {
             Shield* shield = player->GetShield();
 
-                if (isParried && shield && shield->IsGuardUp() && i == 0)
+            if (isParried && shield && shield->IsGuardUp() && i == 0)
             {
                 auto segs = shield->GetSegments();
                 if (!segs.empty())

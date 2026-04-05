@@ -5,6 +5,7 @@
 #include "Mirror.hpp"
 #include "Player.hpp"
 #include "PuzzleStar.hpp"
+#include "RedHitParticle.hpp"
 #include "Sign.hpp"
 #include "Star.hpp"
 #include "TargetStar.hpp"
@@ -18,11 +19,11 @@
 #include "Engine/Engine.hpp"
 #include "Engine/Font.hpp"
 #include "Engine/GameObjectManager.hpp"
+#include "Engine/GameStateManager.hpp"
 #include "Engine/Logger.hpp"
 #include "Engine/MapManager.h"
 #include "Engine/ShowCollision.hpp"
 #include "Engine/Window.hpp"
-#include "Engine/GameStateManager.hpp"
 
 #include <imgui.h>
 
@@ -40,13 +41,14 @@ std::vector<std::string> SplitID(const std::string& s, char delimiter)
 }
 
 void Mode2::Load()
-{   
+{
     Engine::GetGameStateManager().HoldFadeIn(true);
-    
+
     currentState = State::Loading;
 
     AddGSComponent(new CS230::GameObjectManager());
 
+    AddGSComponent(new CS230::ParticleManager<RedHitParticle>());
 #ifdef DEVELOPER_VERSION
     AddGSComponent(new CS230::ShowCollision());
 #endif
@@ -203,10 +205,10 @@ void Mode2::Update(double dt)
         {
             Engine::GetLogger().LogEvent("Map Loading Complete! Starting Game...");
             currentState = State::Playing;
-            
+
             Engine::GetGameStateManager().HoldFadeIn(false);
-            
-            playingTimer = 0.0;
+
+            playingTimer    = 0.0;
             isCameraScaling = false;
         }
         return;
@@ -215,7 +217,7 @@ void Mode2::Update(double dt)
     if (currentState == State::Playing)
     {
         playingTimer += dt;
-        
+
         if (playingTimer >= 1.0 && !isCameraScaling)
         {
             isCameraScaling = true;

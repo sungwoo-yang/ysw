@@ -37,5 +37,5 @@ private:
     double     firingTimer           = 0.0;
     double     currentFiringDuration = 0.0;
     Math::vec2 laserDirection;
-    double     rotationSpeed = 1.5;
+    double     rotationSpeed = 0.5;
 };

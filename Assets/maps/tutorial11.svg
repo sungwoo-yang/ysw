@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="4749.9995"
+   height="920"
+   viewBox="0 0 4749.9995 920"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="tutorial10.svg"
+   inkscape:export-filename="tutorial05.svg"
+   inkscape:export-xdpi="86.602676"
+   inkscape:export-ydpi="86.602676"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="false"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="true"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     showborder="false"
+     borderlayer="true"
+     showguides="false"
+     inkscape:zoom="0.70442112"
+     inkscape:cx="4131.7614"
+     inkscape:cy="283.21127"
+     inkscape:window-width="1920"
+     inkscape:window-height="991"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g1">
+    <inkscape:page
+       x="0"
+       y="0"
+       width="4749.9995"
+       height="920"
+       id="page2"
+       margin="0"
+       bleed="0" />
+  </sodipodi:namedview>
+  <defs
+     id="defs1" />
+  <g
+     id="g2">
+    <g
+       id="g1">
+      <path
+         id="rect6"
+         style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:5.78888"
+         d="M 2.8944399,522.89449 H 1917.1056 V 917.1056 H 2.8944399 Z" />
+      <path
+         id="rect7-2"
+         style="fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.629567"
+         d="m 1692.4811,320.31478 h 79.3705 V 439.6852 h -79.3705 z" />
+      <path
+         id="rect6-8"
+         style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.71872"
+         d="M 1510.5826,519.64064 H 1806.699 V 480.35936 H 1510.5826 Z" />
+      <path
+         id="rect6-8-1"
+         style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.578041"
+         d="m 1615.6752,440.28902 h 190.8567 v 39.42196 h -190.8567 z" />
+    </g>
+  </g>
+</svg>

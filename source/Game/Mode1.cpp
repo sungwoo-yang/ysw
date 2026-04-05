@@ -114,7 +114,7 @@ void Mode1::Load()
     // mapManager = new CS230::MapManager();
     mapManager->AddMap(new CS230::Map("Assets/maps/tutorial05.svg"));
     mapManager->LoadMap();
-    AddGSComponent(mapManager); 
+    AddGSComponent(mapManager);
 
     backgroundShader = OpenGL::CreateShader(std::filesystem::path("Assets/shaders/Cradle.vart"), std::filesystem::path("Assets/shaders/Cradle.frag"));
 
@@ -190,7 +190,7 @@ void Mode1::Update(double dt)
             Engine::GetLogger().LogEvent("Mode1 Map Loading Complete! Starting Game...");
             InitGame();
             currentState = State::Playing;
-            
+
             Engine::GetGameStateManager().HoldFadeIn(false);
         }
         return;
@@ -211,8 +211,8 @@ void Mode1::Update(double dt)
     if (player != nullptr)
     {
         Math::vec2 winSize = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
-        
-        float currentScale = 0.8f; 
+
+        float currentScale = 0.8f;
         camera->SetScale(currentScale);
 
         Math::vec2 scaledWinSize = winSize / currentScale;
@@ -221,20 +221,24 @@ void Mode1::Update(double dt)
 
         double minX = level1_boundary.Left();
         double maxX = level1_boundary.Right() - scaledWinSize.x;
-        
-        double minY = -800.0;
-        double maxY = 800.0; 
 
-        if (targetPos.x < minX) targetPos.x = minX;
-        if (targetPos.x > maxX) targetPos.x = maxX;
-        if (targetPos.y < minY) targetPos.y = minY;
-        if (targetPos.y > maxY) targetPos.y = maxY;
+        double minY = -800.0;
+        double maxY = 800.0;
+
+        if (targetPos.x < minX)
+            targetPos.x = minX;
+        if (targetPos.x > maxX)
+            targetPos.x = maxX;
+        if (targetPos.y < minY)
+            targetPos.y = minY;
+        if (targetPos.y > maxY)
+            targetPos.y = maxY;
 
         camera->Update(targetPos, dt);
     }
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
     {
-        player->SetPosition({ 8000, 300 });
+        player->SetPosition({ 4200, 300 });
     }
 
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))
@@ -279,11 +283,10 @@ void Mode1::Update(double dt)
 //     if (player != nullptr)
 //     {
 //         Math::vec2 winSize   = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
-        
+
 //         Math::vec2 targetPos = player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.5 };
 
-        
-        
+
 //         camera->Update(targetPos, dt);
 //     }
 
@@ -357,7 +360,7 @@ void Mode1::Draw()
 
     // if (texture20 != nullptr)
     // {
-    //     Math::vec2 svg_center = { 4750.0, 0.0 }; 
+    //     Math::vec2 svg_center = { 4750.0, 0.0 };
     //     Math::TransformationMatrix bg_transform = Math::TranslationMatrix(svg_center);
     //     texture20->Draw(view_projection_matrix * bg_transform);
     // }

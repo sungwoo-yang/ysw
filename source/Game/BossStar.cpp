@@ -109,13 +109,15 @@ void BossStar::OnWarningComplete()
     else
     {
         YellowLaser* yLaser = new YellowLaser(GetPosition(), dir, player);
+        yLaser->StartExtending();
+
         gom->Add(yLaser);
 
         activeLaser           = yLaser;
         firingTimer           = 0.0;
         currentFiringDuration = 5.0;
         laserDirection        = dir;
-        rotationSpeed         = 1.5;
+        rotationSpeed         = 0.2;
 
         Engine::GetLogger().LogEvent("Boss Fired Yellow Laser! (Evade)");
     }
