@@ -62,7 +62,7 @@ namespace CS230
 
         if (other_collider == nullptr)
         {
-            Engine::GetLogger().LogDebug("No collision component found in other object");
+            // Engine::GetLogger().LogDebug("No collision component found in other object");
             return false;
         }
 
@@ -79,7 +79,7 @@ namespace CS230
         }
         else if (other_collider->Shape() == CollisionShape::Circle)
         {
-            Engine::GetLogger().LogDebug("Rect vs Circle collision not yet implemented.");
+            // Engine::GetLogger().LogDebug("Rect vs Circle collision not yet implemented.");
             return false;
         }
 
@@ -117,7 +117,7 @@ namespace CS230
         Collision* other_collider = other_object->GetGOComponent<Collision>();
         if (other_collider == nullptr)
         {
-            Engine::GetLogger().LogDebug("No collision component found in other object");
+            // Engine::GetLogger().LogDebug("No collision component found in other object");
             return false;
         }
 
@@ -134,7 +134,7 @@ namespace CS230
         }
         else
         {
-            Engine::GetLogger().LogDebug("Circle vs (Rect/Poly) collision not yet implemented.");
+            // Engine::GetLogger().LogDebug("Circle vs (Rect/Poly) collision not yet implemented.");
             return false;
         }
     }
@@ -234,7 +234,7 @@ namespace CS230
         }
         else if (other_collider->Shape() == CollisionShape::Circle)
         {
-            Engine::GetLogger().LogDebug("SATCollision vs Circle-Collision.");
+            // Engine::GetLogger().LogDebug("SATCollision vs Circle-Collision.");
             return false;
         }
 

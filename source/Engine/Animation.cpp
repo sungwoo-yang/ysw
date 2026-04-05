@@ -55,7 +55,7 @@ CS230::Animation::Animation(const std::filesystem::path& animation_file) : curre
     Reset();
 }
 
-CS230::Animation::Animation() : Animation("./Assets/None.anm")
+CS230::Animation::Animation() : Animation("./Assets/images/None.anm")
 {
 }
 
