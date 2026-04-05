@@ -122,6 +122,15 @@ CS200::RGBA HostileStar::GetTelegraphColor() const
     return (currentStarType == StarType::Red) ? 0xFF0000FF : 0xFFFF00FF;
 }
 
+int HostileStar::GetMaxBounces() const
+{
+    if (currentStarType == StarType::Red)
+    {
+        return 0;
+    }
+    return 2;
+}
+
 void HostileStar::SetStarType(StarType newType)
 {
     currentStarType = newType;

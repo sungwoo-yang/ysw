@@ -28,6 +28,7 @@ public:
         return 0xFF00FFFF;
     }
 
+    int GetMaxBounces() const override;
 
 private:
     int          attackStep;

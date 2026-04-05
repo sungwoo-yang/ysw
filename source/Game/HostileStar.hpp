@@ -34,6 +34,8 @@ public:
         return 0xFFFF00FF;
     }
 
+    int GetMaxBounces() const override;
+
     void SetStarType(StarType newType);
 
 private:

@@ -22,7 +22,7 @@ void RedLaser::Update([[maybe_unused]] double dt)
         Math::vec2 toPlayer = player->GetPosition() - startPos;
         double     dist     = std::sqrt(toPlayer.x * toPlayer.x + toPlayer.y * toPlayer.y);
 
-        laserLength = dist - 30.0;
+        laserLength = dist - 60.0;
         if (laserLength < 0.0)
             laserLength = 0.0;
     }
@@ -33,17 +33,18 @@ void RedLaser::Update([[maybe_unused]] double dt)
 
     if (isParried && !hasEmittedParryParticle && pathPoints.size() >= 2)
     {
-        Math::vec2 hitPos = pathPoints.back();
-
-        Math::vec2 offsetHitPos = hitPos - (direction * 30.0);
-
-        auto particleManager = Engine::GetGameStateManager().GetGSComponent<CS230::ParticleManager<RedHitParticle>>();
-        if (particleManager)
+        if (pathPoints.size() >= 2)
         {
-            particleManager->Emit(30, offsetHitPos, { 0.0, 0.0 }, -direction * 600.0, PI);
-        }
+            Math::vec2 hitPos = startPos + (direction * laserLength);
 
-        hasEmittedParryParticle = true;
+            auto pManager = Engine::GetGameStateManager().GetGSComponent<CS230::ParticleManager<RedHitParticle>>();
+
+            if (pManager != nullptr)
+            {
+                pManager->Emit(30, hitPos, { 0.0, 0.0 }, -direction * 400.0, PI * 2.0);
+            }
+            hasEmittedParryParticle = true;
+        }
     }
 
     if (player == nullptr)
@@ -53,26 +54,11 @@ void RedLaser::Update([[maybe_unused]] double dt)
     {
         if (DistToSegmentSquared(player->GetPosition(), pathPoints[i], pathPoints[i + 1]) < 40.0 * 40.0)
         {
-            Shield* shield = player->GetShield();
-
-            if (isParried && shield && shield->IsGuardUp() && i == 0)
+            if (isParried && i == 0)
             {
-                auto segs = shield->GetSegments();
-                if (!segs.empty())
-                {
-                    Math::vec2 p1      = segs[0].first;
-                    Math::vec2 p2      = segs[0].second;
-                    Math::vec2 wallVec = p2 - p1;
-                    Math::vec2 normal  = Math::vec2{ -wallVec.y, wallVec.x }.Normalize();
-
-                    Math::vec2 shieldCenter = { (p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5 };
-                    if ((shieldCenter - player->GetPosition()).Dot(normal) < 0)
-                        normal = -normal;
-
-                    if (direction.Dot(normal) < 0)
-                        continue;
-                }
+                continue;
             }
+
             player->ApplyLaserDamage(4.0);
             Engine::GetLogger().LogEvent("Player Hit by Fatal Red Laser!");
             break;

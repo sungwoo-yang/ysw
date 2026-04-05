@@ -47,6 +47,8 @@ public:
         return 0x00FF00FF;
     }
 
+    int GetMaxBounces() const override;
+    
     void SetPattern(Pattern newPattern);
     void SetAimDirection(Math::vec2 newDir);
 

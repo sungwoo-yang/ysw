@@ -137,3 +137,12 @@ CS200::RGBA BossStar::GetTelegraphColor() const
     else
         return 0xFFFF00FF;
 }
+
+int BossStar::GetMaxBounces() const
+{
+    if (attackStep < 2)
+    {
+        return 0;
+    }
+    return 2;
+}

@@ -1,18 +1,17 @@
 #include "Star.hpp"
-#include "Player.hpp"
-#include "TargetStar.hpp"
-#include "Shield.hpp"
-#include "Mirror.hpp"
-#include "PushableMirror.hpp"
-#include "Gate.hpp"
-#include "Engine/MapElement.h"
-#include "Engine/Engine.hpp"
-#include "Engine/GameStateManager.hpp"
-#include "Engine/GameObjectManager.hpp"
 #include "CS200/IRenderer2D.hpp"
+#include "Engine/Engine.hpp"
+#include "Engine/GameObjectManager.hpp"
+#include "Engine/GameStateManager.hpp"
+#include "Engine/MapElement.h"
+#include "Gate.hpp"
+#include "Mirror.hpp"
+#include "Player.hpp"
+#include "PushableMirror.hpp"
+#include "Shield.hpp"
+#include "TargetStar.hpp"
 
-Star::Star(Math::vec2 pos, Player* in_player)
-    : CS230::GameObject(pos), currentState(State::Idle), timer(0.0), player(in_player)
+Star::Star(Math::vec2 pos, Player* in_player) : CS230::GameObject(pos), currentState(State::Idle), timer(0.0), player(in_player)
 {
 }
 
@@ -24,7 +23,8 @@ void Star::Update(double dt)
 
 void Star::HandleBasicAI(double dt)
 {
-    if (player == nullptr) return;
+    if (player == nullptr)
+        return;
 
     double distance = (player->GetPosition() - GetPosition()).Length();
 
@@ -34,7 +34,7 @@ void Star::HandleBasicAI(double dt)
             if (distance <= detectionRadius)
             {
                 currentState = State::Warning;
-                timer = warningDuration;
+                timer        = warningDuration;
             }
             break;
 
@@ -42,17 +42,17 @@ void Star::HandleBasicAI(double dt)
             if (distance > chaseRadius)
             {
                 currentState = State::Idle;
-                timer = 0.0;
+                timer        = 0.0;
                 return;
             }
 
             timer -= dt;
             if (timer <= 0.0)
             {
-                OnWarningComplete(); 
-                
+                OnWarningComplete();
+
                 currentState = State::Cooldown;
-                timer = cooldownDuration;
+                timer        = cooldownDuration;
             }
             break;
 
@@ -83,15 +83,17 @@ void Star::Draw(const Math::TransformationMatrix& camera_matrix)
 
 void Star::DrawTrajectory()
 {
-    if (player == nullptr) return;
+    if (player == nullptr)
+        return;
 
     std::vector<Physics::LineSegment> allSegments;
-    
+
     Shield* shield = player->GetShield();
     if (shield && shield->IsGuardUp())
     {
         auto segs = shield->GetSegments();
-        for (const auto& s : segs) allSegments.push_back({ s.first, s.second, true });
+        for (const auto& s : segs)
+            allSegments.push_back({ s.first, s.second, true });
     }
 
     auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
@@ -106,8 +108,9 @@ void Star::DrawTrajectory()
             else if (obj->Type() == GameObjectTypes::PushableMirror)
             {
                 auto mirror = static_cast<PushableMirror*>(obj);
-                auto segs = mirror->GetSegments();
-                for (const auto& s : segs) allSegments.push_back({ s.first, s.second, true });
+                auto segs   = mirror->GetSegments();
+                for (const auto& s : segs)
+                    allSegments.push_back({ s.first, s.second, true });
             }
             else if (obj->Type() == GameObjectTypes::Floor)
             {
@@ -121,18 +124,25 @@ void Star::DrawTrajectory()
                 if (!gate->IsOpen())
                 {
                     Math::vec2 p = gate->GetPosition();
-                    allSegments.push_back({{ p.x - 50, p.y }, { p.x + 50, p.y }, false});
+                    allSegments.push_back(
+                        {
+                            { p.x - 50, p.y },
+                            { p.x + 50, p.y },
+                            false
+                    });
                 }
             }
         }
     }
 
     Math::vec2 dir = (player->GetPosition() - GetPosition()).Normalize();
-    auto path = Physics::CalculateLaserPath(GetPosition(), dir, allSegments, 2, 15000.0);
 
-    auto& renderer = Engine::GetRenderer2D();
+    int  bounces = GetMaxBounces();
+    auto path    = Physics::CalculateLaserPath(GetPosition(), dir, allSegments, bounces, 15000.0);
+
+    auto&       renderer  = Engine::GetRenderer2D();
     CS200::RGBA lineColor = GetTelegraphColor();
-    lineColor = (lineColor & 0xFFFFFF00) | 0x80;
+    lineColor             = (lineColor & 0xFFFFFF00) | 0x80;
 
     for (const auto& seg : path)
     {

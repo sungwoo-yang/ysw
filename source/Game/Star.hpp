@@ -19,6 +19,8 @@ public:
     virtual CS200::RGBA GetTelegraphColor() const = 0;
     virtual CS200::RGBA GetBodyColor() const      = 0;
 
+    virtual int GetMaxBounces() const = 0;
+
 protected:
     enum class State
     {

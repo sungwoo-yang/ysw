@@ -7,7 +7,7 @@ class RedLaser : public Laser
 {
 public:
     RedLaser(Math::vec2 in_startPos, Math::vec2 dir, Player* in_player);
-    void Update(double dt) override;
+    void Update([[maybe_unused]]double dt) override;
 
     GameObjectTypes Type() override
     {

@@ -121,3 +121,12 @@ void PuzzleStar::SetAimDirection(Math::vec2 newDir)
 {
     aimDirection = newDir.Normalize();
 }
+
+int PuzzleStar::GetMaxBounces() const
+{
+    if (currentType == LaserType::Red)
+    {
+        return 0;
+    }
+    return 2;
+}
