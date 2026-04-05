@@ -15,6 +15,17 @@ void RedLaser::Update([[maybe_unused]] double dt)
 {
     if (!isActive)
         return;
+    double laserLength = 3000.0;
+
+    if (isParried && player != nullptr)
+    {
+        Math::vec2 toPlayer = player->GetPosition() - startPos;
+        double     dist     = std::sqrt(toPlayer.x * toPlayer.x + toPlayer.y * toPlayer.y);
+
+        laserLength = dist - 30.0;
+        if (laserLength < 0.0)
+            laserLength = 0.0;
+    }
 
     int bounces = 0;
     CalculatePath(bounces, 3000.0);
