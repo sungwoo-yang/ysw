@@ -47,8 +47,6 @@ void Mode2::Load()
     currentState = State::Loading;
 
     AddGSComponent(new CS230::GameObjectManager());
-
-    AddGSComponent(new CS230::ParticleManager<RedHitParticle>());
 #ifdef DEVELOPER_VERSION
     AddGSComponent(new CS230::ShowCollision());
 #endif
@@ -73,6 +71,8 @@ void Mode2::Load()
     mapManager->AddMap(new CS230::Map("Assets/maps/Boss01.svg"));
     mapManager->LoadMap();
     AddGSComponent(mapManager);
+
+    AddGSComponent(new CS230::ParticleManager<RedHitParticle>());
 }
 
 void Mode2::InitGame()

@@ -28,17 +28,19 @@ void RedLaser::Update([[maybe_unused]] double dt)
     }
 
     int bounces = 0;
-    CalculatePath(bounces, 3000.0);
+    CalculatePath(bounces, laserLength);
     CheckTargetIntersections(15.0);
 
     if (isParried && !hasEmittedParryParticle && pathPoints.size() >= 2)
     {
         Math::vec2 hitPos = pathPoints.back();
 
+        Math::vec2 offsetHitPos = hitPos - (direction * 30.0);
+
         auto particleManager = Engine::GetGameStateManager().GetGSComponent<CS230::ParticleManager<RedHitParticle>>();
         if (particleManager)
         {
-            particleManager->Emit(30, hitPos, { 0.0, 0.0 }, -direction * 2.0, PI);
+            particleManager->Emit(30, offsetHitPos, { 0.0, 0.0 }, -direction * 600.0, PI);
         }
 
         hasEmittedParryParticle = true;
