@@ -31,7 +31,7 @@ public:
 
 private:
     int          attackStep;
-    const double parryWindowTime = 0.2;
+    const double parryWindowTime = 0.5;
 
     Laser*     activeLaser           = nullptr;
     double     firingTimer           = 0.0;

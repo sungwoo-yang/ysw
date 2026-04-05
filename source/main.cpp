@@ -10,8 +10,8 @@
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Window.hpp"
 // #include "Game/Mainmenu.hpp"
-// #include "Game/Mode1.hpp"
-// #include "Game/Mode2.hpp"
+#include "Game/Mode1.hpp"
+#include "Game/Mode2.hpp"
 #include "Game/Splash.hpp"
 #include <iostream>
 

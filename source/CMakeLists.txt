@@ -83,6 +83,8 @@ set(SOURCE_CODE
     Game/WhiteLaser.hpp Game/WhiteLaser.cpp
     Game/WorldTextManager.hpp Game/WorldTextManager.cpp
     Game/YellowLaser.hpp Game/YellowLaser.cpp
+    Game/FallCutscene.hpp Game/FallCutscene.cpp
+    Game/Mode3.hpp Game/Mode3.cpp
 
     OpenGL/Buffer.hpp OpenGL/Buffer.cpp
     OpenGL/Environment.hpp

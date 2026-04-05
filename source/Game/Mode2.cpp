@@ -22,6 +22,7 @@
 #include "Engine/MapManager.h"
 #include "Engine/ShowCollision.hpp"
 #include "Engine/Window.hpp"
+#include "Engine/GameStateManager.hpp"
 
 #include <imgui.h>
 
@@ -39,7 +40,9 @@ std::vector<std::string> SplitID(const std::string& s, char delimiter)
 }
 
 void Mode2::Load()
-{
+{   
+    Engine::GetGameStateManager().HoldFadeIn(true);
+    
     currentState = State::Loading;
 
     AddGSComponent(new CS230::GameObjectManager());
@@ -65,7 +68,7 @@ void Mode2::Load()
 
     InitGame();
 
-    mapManager->AddMap(new CS230::Map("Assets/maps/Boss.svg"));
+    mapManager->AddMap(new CS230::Map("Assets/maps/Boss01.svg"));
     mapManager->LoadMap();
     AddGSComponent(mapManager);
 }
@@ -194,15 +197,43 @@ void Mode2::Update(double dt)
 {
     UpdateGSComponents(dt);
 
-    // Wait for map load
     if (currentState == State::Loading)
     {
         if (mapManager->GetCurrentMap() && mapManager->GetCurrentMap()->IsLevelLoaded())
         {
             Engine::GetLogger().LogEvent("Map Loading Complete! Starting Game...");
             currentState = State::Playing;
+            
+            Engine::GetGameStateManager().HoldFadeIn(false);
+            
+            playingTimer = 0.0;
+            isCameraScaling = false;
         }
         return;
+    }
+
+    if (currentState == State::Playing)
+    {
+        playingTimer += dt;
+        
+        if (playingTimer >= 1.0 && !isCameraScaling)
+        {
+            isCameraScaling = true;
+        }
+
+        if (isCameraScaling && camera != nullptr)
+        {
+            double currentScale = camera->GetScale();
+            if (currentScale > targetCameraScale)
+            {
+                currentScale -= dt * cameraScaleSpeed;
+                if (currentScale < targetCameraScale)
+                {
+                    currentScale = targetCameraScale;
+                }
+                camera->SetScale(currentScale);
+            }
+        }
     }
 
     auto gom = GetGSComponent<CS230::GameObjectManager>();
@@ -210,7 +241,6 @@ void Mode2::Update(double dt)
     gom->UpdateAll(dt);
     gom->CollisionTest();
 
-    // Logic to handle puzzle gate unlocking
     if (puzzleGate == nullptr)
     {
         for (auto obj : gom->GetObjects())
@@ -223,7 +253,6 @@ void Mode2::Update(double dt)
         }
     }
 
-    // Trigger gate opening if the puzzle target is activated by light
     if (puzzleTarget != nullptr && puzzleTarget->IsHit())
     {
         if (puzzleGate != nullptr && !puzzleGate->IsOpen())
@@ -232,10 +261,6 @@ void Mode2::Update(double dt)
         }
     }
 
-    // GetGSComponent<CS230::GameObjectManager>()->UpdateAll(dt);
-    // GetGSComponent<CS230::GameObjectManager>()->CollisionTest();
-
-    // Update camera target
     if (player != nullptr)
     {
         Math::vec2 winSize   = static_cast<Math::vec2>(Engine::GetWindow().GetSize());

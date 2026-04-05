@@ -57,32 +57,154 @@ Shield::Shield(CS230::GameObject* in_owner) : owner(in_owner), shieldHitTimer(1.
     UpdatePosition();
 }
 
+// void Shield::HandleInput([[maybe_unused]] double dt)
+// {
+//     // Prevent usage if shield is temporarily disabled due to failed parry
+//     if (isShieldFrozen)
+//         return;
+
+//     auto& input = Engine::GetInput();
+
+//     // Coordinate conversion: Screen Space -> OpenGL Space -> World Space
+//     Math::vec2  mouseScreenPos = input.GetMousePosition();
+//     Math::ivec2 winSize        = Engine::GetWindow().GetSize();
+
+//     Math::vec2 mouseGLPos = { mouseScreenPos.x, static_cast<double>(winSize.y) - mouseScreenPos.y };
+
+//     auto       camera           = Engine::GetGameStateManager().GetGSComponent<CS230::Camera>();
+//     Math::vec2 cameraBottomLeft = camera ? camera->GetPosition() : Math::vec2{ 0, 0 };
+
+//     Math::vec2 mouseWorldPos = cameraBottomLeft + mouseGLPos;
+
+//     // Calculate angle pointing from player to the mouse cursor
+//     Math::vec2 dir = mouseWorldPos - owner->GetPosition();
+//     shieldAngle    = std::atan2(dir.y, dir.x);
+
+//     bool rightClick = input.MouseButtonDown(CS230::Input::MouseButton::Right);
+
+//     // Toggle guard state
+//     if (rightClick)
+//     {
+//         if (cooldownTimer <= 0.0 && !isShieldFrozen)
+//         {
+//             isGuarding = true;
+//         }
+//     }
+//     else
+//     {
+//         if (isGuarding)
+//         {
+//             isGuarding    = false;
+//             cooldownTimer = shieldCooldown; // Apply cooldown after releasing
+//             Engine::GetLogger().LogDebug("Shield Lowered. Cooldown started.");
+//         }
+//     }
+
+//     // Capture precise click for parrying
+//     if (input.MouseButtonJustPressed(CS230::Input::MouseButton::Right))
+//     {
+//         if (parryWindowActive)
+//         {
+//             TryParry();
+//         }
+//     }
+// }
+
+// void Shield::HandleInput([[maybe_unused]] double dt)
+// {
+//     if (isShieldFrozen)
+//         return;
+
+//     auto& input = Engine::GetInput();
+
+//     Math::vec2  mouseScreenPos = input.GetMousePosition();
+//     Math::ivec2 winSize        = Engine::GetWindow().GetSize();
+
+//     auto camera = Engine::GetGameStateManager().GetGSComponent<CS230::Camera>();
+    
+//     Math::vec2 camPos = { 0, 0 };
+//     double camScale = 1.0;
+
+//     if (camera)
+//     {
+//         camPos = camera->GetPosition();
+//         camScale = camera->GetScale();
+//     }
+
+//     Math::vec2 mouseWorldPos;
+//     mouseWorldPos.x = (mouseScreenPos.x / camScale) + camPos.x;
+    
+//     double mouseGL_Y = static_cast<double>(winSize.y) - mouseScreenPos.y;
+//     mouseWorldPos.y = (mouseGL_Y / camScale) + camPos.y;
+
+//     Math::vec2 dir = mouseWorldPos - owner->GetPosition();
+//     shieldAngle    = std::atan2(dir.y, dir.x);
+
+//     bool rightClick = input.MouseButtonDown(CS230::Input::MouseButton::Right);
+//     if (rightClick)
+//     {
+//         if (cooldownTimer <= 0.0 && !isShieldFrozen)
+//         {
+//             isGuarding = true;
+//         }
+//     }
+//     else
+//     {
+//         if (isGuarding)
+//         {
+//             isGuarding    = false;
+//             cooldownTimer = shieldCooldown;
+//         }
+//     }
+
+//     if (input.MouseButtonJustPressed(CS230::Input::MouseButton::Right))
+//     {
+//         if (parryWindowActive)
+//         {
+//             TryParry();
+//         }
+//     }
+// }
 void Shield::HandleInput([[maybe_unused]] double dt)
 {
-    // Prevent usage if shield is temporarily disabled due to failed parry
     if (isShieldFrozen)
         return;
 
     auto& input = Engine::GetInput();
 
-    // Coordinate conversion: Screen Space -> OpenGL Space -> World Space
-    Math::vec2  mouseScreenPos = input.GetMousePosition();
+    Math::vec2 mouseScreenPos = input.GetMousePosition();
     Math::ivec2 winSize        = Engine::GetWindow().GetSize();
 
-    Math::vec2 mouseGLPos = { mouseScreenPos.x, static_cast<double>(winSize.y) - mouseScreenPos.y };
+    auto camera = Engine::GetGameStateManager().GetGSComponent<CS230::Camera>();
+    
+    Math::vec2 camPos = { 0, 0 };
+    double camScale = 1.0;
 
-    auto       camera           = Engine::GetGameStateManager().GetGSComponent<CS230::Camera>();
-    Math::vec2 cameraBottomLeft = camera ? camera->GetPosition() : Math::vec2{ 0, 0 };
+    if (camera)
+    {
+        camPos = camera->GetPosition();
+        camScale = camera->GetScale();
+    }
 
-    Math::vec2 mouseWorldPos = cameraBottomLeft + mouseGLPos;
+    Math::vec2 mouseWorldPos;
+    mouseWorldPos.x = (mouseScreenPos.x / camScale) + camPos.x;
+    
+    double mouseGL_Y = static_cast<double>(winSize.y) - mouseScreenPos.y;
+    mouseWorldPos.y = (mouseGL_Y / camScale) + camPos.y;
 
-    // Calculate angle pointing from player to the mouse cursor
-    Math::vec2 dir = mouseWorldPos - owner->GetPosition();
+    static Math::vec2 lastMouseScreenPos = { -1.0, -1.0 };
+    static Math::vec2 lockedTargetWorldPos = mouseWorldPos;
+
+    if (mouseScreenPos.x != lastMouseScreenPos.x || mouseScreenPos.y != lastMouseScreenPos.y)
+    {
+        lockedTargetWorldPos = mouseWorldPos;
+        lastMouseScreenPos = mouseScreenPos;
+    }
+
+    Math::vec2 dir = lockedTargetWorldPos - owner->GetPosition();
     shieldAngle    = std::atan2(dir.y, dir.x);
 
     bool rightClick = input.MouseButtonDown(CS230::Input::MouseButton::Right);
-
-    // Toggle guard state
     if (rightClick)
     {
         if (cooldownTimer <= 0.0 && !isShieldFrozen)
@@ -95,12 +217,10 @@ void Shield::HandleInput([[maybe_unused]] double dt)
         if (isGuarding)
         {
             isGuarding    = false;
-            cooldownTimer = shieldCooldown; // Apply cooldown after releasing
-            Engine::GetLogger().LogDebug("Shield Lowered. Cooldown started.");
+            cooldownTimer = shieldCooldown;
         }
     }
 
-    // Capture precise click for parrying
     if (input.MouseButtonJustPressed(CS230::Input::MouseButton::Right))
     {
         if (parryWindowActive)

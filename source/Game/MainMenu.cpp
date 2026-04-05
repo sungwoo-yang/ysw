@@ -283,8 +283,9 @@ void MainMenu::UpdateMainMenu([[maybe_unused]] double dt)
         if (isStartHovered)
         {
             Engine::GetLogger().LogEvent("Start Game Button Clicked");
-            Engine::GetGameStateManager().Clear();
-            Engine::GetGameStateManager().PushState<Mode1>();
+            // Engine::GetGameStateManager().Clear();
+            // Engine::GetGameStateManager().PushState<Mode1>();
+            Engine::GetGameStateManager().ChangeStateWithFade<Mode1>();
         }
         else if (isSettingsHovered)
         {

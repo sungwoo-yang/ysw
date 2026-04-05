@@ -46,6 +46,10 @@ private:
     Gate*              puzzleGate       = nullptr;
     WorldTextManager*  worldTextManager = nullptr;
     std::vector<TargetStar*> targetStars;
+    double playingTimer = 0.0;
+    bool isCameraScaling = false;
+    const double targetCameraScale = 0.5;
+    const double cameraScaleSpeed = 0.5;
 
     Math::rect level_boundary = {
         {    0.0,    0.0 },

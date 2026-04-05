@@ -7,6 +7,7 @@
 #include "Engine/Logger.hpp"
 #include "Game/WorldTextManager.hpp"
 #include "Mode2.hpp"
+#include "FallCutscene.hpp"
 
 Door::Door(Math::vec2 in_position, Math::vec2 in_size) : CS230::GameObject(in_position), size(in_size)
 {
@@ -41,7 +42,9 @@ void Door::Interact([[maybe_unused]] CS230::GameObject* interactor)
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::F))
     {
         Engine::GetLogger().LogEvent("Entering Door -> Mode2");
-        Engine::GetGameStateManager().Clear();
-        Engine::GetGameStateManager().PushState<Mode2>();
+        // Engine::GetGameStateManager().Clear();
+        // Engine::GetGameStateManager().PushState<Mode2>();
+
+        Engine::GetGameStateManager().ChangeStateWithFade<FallCutscene>();
     }
 }

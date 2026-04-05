@@ -40,6 +40,7 @@
 
 void Mode1::Load()
 {
+    Engine::GetGameStateManager().HoldFadeIn(true);
     // 1. Initialize Essential Components First
     AddGSComponent(new CS230::GameObjectManager());
 
@@ -106,30 +107,43 @@ void Mode1::Load()
             {              static_cast<int>(level1_boundary.Left()), -5000 },
             { static_cast<int>(level1_boundary.Right()) - winSize.x,  5000 }
     });
+
     AddGSComponent(camera);
 
-    // 6. Load Map Data
-    mapManager->AddMap(new CS230::Map("Assets/maps/Tutorial10.svg"));
+    // Load level map from SVG data
+    // mapManager = new CS230::MapManager();
+    mapManager->AddMap(new CS230::Map("Assets/maps/tutorial05.svg"));
     mapManager->LoadMap();
-    AddGSComponent(mapManager);
+    AddGSComponent(mapManager); 
 
-    // 7. Graphics & Shaders
     backgroundShader = OpenGL::CreateShader(std::filesystem::path("Assets/shaders/Cradle.vart"), std::filesystem::path("Assets/shaders/Cradle.frag"));
 
+
+    // Create Full Screen Quad (NDC coordinates: -1 to 1)
     std::vector<float> quadVertices = { -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 1.0f };
-    backgroundVBO                   = OpenGL::CreateBuffer(OpenGL::BufferType::Vertices, std::as_bytes(std::span{ quadVertices }));
+
+
+    backgroundVBO = OpenGL::CreateBuffer(OpenGL::BufferType::Vertices, std::as_bytes(std::span{ quadVertices }));
 
     OpenGL::VertexBuffer vb;
-    vb.Handle     = backgroundVBO;
-    vb.Layout     = OpenGL::BufferLayout({ OpenGL::Attribute::Float2, OpenGL::Attribute::Float2 });
+    vb.Handle = backgroundVBO;
+    vb.Layout = OpenGL::BufferLayout(
+        {
+            OpenGL::Attribute::Float2, // Location 0: aPos
+            OpenGL::Attribute::Float2  // Location 1: aTexCoord
+        });
+
     backgroundVAO = OpenGL::CreateVertexArrayObject({ vb });
+
+
+    // texture20 = Engine::GetTextureManager().Load("Assets/textures/20_1.png");
+
+    // [Removed] textureLayer2_Trees loading
+    // textureLayer3_Silhouette = Engine::GetTextureManager().Load("Assets/textures/layer3_silhouette.png");
 
     miniMap = new MiniMap();
     miniMap->SetWorldBounds(level1_boundary);
 
-    currentState = State::Loading;
-
-    // Audio
     AudioManager::LoadSound("BGM_Virgo", std::filesystem::path("Assets/sounds/Virgo.mp3"), AudioTypes::BGM);
     AudioManager::LoadSound("SFX_Landing", std::filesystem::path("Assets/sounds/Landing_Effect.mp3"), AudioTypes::SFX);
 }
@@ -143,6 +157,10 @@ void Mode1::InitGame()
     worldTextManager = new WorldTextManager();
     worldTextManager->SetCamera(camera);
     AddGSComponent(worldTextManager);
+
+    // Create player and link to UI systems
+    player = new Player({ 0.0, 800.0 });
+    gom->Add(player);
 
     if (miniMap)
     {
@@ -172,6 +190,8 @@ void Mode1::Update(double dt)
             Engine::GetLogger().LogEvent("Mode1 Map Loading Complete! Starting Game...");
             InitGame();
             currentState = State::Playing;
+            
+            Engine::GetGameStateManager().HoldFadeIn(false);
         }
         return;
     }
@@ -190,33 +210,96 @@ void Mode1::Update(double dt)
 
     if (player != nullptr)
     {
-        Math::vec2 winSize   = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
-        Math::vec2 targetPos = player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.3 };
+        Math::vec2 winSize = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
+        
+        float currentScale = 0.8f; 
+        camera->SetScale(currentScale);
+
+        Math::vec2 scaledWinSize = winSize / currentScale;
+
+        Math::vec2 targetPos = player->GetPosition() - Math::vec2{ scaledWinSize.x * 0.5, scaledWinSize.y * 0.5 };
 
         double minX = level1_boundary.Left();
-        double maxX = level1_boundary.Right() - winSize.x;
+        double maxX = level1_boundary.Right() - scaledWinSize.x;
+        
+        double minY = -800.0;
+        double maxY = 800.0; 
 
-        if (targetPos.x < minX)
-            targetPos.x = minX;
-        if (targetPos.x > maxX)
-            targetPos.x = maxX;
+        if (targetPos.x < minX) targetPos.x = minX;
+        if (targetPos.x > maxX) targetPos.x = maxX;
+        if (targetPos.y < minY) targetPos.y = minY;
+        if (targetPos.y > maxY) targetPos.y = maxY;
 
-        camera->SetPosition(targetPos);
+        camera->Update(targetPos, dt);
     }
-
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
     {
-        player->SetPosition({ 4500, 300 });
+        player->SetPosition({ 8000, 300 });
     }
 
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))
     {
-        Engine::GetGameStateManager().Clear();
-        Engine::GetGameStateManager().PushState<MainMenu>();
+        // Engine::GetGameStateManager().Clear();
+        // Engine::GetGameStateManager().PushState<MainMenu>();
+        Engine::GetGameStateManager().ChangeStateWithFade<MainMenu>();
     }
 
     miniMap->Update(dt);
 }
+
+// void Mode1::Update(double dt)
+// {
+//     UpdateGSComponents(dt);
+
+//     shaderTime += dt;
+
+//     if (currentState == State::Loading)
+//     {
+//         if (mapManager->GetCurrentMap() && mapManager->GetCurrentMap()->IsLevelLoaded())
+//         {
+//             Engine::GetLogger().LogEvent("Mode1 Map Loading Complete! Starting Game...");
+//             InitGame();
+//             currentState = State::Playing;
+//         }
+//         return;
+//     }
+
+//     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::M))
+//     {
+//         if (miniMap)
+//             miniMap->ToggleMode();
+//     }
+
+//     GetGSComponent<CS230::GameObjectManager>()->UpdateAll(dt);
+//     GetGSComponent<CS230::GameObjectManager>()->CollisionTest();
+
+//     if (player != nullptr && player->interactionTarget == nullptr)
+//         player->isInteracting = false;
+
+//     if (player != nullptr)
+//     {
+//         Math::vec2 winSize   = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
+        
+//         Math::vec2 targetPos = player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.5 };
+
+        
+        
+//         camera->Update(targetPos, dt);
+//     }
+
+//     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
+//     {
+//         player->SetPosition({ 8000, 300 });
+//     }
+
+//     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))
+//     {
+//         Engine::GetGameStateManager().Clear();
+//         Engine::GetGameStateManager().PushState<MainMenu>();
+//     }
+
+//     miniMap->Update(dt);
+// }
 
 void Mode1::Draw()
 {
@@ -225,6 +308,7 @@ void Mode1::Draw()
 
     if (currentState == State::Loading)
     {
+        // Simple loading screen draw logic
         Engine::GetWindow().Clear(CS200::BLACK);
         Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
         renderer.BeginScene(screen_matrix);
@@ -267,13 +351,21 @@ void Mode1::Draw()
     // Math::vec2 camPos  = camera->GetPosition();
     // Math::vec2 winSize = static_cast<Math::vec2>(display_size_int);
 
-    // [Removed] DrawParallaxLayer definition and usage
-
+    // Main world rendering pass
     Math::TransformationMatrix view_projection_matrix = CS200::build_ndc_matrix(display_size_int) * camera->GetMatrix();
     renderer.BeginScene(view_projection_matrix);
+
+    // if (texture20 != nullptr)
+    // {
+    //     Math::vec2 svg_center = { 4750.0, 0.0 }; 
+    //     Math::TransformationMatrix bg_transform = Math::TranslationMatrix(svg_center);
+    //     texture20->Draw(view_projection_matrix * bg_transform);
+    // }
+
     GetGSComponent<CS230::GameObjectManager>()->DrawAll(view_projection_matrix);
     renderer.EndScene();
 
+    // HUD / Screen-space UI rendering
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
     renderer.BeginScene(screen_matrix);
 
@@ -314,19 +406,20 @@ void Mode1::DrawImGui()
 
 void Mode1::Unload()
 {
-    // Cleanup shader resources
+    AudioManager::StopBGM();
+
     OpenGL::DestroyShader(backgroundShader);
-    // GL::DeleteVertexArrays(1, reinterpret_cast<GLuint*>(&backgroundVAO));
-    // GL::DeleteBuffers(1, reinterpret_cast<GLuint*>(&backgroundVBO));
+    GL::DeleteVertexArrays(1, &backgroundVAO);
+    GL::DeleteBuffers(1, &backgroundVBO);
 
     ClearGSComponents();
     player           = nullptr;
     mapManager       = nullptr;
     worldTextManager = nullptr;
+    // targetStars.clear();
 
-    // [Removed] textureLayer2_Trees cleanup
     textureLayer3_Silhouette = nullptr;
-
+    // texture20 = nullptr;
     delete miniMap;
     miniMap = nullptr;
 }

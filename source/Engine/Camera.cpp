@@ -7,6 +7,7 @@
  */
 
 #include "Camera.hpp"
+#include "Engine/Engine.hpp"
 
 CS230::Camera::Camera(Math::rect pz) : player_zone(pz), position({ 0, 0 })
 {
@@ -27,36 +28,42 @@ void CS230::Camera::SetLimit(Math::irect new_limit)
     limit = new_limit;
 }
 
-void CS230::Camera::Update(const Math::vec2& player_position)
-{
-    if (player_position.x > player_zone.Right() + position.x)
-    {
-        position.x = player_position.x - player_zone.Right();
-    }
-    else if (player_position.x - position.x < player_zone.Left())
-    {
-        position.x = player_position.x - player_zone.Left();
-    }
+// void CS230::Camera::Update(const Math::vec2& player_position)
+// {
+//     if (player_position.x > player_zone.Right() + position.x)
+//     {
+//         position.x = player_position.x - player_zone.Right();
+//     }
+//     else if (player_position.x - position.x < player_zone.Left())
+//     {
+//         position.x = player_position.x - player_zone.Left();
+//     }
 
-    if (position.x < limit.Left())
-    {
-        position.x = limit.Left();
-    }
-    if (position.x > limit.Right())
-    {
-        position.x = limit.Right();
-    }
-    if (position.y < limit.Bottom())
-    {
-        position.y = limit.Bottom();
-    }
-    if (position.y > limit.Top())
-    {
-        position.y = limit.Top();
-    }
+//     if (position.x < limit.Left())
+//     {
+//         position.x = limit.Left();
+//     }
+//     if (position.x > limit.Right())
+//     {
+//         position.x = limit.Right();
+//     }
+//     if (position.y < limit.Bottom())
+//     {
+//         position.y = limit.Bottom();
+//     }
+//     if (position.y > limit.Top())
+//     {
+//         position.y = limit.Top();
+//     }
+
+// }
+void CS230::Camera::Update(const Math::vec2& target_position, double dt)
+{
+    position.x += (target_position.x - position.x) * smoothing * static_cast<float>(dt);
+    position.y += (target_position.y - position.y) * smoothing * static_cast<float>(dt);
 }
 
 Math::TransformationMatrix CS230::Camera::GetMatrix()
 {
-    return Math::TranslationMatrix(-position);
+    return Math::ScaleMatrix(scale) * Math::TranslationMatrix(-position);
 }

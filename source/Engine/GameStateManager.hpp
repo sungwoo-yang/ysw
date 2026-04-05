@@ -1,11 +1,3 @@
-/**
- * \file
- * \author Rudy Castan
- * \author Jonathan Holmes
- * \date 2025 Fall
- * \par CS200 Computer Graphics I
- * \copyright DigiPen Institute of Technology
- */
 #pragma once
 
 #include "Engine.hpp"
@@ -17,6 +9,8 @@
 
 namespace CS230
 {
+    enum class FadeState { None, FadeIn, FadeOut };
+
     class GameStateManager
     {
     public:
@@ -50,12 +44,24 @@ namespace CS230
             return mGameStateStack.empty() ? "None" : mGameStateStack.back()->GetName();
         }
 
+        void HoldFadeIn(bool hold) { mHoldFadeIn = hold; }
+
+        // Change to template function
+        template <typename STATE>
+        void ChangeStateWithFade();
+
     private:
         std::vector<std::unique_ptr<GameState>> mGameStateStack;
         std::vector<std::unique_ptr<GameState>> mToClear;
 
         bool                               is_updating = false;
         std::vector<std::function<void()>> pending_actions;
+
+        FadeState mFadeState = FadeState::None;
+        float mFadeAlpha = 0.0f;
+        float mFadeSpeed = 0.5f; 
+        std::function<void()> mFadeAction;
+        bool mHoldFadeIn = false;
     };
 
     template <typename STATE>
@@ -72,5 +78,17 @@ namespace CS230
         const auto& state = mGameStateStack.back();
         Engine::GetLogger().LogEvent("Entering state "s + state->GetName());
         state->Load();
+    }
+    
+    // Change to template function implementation
+    template <typename STATE>
+    void GameStateManager::ChangeStateWithFade()
+    {
+        mHoldFadeIn = false;
+        mFadeState = FadeState::FadeOut;
+        mFadeAction = [this]() {
+            Clear();
+            PushState<STATE>();
+        };
     }
 }

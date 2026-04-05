@@ -94,14 +94,13 @@ namespace CS230
         Engine::GetLogger().LogEvent(file_path + " SVG.");
     }
 
-    void Map::ParseSVG()
+void Map::ParseSVG()
     {
         if (level_loaded || !map_file.is_open())
             return;
 
         std::string line;
 
-        // Read the SVG line by line to process elements progressively
         if (!std::getline(map_file, line))
         {
             level_loaded = true;
@@ -114,7 +113,7 @@ namespace CS230
         size_t tagEnd = currentTagBuffer.find('>');
         if (tagEnd == std::string::npos)
         {
-            return; // Wait for the rest of the tag in the next frame
+            return; 
         }
 
         std::string currentTag = currentTagBuffer.substr(0, tagEnd + 1);
@@ -122,7 +121,6 @@ namespace CS230
 
         std::smatch match;
 
-        // End of file
         if (std::regex_search(currentTag, match, svgEndTagRegex))
         {
             level_loaded = true;
@@ -131,7 +129,6 @@ namespace CS230
             return;
         }
 
-        // Handle closing tags for groups, resetting group-specific transforms
         if (std::regex_search(currentTag, match, gEndTagRegex))
         {
             IsinG           = false;
@@ -145,13 +142,11 @@ namespace CS230
             return;
         }
 
-        // Detect grouping tags, often used to bundle geometry and apply shared transforms
         if (std::regex_search(currentTag, match, gIdRegex))
         {
             IsinG = true;
         }
 
-        // Extract and parse transform attributes (matrix, rotate, translate)
         if (std::regex_search(currentTag, match, transformRegex))
         {
             std::string transformStr = match[1].str();
@@ -163,7 +158,6 @@ namespace CS230
                 float c = std::stof(match[3].str());
                 float d = std::stof(match[4].str());
 
-                // Extract scale factors from 2D affine transformation matrix
                 scale.x = static_cast<double>(std::sqrt(a * a + c * c));
                 scale.y = static_cast<double>(std::sqrt(b * b + d * d));
             }
@@ -172,7 +166,6 @@ namespace CS230
                 IsTranslate = false;
                 IsRotate    = true;
 
-                // Convert SVG rotation degrees to radians
                 rotateAngle       = -std::stof(match[1].str()) * static_cast<float>(M_PI) / 180.0f;
                 rotatetranslate.x = static_cast<double>(std::stof(match[2].str()));
                 rotatetranslate.y = static_cast<double>(std::stof(match[3].str()));
@@ -187,18 +180,15 @@ namespace CS230
             return;
         }
 
-        // Process actual path geometry
         if (std::regex_search(currentTag, match, pathRegex))
         {
             std::string pathData = match[1].str();
 
-            // Sanitize path string for easier comma-delimited parsing
             std::replace(pathData.begin(), pathData.end(), ' ', ',');
             std::vector<Math::vec2> positions = parsePathData(pathData);
             if (positions.empty())
                 return;
 
-            // Apply accumulated group transformations to path vertices
             for (auto& vec : positions)
             {
                 if (IsinG)
@@ -227,17 +217,16 @@ namespace CS230
                 vec.y = -vec.y;
             }
 
+            fillColor = "#00000000";
             if (std::regex_search(currentTag, match, fillColorRegex))
             {
                 fillColor = match[1].str();
             }
 
-            // Construct physical polygon from parsed path data
             Polygon poly;
             poly.vertices    = positions;
             poly.vertexCount = static_cast<int>(positions.size());
 
-            // Add raw geometry to MapManager for Minimap rendering
             if (auto mapManager = Engine::GetGameStateManager().GetGSComponent<MapManager>())
             {
                 mapManager->AddPolygon(poly);
@@ -252,14 +241,12 @@ namespace CS230
                 first_path_logged = true;
             }
 
-            // Reposition vertices to be local to the polygon's center for proper rotation/physics
             Polygon modified_poly = poly;
             for (auto& v : modified_poly.vertices)
             {
                 v -= poly_center;
             }
 
-            // Instantiate specific GameObjects based on the SVG path ID
             std::string objID = "";
             if (std::regex_search(currentTag, match, pathIdRegex))
             {
@@ -269,17 +256,16 @@ namespace CS230
             CS230::GameObject* newObj = nullptr;
             GameObjectTypes type = GameObjectTypes::Background;
 
-            // Specialized entity generation (e.g., Gates)
-            if (fillColor == "#00ffff") 
+            if (fillColor == "#00ffff" || fillColor == "#00ff00" || fillColor == "#ff0000" || fillColor == "#786721") 
             {
                 type = GameObjectTypes::Floor;
             }
 
-            auto               mapManager = Engine::GetGameStateManager().GetGSComponent<MapManager>();
+            auto mapManager = Engine::GetGameStateManager().GetGSComponent<MapManager>();
 
             if (mapManager && mapManager->GetGameObjectFactory() != nullptr)
             {
-                newObj = mapManager->GetGameObjectFactory()(GameObjectTypes::Floor, poly_center, fillColor, objID);
+                newObj = mapManager->GetGameObjectFactory()(type, poly_center, fillColor, objID);
             }
 
             if (newObj == nullptr)
@@ -300,8 +286,6 @@ namespace CS230
         }
     }
 
-
-    // Parses standard SVG path syntax into 2D coordinates
     std::vector<Math::vec2> Map::parsePathData(const std::string& pathData)
     {
         std::istringstream      stream(pathData);
@@ -315,8 +299,6 @@ namespace CS230
             if (data.empty())
                 continue;
 
-            // Detect and update the current drawing command (M, L, H, V, Z)
-            // Lowercase commands indicate relative coordinates, uppercase indicate absolute
             if (std::isalpha(data[0]))
             {
                 currentCommand = data[0];
@@ -325,7 +307,7 @@ namespace CS230
                 {
                     data = data.substr(1);
                 }
-                else
+                else if (currentCommand != 'z' && currentCommand != 'Z')
                 {
                     continue;
                 }
@@ -335,7 +317,6 @@ namespace CS230
 
             try
             {
-                // M/m (MoveTo) or L/l (LineTo)
                 if (currentCommand == 'm' || currentCommand == 'M' || currentCommand == 'l' || currentCommand == 'L')
                 {
                     x = static_cast<double>(std::stof(data));
@@ -346,28 +327,24 @@ namespace CS230
                         last_y = isRelative ? last_y + y : y;
                         positions.push_back({ last_x, last_y });
 
-                        // Implicitly switch to LineTo after the first MoveTo pair
                         if (currentCommand == 'm' || currentCommand == 'M')
                         {
                             currentCommand = isRelative ? 'l' : 'L';
                         }
                     }
                 }
-                // V/v (Vertical LineTo)
                 else if (currentCommand == 'v' || currentCommand == 'V')
                 {
                     y      = static_cast<double>(std::stof(data));
                     last_y = isRelative ? last_y + y : y;
                     positions.push_back({ last_x, last_y });
                 }
-                // H/h (Horizontal LineTo)
                 else if (currentCommand == 'h' || currentCommand == 'H')
                 {
                     x      = static_cast<double>(std::stof(data));
                     last_x = isRelative ? last_x + x : x;
                     positions.push_back({ last_x, last_y });
                 }
-                // Z/z (Close Path)
                 else if (currentCommand == 'z' || currentCommand == 'Z')
                 {
                     if (!positions.empty())
