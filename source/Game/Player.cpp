@@ -39,42 +39,6 @@ namespace
     {
         return { a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t };
     }
-
-    // IK Result Structure
-    struct TwoBone
-    {
-        Math::vec2 mid;
-        Math::vec2 end;
-    };
-
-    // Straight Limb IK Solver
-    TwoBone SolveTwoBoneStraight(Math::vec2 start, double L1, double L2, Math::vec2 target, bool keepLength)
-    {
-        Math::vec2 diff = target - start;
-        double     dist = diff.Length();
-        Math::vec2 dir  = diff.Normalize();
-
-        if (dist < 1e-6)
-            dir = { 1.0, 0.0 };
-
-        double totalLen = L1 + L2;
-
-        double currentLen = dist;
-
-        // Clamp length to prevent limb separation
-        if (currentLen > totalLen)
-        {
-            currentLen = totalLen;
-        }
-
-        if (keepLength)
-            currentLen = totalLen;
-
-        Math::vec2 endPos = start + dir * currentLen;
-        Math::vec2 midPos = start + dir * L1;
-
-        return { midPos, endPos };
-    }
 }
 
 Player::Player(Math::vec2 in_start_pos)
