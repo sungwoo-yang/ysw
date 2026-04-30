@@ -61,6 +61,23 @@ void CS230::Camera::Update(const Math::vec2& target_position, double dt)
 {
     position.x += (target_position.x - position.x) * smoothing * static_cast<float>(dt);
     position.y += (target_position.y - position.y) * smoothing * static_cast<float>(dt);
+
+    if (position.x < limit.Left())
+    {
+        position.x = limit.Left();
+    }
+    if (position.x > limit.Right())
+    {
+        position.x = limit.Right();
+    }
+    if (position.y < limit.Bottom())
+    {
+        position.y = limit.Bottom();
+    }
+    if (position.y > limit.Top())
+    {
+        position.y = limit.Top();
+    }
 }
 
 Math::TransformationMatrix CS230::Camera::GetMatrix()

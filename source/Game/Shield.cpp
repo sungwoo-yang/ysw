@@ -121,7 +121,7 @@ Shield::Shield(CS230::GameObject* in_owner) : owner(in_owner), shieldHitTimer(1.
 //     Math::ivec2 winSize        = Engine::GetWindow().GetSize();
 
 //     auto camera = Engine::GetGameStateManager().GetGSComponent<CS230::Camera>();
-    
+
 //     Math::vec2 camPos = { 0, 0 };
 //     double camScale = 1.0;
 
@@ -133,7 +133,7 @@ Shield::Shield(CS230::GameObject* in_owner) : owner(in_owner), shieldHitTimer(1.
 
 //     Math::vec2 mouseWorldPos;
 //     mouseWorldPos.x = (mouseScreenPos.x / camScale) + camPos.x;
-    
+
 //     double mouseGL_Y = static_cast<double>(winSize.y) - mouseScreenPos.y;
 //     mouseWorldPos.y = (mouseGL_Y / camScale) + camPos.y;
 
@@ -172,36 +172,33 @@ void Shield::HandleInput([[maybe_unused]] double dt)
 
     auto& input = Engine::GetInput();
 
-    Math::vec2 mouseScreenPos = input.GetMousePosition();
+    Math::vec2  mouseScreenPos = input.GetMousePosition();
     Math::ivec2 winSize        = Engine::GetWindow().GetSize();
 
     auto camera = Engine::GetGameStateManager().GetGSComponent<CS230::Camera>();
-    
-    Math::vec2 camPos = { 0, 0 };
-    double camScale = 1.0;
+
+    Math::vec2 camPos   = { 0, 0 };
+    double     camScale = 1.0;
 
     if (camera)
     {
-        camPos = camera->GetPosition();
+        camPos   = camera->GetPosition();
         camScale = camera->GetScale();
     }
 
     Math::vec2 mouseWorldPos;
     mouseWorldPos.x = (mouseScreenPos.x / camScale) + camPos.x;
-    
+
     double mouseGL_Y = static_cast<double>(winSize.y) - mouseScreenPos.y;
-    mouseWorldPos.y = (mouseGL_Y / camScale) + camPos.y;
+    mouseWorldPos.y  = (mouseGL_Y / camScale) + camPos.y;
 
     static Math::vec2 lastMouseScreenPos = { -1.0, -1.0 };
-    static Math::vec2 lockedTargetWorldPos = mouseWorldPos;
-
     if (mouseScreenPos.x != lastMouseScreenPos.x || mouseScreenPos.y != lastMouseScreenPos.y)
     {
-        lockedTargetWorldPos = mouseWorldPos;
         lastMouseScreenPos = mouseScreenPos;
     }
 
-    Math::vec2 dir = lockedTargetWorldPos - owner->GetPosition();
+    Math::vec2 dir = mouseWorldPos - owner->GetPosition();
     shieldAngle    = std::atan2(dir.y, dir.x);
 
     bool rightClick = input.MouseButtonDown(CS230::Input::MouseButton::Right);
@@ -389,7 +386,7 @@ void Shield::UpdateShieldColor(double dt)
             targetShieldColor = CS200::unpack_color(CS200::CYAN);
         }
     }
-    
+
     // Apply smooth interpolation
     ease_color_to_target(currentShieldColor, targetShieldColor, dt, 5.0);
     shieldColor = CS200::pack_color(currentShieldColor);

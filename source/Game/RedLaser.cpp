@@ -1,9 +1,10 @@
 // RedLaser.cpp
 #include "RedLaser.hpp"
+#include "CS200/IRenderer2D.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/Logger.hpp"
+#include "Engine/Random.hpp"
 #include "Player.hpp"
-#include "RedHitParticle.hpp"
 #include "Shield.hpp"
 
 RedLaser::RedLaser(Math::vec2 in_startPos, Math::vec2 dir, Player* in_player) : Laser(in_startPos, dir, in_player)
@@ -33,17 +34,32 @@ void RedLaser::Update([[maybe_unused]] double dt)
 
     if (isParried && !hasEmittedParryParticle && pathPoints.size() >= 2)
     {
-        if (pathPoints.size() >= 2)
+        Math::vec2 hitPos = startPos + (direction * laserLength);
+
+        for (int i = 0; i < 6; ++i)
         {
-            Math::vec2 hitPos = startPos + (direction * laserLength);
+            ParryRect rect;
+            rect.pos = hitPos;
 
-            auto pManager = Engine::GetGameStateManager().GetGSComponent<CS230::ParticleManager<RedHitParticle>>();
+            double angle = util::random(-PI / 2.0, PI / 2.0);
 
-            if (pManager != nullptr)
-            {
-                pManager->Emit(30, hitPos, { 0.0, 0.0 }, -direction * 400.0, PI * 2.0);
-            }
-            hasEmittedParryParticle = true;
+            Math::vec2 baseDir = -direction;
+            Math::vec2 rotDir  = { baseDir.x * std::cos(angle) - baseDir.y * std::sin(angle), baseDir.x * std::sin(angle) + baseDir.y * std::cos(angle) };
+
+            rect.vel  = rotDir * util::random(300.0, 600.0);
+            rect.life = util::random(0.15, 0.35);
+
+            parryRects.push_back(rect);
+        }
+        hasEmittedParryParticle = true;
+    }
+
+    for (auto& rect : parryRects)
+    {
+        if (rect.life > 0.0)
+        {
+            rect.pos += rect.vel * dt;
+            rect.life -= dt;
         }
     }
 
@@ -62,6 +78,21 @@ void RedLaser::Update([[maybe_unused]] double dt)
             player->ApplyLaserDamage(4.0);
             Engine::GetLogger().LogEvent("Player Hit by Fatal Red Laser!");
             break;
+        }
+    }
+}
+
+void RedLaser::Draw(const Math::TransformationMatrix& camera_matrix)
+{
+    Laser::Draw(camera_matrix);
+
+    auto& renderer = Engine::GetRenderer2D();
+
+    for (const auto& rect : parryRects)
+    {
+        if (rect.life > 0.0)
+        {
+            renderer.DrawLine(rect.pos - Math::vec2{ 4.0, 0.0 }, rect.pos + Math::vec2{ 4.0, 0.0 }, 0xFF0000FF, 8.0);
         }
     }
 }

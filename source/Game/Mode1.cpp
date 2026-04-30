@@ -159,7 +159,7 @@ void Mode1::InitGame()
     AddGSComponent(worldTextManager);
 
     // Create player and link to UI systems
-    player = new Player({ 0.0, 800.0 });
+    player = new Player({ 0.0, 400.0 });
     gom->Add(player);
 
     if (miniMap)

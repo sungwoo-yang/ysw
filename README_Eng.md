@@ -3,11 +3,10 @@
 # Team : AStar  
 # authors : Jeonghun Byoun
 
-## 게임 소개
+## Game Introduction
 OLLIM is based on the concept of a celestial spirit who embarks on a journey to rescue the 12 constellations that have fallen for unknown reasons. Traverse a vast map, solve puzzles, and reach boss chambers where you must complete light-reflection puzzles to save each constellation.
 
-## 팀원 
-
+## Team Members
 - Jeonghun Byoun : Producer  
 - Sanghyuk Kim : Art Leader  
 - Seokwon Jung : QA Leader  
@@ -22,10 +21,9 @@ OLLIM is based on the concept of a celestial spirit who embarks on a journey to 
 4. Enjoy the game!
 
 ## Game Play Guide
-- The current map is the tutorial area.
-- Read the signboards to learn the controls.
-- A prototype version of the boss-fight puzzle is implemented.
-- Try clearing the puzzle!
+- Starting Map: A tutorial for movement. Read the signs and use jump and dash to reach the door.
+- Second Map: A showcase of the game's star systems. Read the signs to learn how each star system works.
+- Final Map: The boss stage. You can get a quick preview of how boss fights will progress.
 
 
 ##  Controls
@@ -33,32 +31,36 @@ OLLIM is based on the concept of a celestial spirit who embarks on a journey to 
 - Left / Right Movement: A (left), D (right)
 - Jump: W or Space
 - Interaction: F (read signboards, activate campfires, etc.)
-- Dash: Tap Shift briefly to dash in that direction
-- Run: Hold Shift for more than 0.5 seconds to start running
-
+- Dash: LShift
 
 
 # Stars and Light
 
 Stars: There are “light-emitting stars” and “dead stars” that require light in the game world.
 
-Light Emission: Light-emitting stars fire two types of light (laser) at fixed intervals.
+Light Emission: Light-emitting stars fire two types of light at fixed intervals.
 
-🟡 Yellow Light: Approaches slowly like a snake. This light cannot be parried. Avoid it.
+⚪ White Light: Deals no damage and can be reflected with the shield.
 
-🔴 Red Light: Instantly appears and shoots toward the player. This light must be parried with your shield.
+🟡 Yellow Light: Deals minor damage and can be reflected with the shield.
+
+🔴 Red Light: Deals near-fatal damage upon impact. It cannot be simply reflected, but it can be parried using the shield. (However, parrying is impossible under certain conditions.)
+
+
 
 # Light Puzzle System
 
-Shield Creation: Hold the right mouse button to create a shield at your mouse cursor position.
+Shield Creation: Hold the right mouse button (Right-click) to create a shield at your mouse cursor's position.
 
-Slow Movement: While holding the shield (holding right click), the player’s movement becomes slower.
+Slow Movement: While holding the shield (holding Right-click), the player's movement speed decreases.
 
-Parry (Light Reflection):
+Light Reflection & Parrying:
 
-If red light hits the shield within 0.5 seconds after it is created, the light is successfully reflected (parried).
+You can reflect light using your shield.
 
-Use this reflected light to activate “dead stars” or trigger various mechanisms throughout the game.
+The reflected light can be used to reactivate "dead stars" or trigger various puzzle mechanisms throughout the game.
+
+Certain light can only be blocked by parrying. To successfully parry, you must block with your shield right before the light is fired.
 
 
 

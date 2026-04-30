@@ -17,7 +17,6 @@ set(SOURCE_CODE
     CS200/RGBA.hpp
 
     Engine/Physics/Reflection.hpp Engine/Physics/Reflection.cpp
-    Engine/AnimationEditor.hpp Engine/AnimationEditor.cpp
     Engine/Animation.hpp Engine/Animation.cpp
     Engine/Audio.hpp Engine/Audio.cpp
     Engine/AudioManager.hpp Engine/AudioManager.cpp
@@ -74,7 +73,6 @@ set(SOURCE_CODE
     Game/Player.hpp Game/Player.cpp
     Game/PushableMirror.hpp Game/PushableMirror.cpp
     Game/PuzzleStar.hpp Game/PuzzleStar.cpp
-    Game/RedHitParticle.hpp
     Game/RedLaser.hpp Game/RedLaser.cpp
     Game/Shield.hpp Game/Shield.cpp
     Game/Sign.hpp Game/Sign.cpp

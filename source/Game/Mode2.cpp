@@ -58,8 +58,8 @@ void Mode2::Load()
     });
     camera->SetLimit(
         Math::irect{
-            {  static_cast<int>(level_boundary.Left()), static_cast<int>(level_boundary.Bottom()) },
-            { static_cast<int>(level_boundary.Right()),    static_cast<int>(level_boundary.Top()) }
+            {                                        0,                                  -5000 },
+            { static_cast<int>(level_boundary.Right()), static_cast<int>(level_boundary.Top()) }
     });
     AddGSComponent(camera);
 
@@ -79,7 +79,7 @@ void Mode2::InitGame()
 {
     auto gom = GetGSComponent<CS230::GameObjectManager>();
 
-    player = new Player({ 0.0, 400.0 });
+    player = new Player({ 50.0, 200.0 });
     gom->Add(player);
 
     // Star
@@ -267,7 +267,7 @@ void Mode2::Update(double dt)
     {
         Math::vec2 winSize   = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
         Math::vec2 targetPos = player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.3 };
-        camera->SetPosition(targetPos);
+        camera->Update(targetPos, dt);
     }
 }
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Engine/AnimationEditor.hpp"
+// #include "Engine/AnimationEditor.hpp"
 #include "Engine/Dash.hpp"
 #include "Engine/GameObject.hpp"
 #include "Engine/GameObjectTypes.hpp"
@@ -49,11 +49,6 @@ public:
         return shieldComponent;
     }
 
-    Skeleton* GetSkeleton() const
-    {
-        return skeleton;
-    }
-
     bool CanCollideWith(GameObjectTypes other_object_type) override;
     void ResolveCollision(CS230::GameObject* other_object) override;
 
@@ -77,64 +72,14 @@ private:
     // Process player input for movement, jumping, and actions
     void HandleInput(double dt);
 
-    // Build skeletal hierarchy for procedural animation
-    void BuildSkeleton();
-
-    // Calculate IK (Inverse Kinematics) for limbs based on movement
-    void UpdateProceduralAnimation(double dt);
-
     // Update player health status and handle recovery over time
     void UpdateHealthState(double dt);
-
-    // Walk animation phase accumulator
-    double walkPhase = 0.0;
-
-    // IK Target Positions for procedural animation
-    Math::vec2 handTargetL;
-    Math::vec2 handTargetR;
-    Math::vec2 footTargetL;
-    Math::vec2 footTargetR;
-
-    // Body Proportions (Adjusted to fit safely inside the collision box)
-    const double spineLenTop   = 9.0;  // Head
-    const double spineLenUpper = 10.0; // Chest
-    const double spineLenLower = 10.0; // Spine
-    const double neckLen       = 3.0;
-
-    // const double shoulderSpan = 18.0;
-    // const double hipSpan      = 12.0;
-
-    const double upperArmLen = 14.0;
-    const double foreArmLen  = 14.0;
-
-    const double thighLen = 18.0;
-    const double shinLen  = 18.0;
 
     // Half height of collision box for grounding calculations
     const double collisionHalfHeight = 40.0;
 
     // System components
-    Shield*         shieldComponent = nullptr;
-    Skeleton*       skeleton        = nullptr;
-    AnimationEditor animEditor;
-
-    // Cached bone pointers for fast IK updates
-    Bone* bHips       = nullptr;
-    Bone* bSpineLower = nullptr;
-    Bone* bSpineUpper = nullptr;
-    Bone* bNeck       = nullptr;
-    Bone* bHead       = nullptr;
-    Bone* bNose       = nullptr;
-    Bone* bLThigh     = nullptr;
-    Bone* bLCalf      = nullptr;
-    Bone* bRThigh     = nullptr;
-    Bone* bRCalf      = nullptr;
-    Bone* bLClavicle  = nullptr;
-    Bone* bLArmUp     = nullptr;
-    Bone* bLArmLow    = nullptr;
-    Bone* bRClavicle  = nullptr;
-    Bone* bRArmUp     = nullptr;
-    Bone* bRArmLow    = nullptr;
+    Shield* shieldComponent = nullptr;
 
     // Movement physics constants
     const double gravity      = 1500.0;
@@ -153,7 +98,6 @@ private:
     // Platforming assist timers (Game feel improvements)
     double       jumpBufferTimer = 0.0;
     double       coyoteTimer     = 0.0;
-    // const double jumpBufferTime  = 0.1;
     const double coyoteTime      = 0.1;
 
     // Health and damage system
