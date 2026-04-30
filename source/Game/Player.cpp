@@ -45,6 +45,8 @@ Player::Player(Math::vec2 in_start_pos)
     : CS230::GameObject(in_start_pos), isJumping(true), velocityY(0.0), faceRight(true), shieldComponent(nullptr), startPosition(in_start_pos), previousPosition(in_start_pos),
       healthState(HealthState::Full), playerHp(5.0), maxPlayerHp(5.0), recoverDelayTimer(0.0), tookDamageThisFrame(false), invincibilityTimer(0.0)
 {
+    AddGOComponent(new CS230::Sprite("Assets/images/Character.spt", this));
+
     // Initialize core components
     shieldComponent = new Shield(this);
     AddGOComponent(shieldComponent);
