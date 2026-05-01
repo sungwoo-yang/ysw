@@ -193,7 +193,6 @@ void Boss1::Update(double dt)
         double visibleWorldHeight = winSize.y / camera->GetScale();
 
         double maxCameraX = level_boundary.Right() - visibleWorldWidth;
-        double maxCameraY = level_boundary.Top() - visibleWorldHeight;
 
         if (maxCameraX < level_boundary.Left())
         {

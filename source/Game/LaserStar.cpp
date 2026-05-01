@@ -155,15 +155,21 @@ void LaserStar::UpdateContinuous(double dt)
 
 void LaserStar::UpdateWarningShot(double dt)
 {
-    Shield* shield = player ? player->GetShield() : nullptr;
+    if (currentType == LaserType::Red && currentState == State::Warning)
+    {
+        Shield* shield = player ? player->GetShield() : nullptr;
 
-    if (currentType == LaserType::Red && currentState == State::Warning && shield != nullptr)
-    {
-        shield->SetParryWindowActive(timer <= parryWindowTime);
-    }
-    else if (shield != nullptr)
-    {
-        shield->SetParryWindowActive(false);
+        if (shield != nullptr)
+        {
+            if (timer <= parryWindowTime)
+            {
+                shield->SetParryWindowActive(true);
+            }
+            else
+            {
+                shield->SetParryWindowActive(false);
+            }
+        }
     }
 
     if (activeShotLaser != nullptr)
