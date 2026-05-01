@@ -1,41 +1,30 @@
 #include "Mode1.hpp"
-#include "Bonfire.hpp"
-#include "Door.hpp"
-#include "Gate.hpp"
+
 #include "MainMenu.hpp"
 #include "MiniMap.hpp"
+#include "ObjectFactory.hpp"
 #include "Player.hpp"
-#include "PushableMirror.hpp"
-#include "Sign.hpp"
-#include "Star.hpp"
-#include "TargetStar.hpp"
 #include "WorldTextManager.hpp"
 
 #include "CS200/IRenderer2D.hpp"
 #include "CS200/NDC.hpp"
 
 #include "Engine/AudioManager.hpp"
-#include "Engine/BackgroundElement.hpp"
+#include "Engine/Camera.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/Font.hpp"
 #include "Engine/GameObjectManager.hpp"
-#include "Engine/GameObjectTypes.hpp"
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
-#include "Engine/MapElement.h"
 #include "Engine/MapManager.h"
-#include "Engine/ShowCollision.hpp"
-#include "Engine/TextureManager.hpp"
 #include "Engine/Window.hpp"
 
 #include "OpenGL/GL.hpp"
 
-#include <algorithm>
 #include <filesystem>
 #include <imgui.h>
 #include <span>
-#include <string>
 #include <vector>
 
 void Mode1::Load()
@@ -45,7 +34,7 @@ void Mode1::Load()
     AddGSComponent(new CS230::GameObjectManager());
 
     // 2. Create Player Before Loading Map (Crucial for Factory)
-    player = new Player({ 0.0, -400.0 });
+    player = new Player({ 0.0, 400.0 });
 
     // 3. Initialize MapManager
     mapManager = new CS230::MapManager();
@@ -58,42 +47,7 @@ void Mode1::Load()
     };
 
     // 4. Set Factory BEFORE calling LoadMap
-    mapManager->SetGameObjectFactory(
-        [this](GameObjectTypes /*type*/, Math::vec2 pos, const std::string& color, const std::string& id) -> CS230::GameObject*
-        {
-            if (this->player == nullptr)
-                return nullptr;
-
-            if (color == "#786721" || id.find("door") != std::string::npos)
-            {
-                return new Door(pos, { 100, 100 });
-            }
-            if (color == "#808080")
-            {
-                Engine::GetLogger().LogEvent("Pillar created at: " + std::to_string(pos.x) + ", " + std::to_string(pos.y));
-                return new CS230::BackgroundElement(pos, "Assets/textures/pillar.png");
-            }
-
-            if (color == "#00ff00")
-            {
-                std::string message = "Test Message";
-
-                auto it = signTexts.find(id);
-                if (it != signTexts.end())
-                {
-                    message = it->second;
-                }
-
-                return new Sign(pos, { 100, 100 }, message);
-            }
-
-            if (color == "#ff0000")
-            {
-                return new Bonfire(pos, { 100, 100 });
-            }
-
-            return nullptr;
-        });
+    mapManager->SetGameObjectFactory(ObjectFactory::Create(player, signTexts));
 
     // 5. Setup Camera
     camera = new CS230::Camera(
@@ -116,7 +70,7 @@ void Mode1::Load()
     mapManager->LoadMap();
     AddGSComponent(mapManager);
 
-    backgroundShader = OpenGL::CreateShader(std::filesystem::path("Assets/shaders/Cradle.vart"), std::filesystem::path("Assets/shaders/Cradle.frag"));
+    backgroundShader = OpenGL::CreateShader(std::filesystem::path("Assets/shaders/Cradle.vert"), std::filesystem::path("Assets/shaders/Cradle.frag"));
 
 
     // Create Full Screen Quad (NDC coordinates: -1 to 1)
@@ -135,12 +89,6 @@ void Mode1::Load()
 
     backgroundVAO = OpenGL::CreateVertexArrayObject({ vb });
 
-
-    // texture20 = Engine::GetTextureManager().Load("Assets/textures/20_1.png");
-
-    // [Removed] textureLayer2_Trees loading
-    // textureLayer3_Silhouette = Engine::GetTextureManager().Load("Assets/textures/layer3_silhouette.png");
-
     miniMap = new MiniMap();
     miniMap->SetWorldBounds(level1_boundary);
 
@@ -152,7 +100,10 @@ void Mode1::InitGame()
 {
     auto gom = GetGSComponent<CS230::GameObjectManager>();
 
-    gom->Add(player);
+    if (player != nullptr)
+    {
+        gom->Add(player);
+    }
 
     worldTextManager = new WorldTextManager();
     worldTextManager->SetCamera(camera);

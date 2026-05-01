@@ -13,7 +13,7 @@ class WorldTextManager;
 class Gate;
 class TargetStar;
 
-class Mode2 : public CS230::GameState
+class Boss1 : public CS230::GameState
 {
 public:
     void Load() override;
@@ -24,7 +24,7 @@ public:
 
     gsl::czstring GetName() const override
     {
-        return "Mode2";
+        return "Boss1";
     }
 
 private:

@@ -256,7 +256,7 @@ void Map::ParseSVG()
             CS230::GameObject* newObj = nullptr;
             GameObjectTypes type = GameObjectTypes::Background;
 
-            if (fillColor == "#00ffff" || fillColor == "#00ff00" || fillColor == "#ff0000" || fillColor == "#786721") 
+            if (fillColor == "#00ffff") 
             {
                 type = GameObjectTypes::Floor;
             }

@@ -1,17 +1,11 @@
-#include "Mode2.hpp"
-#include "BossStar.hpp"
+#include "Boss1.hpp"
+
 #include "Gate.hpp"
-#include "HostileStar.hpp"
-#include "Mirror.hpp"
 #include "ObjectFactory.hpp"
 #include "Player.hpp"
-#include "PuzzleStar.hpp"
 #include "RedHitParticle.hpp"
-#include "Sign.hpp"
-#include "Star.hpp"
 #include "TargetStar.hpp"
 #include "WorldTextManager.hpp"
-#include "YellowLaser.hpp"
 
 #include "CS200/IRenderer2D.hpp"
 #include "CS200/NDC.hpp"
@@ -28,7 +22,7 @@
 
 #include <imgui.h>
 
-void Mode2::Load()
+void Boss1::Load()
 {
     Engine::GetGameStateManager().HoldFadeIn(true);
 
@@ -63,7 +57,7 @@ void Mode2::Load()
     AddGSComponent(new CS230::ParticleManager<RedHitParticle>());
 }
 
-void Mode2::InitGame()
+void Boss1::InitGame()
 {
     auto gom = GetGSComponent<CS230::GameObjectManager>();
 
@@ -73,7 +67,7 @@ void Mode2::InitGame()
     mapManager->SetGameObjectFactory(ObjectFactory::Create(player));
 }
 
-void Mode2::Update(double dt)
+void Boss1::Update(double dt)
 {
     UpdateGSComponents(dt);
 
@@ -149,7 +143,7 @@ void Mode2::Update(double dt)
     }
 }
 
-void Mode2::Draw()
+void Boss1::Draw()
 {
     CS200::IRenderer2D& renderer         = Engine::GetRenderer2D();
     Math::ivec2         display_size_int = Engine::GetWindow().GetSize();
@@ -194,10 +188,10 @@ void Mode2::Draw()
     renderer.EndScene();
 }
 
-void Mode2::DrawImGui()
+void Boss1::DrawImGui()
 {
 #ifdef DEVELOPER_VERSION
-    ImGui::Begin("Mode2 (Boss) Debug");
+    ImGui::Begin("Boss1 (Boss) Debug");
 
     if (ImGui::CollapsingHeader("Global Info", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -233,7 +227,7 @@ void Mode2::DrawImGui()
 #endif
 }
 
-void Mode2::Unload()
+void Boss1::Unload()
 {
     ClearGSComponents();
     player           = nullptr;

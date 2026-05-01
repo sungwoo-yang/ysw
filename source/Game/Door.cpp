@@ -6,7 +6,7 @@
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
 #include "Game/WorldTextManager.hpp"
-#include "Mode2.hpp"
+#include "Boss1.hpp"
 #include "FallCutscene.hpp"
 
 Door::Door(Math::vec2 in_position, Math::vec2 in_size) : CS230::GameObject(in_position), size(in_size)
@@ -38,12 +38,12 @@ void Door::Interact([[maybe_unused]] CS230::GameObject* interactor)
         textManager->ShowTextAbove(this, "Press 'F' to Enter", 0.6, CS200::WHITE);
     }
 
-    // Perform state transition to Mode2 (Level 2)
+    // Perform state transition to Boss1 (Level 2)
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::F))
     {
-        Engine::GetLogger().LogEvent("Entering Door -> Mode2");
+        Engine::GetLogger().LogEvent("Entering Door -> Boss1");
         // Engine::GetGameStateManager().Clear();
-        // Engine::GetGameStateManager().PushState<Mode2>();
+        // Engine::GetGameStateManager().PushState<Boss1>();
 
         Engine::GetGameStateManager().ChangeStateWithFade<FallCutscene>();
     }
