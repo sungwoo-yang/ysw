@@ -58,11 +58,11 @@ set(SOURCE_CODE
     Engine/BackgroundElement.hpp Engine/BackgroundElement.cpp
 
     Game/Bonfire.hpp Game/Bonfire.cpp
+    Game/BossController.hpp Game/BossController.cpp
     Game/Constellation.hpp Game/Constellation.cpp
     Game/BossStar.hpp Game/BossStar.cpp
     Game/Door.hpp Game/Door.cpp
     Game/Gate.hpp Game/Gate.cpp
-    Game/HostileStar.hpp Game/HostileStar.cpp
     Game/Laser.hpp Game/Laser.cpp
     Game/LaserStar.hpp Game/LaserStar.cpp
     Game/MainMenu.hpp Game/MainMenu.cpp
@@ -73,7 +73,6 @@ set(SOURCE_CODE
     Game/ObjectFactory.hpp Game/ObjectFactory.cpp
     Game/Player.hpp Game/Player.cpp
     Game/PushableMirror.hpp Game/PushableMirror.cpp
-    Game/PuzzleStar.hpp Game/PuzzleStar.cpp
     Game/RedLaser.hpp Game/RedLaser.cpp
     Game/Shield.hpp Game/Shield.cpp
     Game/Sign.hpp Game/Sign.cpp

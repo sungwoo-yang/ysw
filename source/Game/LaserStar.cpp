@@ -32,20 +32,8 @@ namespace
     }
 }
 
-LaserStar::LaserStar(
-    Math::vec2 pos,
-    Player* in_player,
-    LaserType type,
-    Pattern pattern,
-    Math::vec2 initialDir,
-    FireMode mode
-)
-    : Star(pos, in_player),
-      currentType(type),
-      currentPattern(pattern),
-      currentFireMode(mode),
-      aimDirection(initialDir.Normalize()),
-      laserDirection(initialDir.Normalize())
+LaserStar::LaserStar(Math::vec2 pos, Player* in_player, LaserType type, Pattern pattern, Math::vec2 initialDir, FireMode mode)
+    : Star(pos, in_player), currentType(type), currentPattern(pattern), currentFireMode(mode), aimDirection(initialDir.Normalize()), laserDirection(initialDir.Normalize())
 {
     if (currentFireMode == FireMode::WarningShot)
     {
@@ -110,53 +98,53 @@ void LaserStar::UpdateContinuous(double dt)
     switch (currentPattern)
     {
         case Pattern::Static:
-        {
-            continuousLaser->SetStartPos(GetPosition());
-            continuousLaser->SetDirection(aimDirection);
-            break;
-        }
+            {
+                continuousLaser->SetStartPos(GetPosition());
+                continuousLaser->SetDirection(aimDirection);
+                break;
+            }
 
         case Pattern::Rotating:
-        {
-            double currentAngle = std::atan2(aimDirection.y, aimDirection.x);
-            currentAngle += rotationSpeed * dt;
+            {
+                double currentAngle = std::atan2(aimDirection.y, aimDirection.x);
+                currentAngle += rotationSpeed * dt;
 
-            aimDirection = Math::vec2{ std::cos(currentAngle), std::sin(currentAngle) };
+                aimDirection = Math::vec2{ std::cos(currentAngle), std::sin(currentAngle) };
 
-            continuousLaser->SetStartPos(GetPosition());
-            continuousLaser->SetDirection(aimDirection);
-            break;
-        }
+                continuousLaser->SetStartPos(GetPosition());
+                continuousLaser->SetDirection(aimDirection);
+                break;
+            }
 
         case Pattern::Blink:
-        {
-            blinkTimer += dt;
-
-            if (blinkTimer >= blinkInterval)
             {
-                isLaserOn  = !isLaserOn;
-                blinkTimer = 0.0;
+                blinkTimer += dt;
 
-                continuousLaser->SetIsActive(isLaserOn);
-                continuousLaser->SetVisible(isLaserOn);
+                if (blinkTimer >= blinkInterval)
+                {
+                    isLaserOn  = !isLaserOn;
+                    blinkTimer = 0.0;
+
+                    continuousLaser->SetIsActive(isLaserOn);
+                    continuousLaser->SetVisible(isLaserOn);
+                }
+
+                continuousLaser->SetStartPos(GetPosition());
+                continuousLaser->SetDirection(aimDirection);
+                break;
             }
-
-            continuousLaser->SetStartPos(GetPosition());
-            continuousLaser->SetDirection(aimDirection);
-            break;
-        }
 
         case Pattern::Tracking:
-        {
-            if (player != nullptr)
             {
-                aimDirection = (player->GetPosition() - GetPosition()).Normalize();
-            }
+                if (player != nullptr)
+                {
+                    aimDirection = (player->GetPosition() - GetPosition()).Normalize();
+                }
 
-            continuousLaser->SetStartPos(GetPosition());
-            continuousLaser->SetDirection(aimDirection);
-            break;
-        }
+                continuousLaser->SetStartPos(GetPosition());
+                continuousLaser->SetDirection(aimDirection);
+                break;
+            }
     }
 }
 
@@ -224,7 +212,7 @@ void LaserStar::OnWarningComplete()
     }
 
     Math::vec2 dir = (player->GetPosition() - GetPosition()).Normalize();
-    auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
+    auto       gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
 
     if (gom == nullptr)
     {
@@ -314,14 +302,11 @@ Laser* LaserStar::CreateLaserObject(Math::vec2 startPos, Math::vec2 dir)
 {
     switch (currentType)
     {
-        case LaserType::White:
-            return new WhiteLaser(startPos, dir, player);
+        case LaserType::White: return new WhiteLaser(startPos, dir, player);
 
-        case LaserType::Yellow:
-            return new YellowLaser(startPos, dir, player);
+        case LaserType::Yellow: return new YellowLaser(startPos, dir, player);
 
-        case LaserType::Red:
-            return new RedLaser(startPos, dir, player);
+        case LaserType::Red: return new RedLaser(startPos, dir, player);
     }
 
     return nullptr;
@@ -336,14 +321,11 @@ CS200::RGBA LaserStar::GetTelegraphColor() const
 
     switch (currentType)
     {
-        case LaserType::White:
-            return 0xFFFFFFFF;
+        case LaserType::White: return 0xFFFFFFFF;
 
-        case LaserType::Yellow:
-            return 0xFFFF00FF;
+        case LaserType::Yellow: return 0xFFFF00FF;
 
-        case LaserType::Red:
-            return 0xFF0000FF;
+        case LaserType::Red: return 0xFF0000FF;
     }
 
     return 0xFFFFFFFF;
@@ -410,5 +392,30 @@ void LaserStar::SetAimDirection(Math::vec2 newDir)
     if (continuousLaser != nullptr)
     {
         continuousLaser->SetDirection(aimDirection);
+    }
+}
+
+void LaserStar::SetEnabled(bool enabled)
+{
+    SetIsActive(enabled);
+    SetVisible(enabled);
+
+    if (!enabled)
+    {
+        DestroyContinuousLaser();
+
+        if (activeShotLaser != nullptr)
+        {
+            activeShotLaser->Destroy();
+            activeShotLaser = nullptr;
+        }
+
+        isFirstFrame = true;
+
+        Shield* shield = player ? player->GetShield() : nullptr;
+        if (shield != nullptr)
+        {
+            shield->SetParryWindowActive(false);
+        }
     }
 }

@@ -14,6 +14,7 @@ class Gate;
 class TargetStar;
 class LaserStar;
 class Constellation;
+class BossController;
 
 class Boss1 : public CS230::GameState
 {
@@ -50,6 +51,7 @@ private:
     WorldTextManager*        worldTextManager = nullptr;
     std::vector<TargetStar*> targetStars;
     Constellation* constellation = nullptr;
+    BossController* bossController = nullptr;
 
     double                   playingTimer      = 0.0;
     bool                     isCameraScaling   = false;

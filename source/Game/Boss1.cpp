@@ -1,5 +1,6 @@
 #include "Boss1.hpp"
 
+#include "BossController.hpp"
 #include "Constellation.hpp"
 #include "Gate.hpp"
 #include "LaserStar.hpp"
@@ -44,7 +45,7 @@ void Boss1::BuildConstellation()
 
         const std::string& name = obj->GetName();
 
-        if (obj->TypeName() == "LaserStar" && name == "ARIES_MAIN")
+        if (obj->TypeName() == "LaserStar" && name == "LS_Y_SHOT_TRACK_E_ARIESMAIN")
         {
             constellation->SetMainStar(static_cast<LaserStar*>(obj));
         }
@@ -117,6 +118,9 @@ void Boss1::Update(double dt)
 
             BuildConstellation();
 
+            bossController = new BossController(player, constellation);
+            bossController->CollectPhaseObjects(GetGSComponent<CS230::GameObjectManager>());
+
             currentState = State::Playing;
 
             Engine::GetGameStateManager().HoldFadeIn(false);
@@ -148,6 +152,11 @@ void Boss1::Update(double dt)
                 }
                 camera->SetScale(currentScale);
             }
+        }
+
+        if (bossController != nullptr)
+        {
+            bossController->Update(dt);
         }
     }
 
@@ -279,6 +288,9 @@ void Boss1::Unload()
 {
     delete constellation;
     constellation = nullptr;
+
+    delete bossController;
+    bossController = nullptr;
 
     ClearGSComponents();
     player           = nullptr;

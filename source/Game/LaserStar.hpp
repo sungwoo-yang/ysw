@@ -55,6 +55,7 @@ public:
     void SetPattern(Pattern newPattern);
     void SetFireMode(FireMode newMode);
     void SetAimDirection(Math::vec2 newDir);
+    void SetEnabled(bool enabled);
 
 private:
     LaserType currentType;

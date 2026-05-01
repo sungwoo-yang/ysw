@@ -16,21 +16,23 @@
      pagecolor="#ffffff"
      bordercolor="#000000"
      borderopacity="0.25"
-     inkscape:showpageshadow="2"
+     inkscape:showpageshadow="true"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="px"
      showguides="false"
-     inkscape:zoom="0.53680556"
-     inkscape:cx="463.85511"
-     inkscape:cy="410.76326"
+     inkscape:zoom="0.7591577"
+     inkscape:cx="1480.5883"
+     inkscape:cy="436.66816"
      inkscape:window-width="1920"
      inkscape:window-height="991"
      inkscape:window-x="-9"
      inkscape:window-y="-9"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer1">
+     inkscape:current-layer="layer7"
+     showborder="true"
+     borderlayer="true">
     <inkscape:page
        x="0"
        y="0"
@@ -59,21 +61,100 @@
     </linearGradient>
   </defs>
   <g
-     inkscape:label="Layer 1"
+     inkscape:label="Platform"
      inkscape:groupmode="layer"
      id="layer1">
     <path
        id="rect6"
-       style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:5.78888"
-       d="M 2.8944399,522.89444 H 1917.1056 V 917.1056 H 2.8944399 Z" />
+       style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:7.2251"
+       d="M 3.6125517,523.61255 H 2996.3874 V 916.38749 H 3.6125517 Z" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="Common_Objects" />
+  <g
+     inkscape:groupmode="layer"
+     id="layer7"
+     inkscape:label="Phase1"
+     transform="matrix(1.0024763,0,0,0.62882181,216.54713,193.37858)">
     <path
-       id="rect6-5"
-       style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:5.78888"
-       d="M 1912.8944,522.89444 H 3827.1056 V 917.1056 H 1912.8944 Z" />
+       id="rect6-8"
+       style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.25433"
+       d="M 787.75537,331.7916 H 953.10625 V 546.05415 H 787.75537 Z"
+       inkscape:label="rect01" />
     <path
-       style="fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
-       id="LS_R_SHOT_TRACK_N_01"
-       d="m 373.43975,272.84467 h 49.02 v 49.0196 h -49.02 z"
+       id="rect6-8-8"
+       style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:2.21692"
+       d="M 950.88293,95.507344 H 1193.397 V 551.85003 H 950.88293 Z"
+       inkscape:label="rect02" />
+    <path
+       id="rect6-8-8-3"
+       style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.37871"
+       d="m 1349.4583,411.19896 h 276.4266 v 154.844 h -276.4266 z"
+       inkscape:label="rect02" />
+    <path
+       id="rect6-8-8-3-3"
+       style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.37871"
+       d="m 1819.5838,414.71311 h 276.4266 v 154.844 h -276.4266 z"
+       inkscape:label="rect02" />
+    <path
+       style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:1.23481;stroke-opacity:1"
+       id="LS_R_CONT_BLINK_S_01"
+       d="m 1242.344,-441.89237 h 48.8989 v 77.95468 h -48.8989 z"
+       inkscape:transform-center-x="52.160414"
+       inkscape:transform-center-y="-27.943079"
+       inkscape:label="LS_R_CONT_BLINK_S_P1A" />
+    <path
+       style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:1.23481;stroke-opacity:1"
+       id="LS_R_CONT_STATIC_E_P1B"
+       d="m 1605.5508,455.68976 h 48.8989 v 77.95468 h -48.8989 z"
+       inkscape:transform-center-x="52.160414"
+       inkscape:transform-center-y="-27.943079"
+       inkscape:label="LS_R_CONT_BLINK_S_P1A" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer3"
+     inkscape:label="Phase2" />
+  <g
+     inkscape:groupmode="layer"
+     id="layer4"
+     inkscape:label="Phase3" />
+  <g
+     inkscape:groupmode="layer"
+     id="layer5"
+     inkscape:label="Reflect" />
+  <g
+     inkscape:groupmode="layer"
+     id="layer8"
+     inkscape:label="Constellation"
+     style="display:none">
+    <path
+       style="display:inline;fill:#ffffff;fill-opacity:1;stroke:#22002b;stroke-width:1.23481;stroke-opacity:1"
+       id="ARIES_T_01"
+       d="m 1343.8529,-160.25996 h 48.899 v 77.954675 h -48.899 z"
+       inkscape:transform-center-x="52.160414"
+       inkscape:transform-center-y="-27.943079"
+       inkscape:label="ARIES_T_01"
+       transform="matrix(1.0024763,0,0,0.62882181,216.54713,193.37858)" />
+    <path
+       style="fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980395;stroke-opacity:1"
+       id="LS_Y_SHOT_TRACK_E_ARIESMAIN"
+       d="m 1718.9504,-306.43055 h 49.02 v 49.0196 h -49.02 z"
+       inkscape:transform-center-x="52.160414"
+       inkscape:transform-center-y="-27.943079"
+       inkscape:label="LS_Y_SHOT_TRACK_E_ARIESMAIN" />
+    <path
+       style="fill:#ffffff;fill-opacity:1;stroke:#22002b;stroke-width:0.980395;stroke-opacity:1"
+       id="ARIES_T_02"
+       d="m 1977.7218,-143.41713 h 49.0199 v 49.019613 h -49.0199 z"
+       inkscape:transform-center-x="52.160414"
+       inkscape:transform-center-y="-27.943079" />
+    <path
+       style="fill:#ffffff;fill-opacity:1;stroke:#22002b;stroke-width:0.980395;stroke-opacity:1"
+       id="ARIES_T_03"
+       d="m 2102.1693,85.460741 h 49.0199 v 49.019609 h -49.0199 z"
        inkscape:transform-center-x="52.160414"
        inkscape:transform-center-y="-27.943079" />
   </g>

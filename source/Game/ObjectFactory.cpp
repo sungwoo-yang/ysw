@@ -49,44 +49,6 @@ namespace
         return tokens;
     }
 
-    Math::vec2 DirectionFromIDToken(const std::string& token)
-    {
-        if (token == "N")
-        {
-            return { 0.0, 1.0 };
-        }
-        if (token == "S")
-        {
-            return { 0.0, -1.0 };
-        }
-        if (token == "E")
-        {
-            return { 1.0, 0.0 };
-        }
-        if (token == "W")
-        {
-            return { -1.0, 0.0 };
-        }
-        if (token == "NE")
-        {
-            return { 0.707, 0.707 };
-        }
-        if (token == "NW")
-        {
-            return { -0.707, 0.707 };
-        }
-        if (token == "SE")
-        {
-            return { 0.707, -0.707 };
-        }
-        if (token == "SW")
-        {
-            return { -0.707, -0.707 };
-        }
-
-        return { 0.0, -1.0 };
-    }
-
     LaserStar::LaserType LaserTypeFromIDToken(const std::string& token)
     {
         if (token == "Y")
@@ -148,6 +110,44 @@ namespace
 
         Engine::GetLogger().LogError("Invalid LaserStar Pattern token: " + token);
         return LaserStar::Pattern::Static;
+    }
+
+    Math::vec2 DirectionFromIDToken(const std::string& token)
+    {
+        if (token == "N")
+        {
+            return { 0.0, 1.0 };
+        }
+        if (token == "S")
+        {
+            return { 0.0, -1.0 };
+        }
+        if (token == "E")
+        {
+            return { 1.0, 0.0 };
+        }
+        if (token == "W")
+        {
+            return { -1.0, 0.0 };
+        }
+        if (token == "NE")
+        {
+            return { 0.707, 0.707 };
+        }
+        if (token == "NW")
+        {
+            return { -0.707, 0.707 };
+        }
+        if (token == "SE")
+        {
+            return { 0.707, -0.707 };
+        }
+        if (token == "SW")
+        {
+            return { -0.707, -0.707 };
+        }
+
+        return { 0.0, -1.0 };
     }
 
     CS230::GameObject* CreateLaserStar(Math::vec2 pos, Player* player, const std::string& id)
@@ -232,7 +232,6 @@ namespace ObjectFactory
 
             #ffffff = TargetStar
             #00ff00 = LaserStar
-            #ffff00 = HostileStar
             #ff00ff = BossStar
             */
 

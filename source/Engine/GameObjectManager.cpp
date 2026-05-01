@@ -33,7 +33,10 @@ namespace CS230
 
         for (auto object : objects)
         {
-            object->Update(dt);
+            if (object->IsActive())
+            {
+                object->Update(dt);
+            }
 
             if (object->Destroyed())
             {
@@ -63,13 +66,22 @@ namespace CS230
     {
         for (GameObject* object_1 : objects)
         {
+            if (!object_1->IsActive())
+            {
+                continue;
+            }
+
             for (GameObject* object_2 : objects)
             {
+                if (!object_2->IsActive())
+                {
+                    continue;
+                }
+
                 if ((object_1 != object_2) && (object_1->CanCollideWith(object_2->Type())))
                 {
                     if (object_1->IsCollidingWith(object_2))
                     {
-                        // Engi2ne::GetLogger().LogEvent("Collision Detected: " + object_1->TypeName() + " and " + object_2->TypeName());
                         object_1->ResolveCollision(object_2);
                     }
                 }
