@@ -29,7 +29,15 @@ public:
         WarningShot
     };
 
-    LaserStar(Math::vec2 pos, Player* player, LaserType type, Pattern pattern, Math::vec2 initialDir, FireMode mode = FireMode::Continuous);
+    enum class MoveMode
+    {
+        None,
+        Linear
+    };
+
+    LaserStar(
+        Math::vec2 pos, Player* player, LaserType type, Pattern pattern, Math::vec2 initialDir, FireMode mode = FireMode::Continuous, MoveMode moveMode = MoveMode::None,
+        Math::vec2 moveDir = { 0.0, 0.0 }, double moveSpeed = 0.0, double moveDistance = 0.0);
 
     ~LaserStar() override;
 
@@ -56,6 +64,8 @@ public:
     void SetFireMode(FireMode newMode);
     void SetAimDirection(Math::vec2 newDir);
     void SetEnabled(bool enabled);
+    bool IsMoveComplete() const;
+    void ResetMovement();
 
 private:
     LaserType currentType;
@@ -82,7 +92,7 @@ private:
     bool         isLaserOn     = true;
 
     // Red warning-shot parry timing
-    const double parryWindowTime = 0.3;
+    const double parryWindowTime = 0.4;
 
     void UpdateContinuous(double dt);
     void UpdateWarningShot(double dt);
@@ -91,4 +101,15 @@ private:
     void DestroyContinuousLaser();
 
     Laser* CreateLaserObject(Math::vec2 startPos, Math::vec2 dir);
+
+    MoveMode currentMoveMode = MoveMode::None;
+
+    Math::vec2 startPosition;
+    Math::vec2 moveDirection;
+    double     moveSpeed     = 0.0;
+    double     moveDistance  = 0.0;
+    double     movedDistance = 0.0;
+    bool       moveComplete  = false;
+
+    void UpdateMovement(double dt);
 };

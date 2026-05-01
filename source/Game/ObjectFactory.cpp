@@ -150,34 +150,82 @@ namespace
         return { 0.0, -1.0 };
     }
 
+    LaserStar::MoveMode LaserMoveModeFromIDToken(const std::string& token)
+    {
+        if (token == "NONE")
+        {
+            return LaserStar::MoveMode::None;
+        }
+
+        if (token == "LINEAR")
+        {
+            return LaserStar::MoveMode::Linear;
+        }
+
+        Engine::GetLogger().LogError("Invalid LaserStar MoveMode token: " + token);
+        return LaserStar::MoveMode::None;
+    }
+
     CS230::GameObject* CreateLaserStar(Math::vec2 pos, Player* player, const std::string& id)
     {
-        // Required ID format:
+        // Static format:
+        // LS_(LaserType)_(FireMode)_(Pattern)_(LaserDirection)_(Name)
         //
-        // LS_(LaserType)_(FireMode)_(Pattern)_(Direction)_(Num)
+        // Example:
+        // LS_R_CONT_STATIC_E_P1A
+        // LS_Y_SHOT_TRACK_E_ARIESMAIN
         //
-        // Examples:
-        // LS_Y_CONT_STATIC_E_01
-        // LS_R_CONT_ROTATE_N_02
-        // LS_W_CONT_BLINK_E_03
-        // LS_Y_SHOT_TRACK_E_04
-        // LS_R_SHOT_TRACK_E_05
+        // Moving format:
+        // LS_(LaserType)_(FireMode)_(Pattern)_(LaserDirection)_(MoveMode)_(MoveDirection)_(Speed)_(Distance)_(Name)
+        //
+        // Example:
+        // LS_R_CONT_STATIC_S_LINEAR_E_80_3000_P1CHASE
 
         auto parts = SplitID(id, '_');
 
-        if (parts.size() != 6 || parts[0] != "LS")
+        if (parts.size() != 6 && parts.size() != 10)
         {
             Engine::GetLogger().LogError("Invalid LaserStar id: " + id);
-            Engine::GetLogger().LogError("Expected: LS_(LaserType)_(FireMode)_(Pattern)_(Direction)_(Num)");
+            Engine::GetLogger().LogError("Expected static: LS_(LaserType)_(FireMode)_(Pattern)_(LaserDirection)_(Name)");
+            Engine::GetLogger().LogError("Expected moving: LS_(LaserType)_(FireMode)_(Pattern)_(LaserDirection)_(MoveMode)_(MoveDirection)_(Speed)_(Distance)_(Name)");
             return nullptr;
         }
 
-        LaserStar::LaserType type    = LaserTypeFromIDToken(parts[1]);
-        LaserStar::FireMode  mode    = LaserFireModeFromIDToken(parts[2]);
-        LaserStar::Pattern   pattern = LaserPatternFromIDToken(parts[3]);
-        Math::vec2           dir     = DirectionFromIDToken(parts[4]);
+        if (parts[0] != "LS")
+        {
+            Engine::GetLogger().LogError("Invalid LaserStar prefix: " + id);
+            return nullptr;
+        }
 
-        auto* star = new LaserStar(pos, player, type, pattern, dir, mode);
+        LaserStar::LaserType type     = LaserTypeFromIDToken(parts[1]);
+        LaserStar::FireMode  mode     = LaserFireModeFromIDToken(parts[2]);
+        LaserStar::Pattern   pattern  = LaserPatternFromIDToken(parts[3]);
+        Math::vec2           laserDir = DirectionFromIDToken(parts[4]);
+
+        LaserStar::MoveMode moveMode = LaserStar::MoveMode::None;
+        Math::vec2          moveDir  = { 0.0, 0.0 };
+        double              speed    = 0.0;
+        double              distance = 0.0;
+
+        if (parts.size() == 10)
+        {
+            moveMode = LaserMoveModeFromIDToken(parts[5]);
+            moveDir  = DirectionFromIDToken(parts[6]);
+
+            try
+            {
+                speed    = std::stod(parts[7]);
+                distance = std::stod(parts[8]);
+            }
+            catch (const std::exception& e)
+            {
+                Engine::GetLogger().LogError("Invalid LaserStar movement number in id: " + id);
+                Engine::GetLogger().LogError(e.what());
+                return nullptr;
+            }
+        }
+
+        auto* star = new LaserStar(pos, player, type, pattern, laserDir, mode, moveMode, moveDir, speed, distance);
         star->SetName(id);
 
         return star;

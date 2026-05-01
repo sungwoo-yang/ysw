@@ -1,9 +1,9 @@
 #include "Mode3.hpp"
 
+#include "Boss1.hpp"
 #include "Door.hpp"
 #include "MainMenu.hpp"
 #include "MiniMap.hpp"
-#include "Boss1.hpp"
 #include "ObjectFactory.hpp"
 #include "Player.hpp"
 #include "WorldTextManager.hpp"
@@ -186,7 +186,7 @@ void Mode3::Update(double dt)
 
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
     {
-        player->SetPosition({ 8000, 300 });
+        player->SetPosition({ 1700, 300 });
     }
 
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))

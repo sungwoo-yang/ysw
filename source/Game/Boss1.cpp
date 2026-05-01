@@ -185,10 +185,28 @@ void Boss1::Update(double dt)
         }
     }
 
-    if (player != nullptr)
+    if (player != nullptr && camera != nullptr)
     {
-        Math::vec2 winSize   = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
-        Math::vec2 targetPos = player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.3 };
+        Math::vec2 winSize = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
+
+        double visibleWorldWidth  = winSize.x / camera->GetScale();
+        double visibleWorldHeight = winSize.y / camera->GetScale();
+
+        double maxCameraX = level_boundary.Right() - visibleWorldWidth;
+        double maxCameraY = level_boundary.Top() - visibleWorldHeight;
+
+        if (maxCameraX < level_boundary.Left())
+        {
+            maxCameraX = level_boundary.Left();
+        }
+
+        camera->SetLimit(
+            Math::irect{
+                { static_cast<int>(level_boundary.Left()),                                  -5000 },
+                {            static_cast<int>(maxCameraX), static_cast<int>(level_boundary.Top()) }
+        });
+
+        Math::vec2 targetPos = player->GetPosition() - Math::vec2{ visibleWorldWidth * 0.5, visibleWorldHeight * 0.3 };
         camera->Update(targetPos, dt);
     }
 }

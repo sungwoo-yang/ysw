@@ -32,8 +32,11 @@ namespace
     }
 }
 
-LaserStar::LaserStar(Math::vec2 pos, Player* in_player, LaserType type, Pattern pattern, Math::vec2 initialDir, FireMode mode)
-    : Star(pos, in_player), currentType(type), currentPattern(pattern), currentFireMode(mode), aimDirection(initialDir.Normalize()), laserDirection(initialDir.Normalize())
+LaserStar::LaserStar(
+    Math::vec2 pos, Player* in_player, LaserType type, Pattern pattern, Math::vec2 initialDir, FireMode mode, MoveMode in_moveMode, Math::vec2 in_moveDir, double in_moveSpeed, double in_moveDistance)
+    : Star(pos, in_player), currentType(type), currentPattern(pattern), currentFireMode(mode), aimDirection(initialDir.Normalize()), laserDirection(initialDir.Normalize()),
+      currentMoveMode(in_moveMode), startPosition(pos), moveDirection(in_moveDir.Length() > 0.0 ? in_moveDir.Normalize() : Math::vec2{ 0.0, 0.0 }), moveSpeed(in_moveSpeed),
+      moveDistance(in_moveDistance)
 {
     if (currentFireMode == FireMode::WarningShot)
     {
@@ -63,6 +66,8 @@ LaserStar::~LaserStar()
 
 void LaserStar::Update(double dt)
 {
+    UpdateMovement(dt);
+
     if (currentFireMode == FireMode::Continuous)
     {
         UpdateContinuous(dt);
@@ -150,6 +155,17 @@ void LaserStar::UpdateContinuous(double dt)
 
 void LaserStar::UpdateWarningShot(double dt)
 {
+    Shield* shield = player ? player->GetShield() : nullptr;
+
+    if (currentType == LaserType::Red && currentState == State::Warning && shield != nullptr)
+    {
+        shield->SetParryWindowActive(timer <= parryWindowTime);
+    }
+    else if (shield != nullptr)
+    {
+        shield->SetParryWindowActive(false);
+    }
+
     if (activeShotLaser != nullptr)
     {
         firingTimer += dt;
@@ -183,23 +199,29 @@ void LaserStar::UpdateWarningShot(double dt)
     {
         HandleBasicAI(dt);
     }
+}
 
-    if (currentType == LaserType::Red && currentState == State::Warning)
+void LaserStar::UpdateMovement(double dt)
+{
+    if (currentMoveMode == MoveMode::None || moveComplete)
     {
-        Shield* shield = player ? player->GetShield() : nullptr;
-
-        if (shield != nullptr)
-        {
-            shield->SetParryWindowActive(timer <= parryWindowTime);
-        }
+        return;
     }
-    else
-    {
-        Shield* shield = player ? player->GetShield() : nullptr;
 
-        if (shield != nullptr)
+    if (currentMoveMode == MoveMode::Linear)
+    {
+        double step = moveSpeed * dt;
+
+        if (moveDistance > 0.0 && movedDistance + step >= moveDistance)
         {
-            shield->SetParryWindowActive(false);
+            step         = moveDistance - movedDistance;
+            moveComplete = true;
+        }
+
+        if (step > 0.0)
+        {
+            UpdatePosition(moveDirection * step);
+            movedDistance += step;
         }
     }
 }
@@ -400,22 +422,47 @@ void LaserStar::SetEnabled(bool enabled)
     SetIsActive(enabled);
     SetVisible(enabled);
 
-    if (!enabled)
+    if (enabled)
     {
-        DestroyContinuousLaser();
-
-        if (activeShotLaser != nullptr)
-        {
-            activeShotLaser->Destroy();
-            activeShotLaser = nullptr;
-        }
-
-        isFirstFrame = true;
-
-        Shield* shield = player ? player->GetShield() : nullptr;
-        if (shield != nullptr)
-        {
-            shield->SetParryWindowActive(false);
-        }
+        ResetMovement();
+        return;
     }
+
+    DestroyContinuousLaser();
+
+    if (activeShotLaser != nullptr)
+    {
+        activeShotLaser->Destroy();
+        activeShotLaser = nullptr;
+    }
+
+    isFirstFrame = true;
+
+    Shield* shield = player ? player->GetShield() : nullptr;
+    if (shield != nullptr)
+    {
+        shield->SetParryWindowActive(false);
+    }
+}
+
+bool LaserStar::IsMoveComplete() const
+{
+    return moveComplete;
+}
+
+void LaserStar::ResetMovement()
+{
+    SetPosition(startPosition);
+    movedDistance = 0.0;
+    moveComplete  = false;
+
+    DestroyContinuousLaser();
+
+    if (activeShotLaser != nullptr)
+    {
+        activeShotLaser->Destroy();
+        activeShotLaser = nullptr;
+    }
+
+    isFirstFrame = true;
 }
