@@ -8,6 +8,8 @@
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
+#include "Engine/Texture.hpp"
+#include "Engine/TextureManager.hpp"
 
 #include "PushableMirror.hpp"
 #include "Shield.hpp"
@@ -21,12 +23,6 @@
 
 namespace
 {
-    constexpr Math::irect PLAYER_COLLISION_BOX{
-        { -20, -40 },
-        {  20,  40 }
-    };
-    constexpr Math::vec2 PLAYER_COLLISION_SIZE{ 40.0, 80.0 };
-
     // Utility: Clamp
     template <typename T>
     T Clamp(T v, T lo, T hi)
@@ -45,14 +41,24 @@ Player::Player(Math::vec2 in_start_pos)
     : CS230::GameObject(in_start_pos), isJumping(true), velocityY(0.0), faceRight(true), shieldComponent(nullptr), startPosition(in_start_pos), previousPosition(in_start_pos),
       healthState(HealthState::Full), playerHp(5.0), maxPlayerHp(5.0), recoverDelayTimer(0.0), tookDamageThisFrame(false), invincibilityTimer(0.0)
 {
-    AddGOComponent(new CS230::Sprite("Assets/images/Character.spt", this));
+    // auto character = new CS230::Sprite("Assets/images/Character.spt", this);
+    // AddGOComponent(character);
+    // SetScale({ 0.04, 0.08 });
+
+    Engine::GetTextureManager().Load("Assets/images/Character.png");
+    AddGOComponent(new CS230::RectCollision(
+        {
+            { -20, -40 },
+            {  20,  40 }
+    },
+        this));
 
     // Initialize core components
     shieldComponent = new Shield(this);
     AddGOComponent(shieldComponent);
 
     // Add physical collision bounds
-    AddGOComponent(new CS230::RectCollision(PLAYER_COLLISION_BOX, this));
+    //     AddGOComponent(new CS230::RectCollision(PLAYER_COLLISION_BOX, this));
     dashComponent.dashCooldown = 1.0;
 }
 
@@ -243,13 +249,11 @@ void Player::ResolveCollision(GameObject* other_object)
 
     if (other_object->Type() == GameObjectTypes::Floor || other_object->Type() == GameObjectTypes::Gate)
     {
-        // AABB / SAT Collision Resolution for world geometry
         CS230::RectCollision* my_collider = GetGOComponent<CS230::RectCollision>();
         if (!my_collider)
             return;
 
         Math::rect other_box;
-
         if (other_object->Type() == GameObjectTypes::Floor)
         {
             CS230::SATCollision* floor_collider = other_object->GetGOComponent<CS230::SATCollision>();
@@ -267,26 +271,18 @@ void Player::ResolveCollision(GameObject* other_object)
 
         Math::rect my_box = my_collider->WorldBoundary();
 
-        double prev_bottom = previousPosition.y - (PLAYER_COLLISION_SIZE.y / 2.0);
-        double prev_top    = previousPosition.y + (PLAYER_COLLISION_SIZE.y / 2.0);
-        double prev_left   = previousPosition.x - (PLAYER_COLLISION_SIZE.x / 2.0);
-        double prev_right  = previousPosition.x + (PLAYER_COLLISION_SIZE.x / 2.0);
+        double current_half_height = (my_box.Top() - my_box.Bottom()) / 2.0;
+        double current_half_width  = (my_box.Right() - my_box.Left()) / 2.0;
 
         double platform_top    = other_box.Top();
         double platform_bottom = other_box.Bottom();
         double platform_left   = other_box.Left();
         double platform_right  = other_box.Right();
 
-        // Determine relative positions from previous frame to find collision normal
-        bool was_above = prev_bottom >= platform_top;
-        bool was_below = prev_top <= platform_bottom;
-        bool was_left  = prev_right <= platform_left;
-        bool was_right = prev_left >= platform_right;
-
-        double overlap_bottom = my_box.Top() - other_box.Bottom();
-        double overlap_top    = other_box.Top() - my_box.Bottom();
-        double overlap_left   = my_box.Right() - other_box.Left();
-        double overlap_right  = other_box.Right() - my_box.Left();
+        double prev_bottom = previousPosition.y - current_half_height;
+        double prev_top    = previousPosition.y + current_half_height;
+        double prev_left   = previousPosition.x - current_half_width;
+        double prev_right  = previousPosition.x + current_half_width;
 
         bool horizontal_overlap = my_box.Right() > other_box.Left() && my_box.Left() < other_box.Right();
         bool vertical_overlap   = my_box.Top() > other_box.Bottom() && my_box.Bottom() < other_box.Top();
@@ -294,78 +290,37 @@ void Player::ResolveCollision(GameObject* other_object)
         if (!horizontal_overlap || !vertical_overlap)
             return;
 
-        // Resolve penetration by shifting player out of the overlapping axis
+        bool was_above = prev_bottom >= platform_top;
+        bool was_below = prev_top <= platform_bottom;
+        bool was_left  = prev_right <= platform_left;
+        bool was_right = prev_left >= platform_right;
+
         if (velocityY <= 0 && was_above && horizontal_overlap)
         {
-            // Landing Sounds
             if (wasJumpingLastFrame)
             {
                 AudioManager::Play("SFX_Landing");
                 wasJumpingLastFrame = false;
             }
-
-
-            // Landing on top of a surface
-            SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
+            SetPosition({ GetPosition().x, platform_top + current_half_height });
             velocityY   = 0.0;
             isJumping   = false;
-            coyoteTimer = coyoteTime; // Refresh coyote time on ground contact
+            coyoteTimer = coyoteTime;
         }
         else if (velocityY > 0 && was_below && horizontal_overlap)
         {
-            // Hitting head on ceiling
-            SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
+            SetPosition({ GetPosition().x, platform_bottom - current_half_height });
             velocityY = 0.0;
         }
         else if (GetVelocity().x > 0 && was_left && vertical_overlap)
         {
-            // Hitting wall moving right
-            SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+            SetPosition({ platform_left - current_half_width, GetPosition().y });
             SetVelocity({ 0.0, GetVelocity().y });
         }
         else if (GetVelocity().x < 0 && was_right && vertical_overlap)
         {
-            SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+            SetPosition({ platform_right + current_half_width, GetPosition().y });
             SetVelocity({ 0.0, GetVelocity().y });
-        }
-        else
-        {
-            double min_overlap = overlap_bottom;
-            int    axis        = 0;
-
-            if (overlap_top < min_overlap)
-            {
-                min_overlap = overlap_top;
-                axis        = 1;
-            }
-            if (overlap_left < min_overlap)
-            {
-                min_overlap = overlap_left;
-                axis        = 2;
-            }
-            if (overlap_right < min_overlap)
-            {
-                min_overlap = overlap_right;
-                axis        = 3;
-            }
-
-            switch (axis)
-            {
-                case 0:
-                    SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
-                    if (velocityY > 0)
-                        velocityY = 0.0;
-                    break;
-                case 1:
-                    SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
-                    if (velocityY < 0)
-                        velocityY = 0.0;
-                    isJumping   = false;
-                    coyoteTimer = coyoteTime;
-                    break;
-                case 2: SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y }); break;
-                case 3: SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y }); break;
-            }
         }
     }
     else if (other_object->Type() == GameObjectTypes::Sign || other_object->Type() == GameObjectTypes::Bonfire || other_object->Type() == GameObjectTypes::Door)
@@ -422,35 +377,35 @@ void Player::ResolveCollision(GameObject* other_object)
 
 void Player::Draw(const Math::TransformationMatrix& camera_matrix)
 {
-    CS200::IRenderer2D&        renderer  = Engine::GetRenderer2D();
-    Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix(PLAYER_COLLISION_SIZE);
-
-    CS200::RGBA playerColor = CS200::GREEN;
-
-    if (invincibilityTimer > 0.0)
-    {
-        if (static_cast<int>(invincibilityTimer * 10.0) % 2 == 0)
-        {
-            playerColor = (playerColor & 0xFFFFFF00) | 100;
-        }
-    }
-
-    switch (healthState)
-    {
-        case HealthState::Full: playerColor = CS200::GREEN; break;
-        case HealthState::Healthy: playerColor = CS200::CYAN; break;
-        case HealthState::Hurt: playerColor = CS200::YELLOW; break;
-        case HealthState::Critical: playerColor = 0xFFA500FF; break;
-        case HealthState::NearDeath: playerColor = CS200::RED; break;
-        case HealthState::Dead: playerColor = 0x8B0000FF; break;
-        default: playerColor = CS200::GREEN; break;
-    }
-
-    renderer.DrawRectangle(transform, playerColor, CS200::CLEAR, 0.0);
+    CS200::IRenderer2D& renderer = Engine::GetRenderer2D();
 
     if (shieldComponent)
     {
         shieldComponent->Draw(renderer, camera_matrix);
+    }
+
+    auto texture = Engine::GetTextureManager().Load("Assets/images/Character.png");
+    if (texture)
+    {
+        Math::TransformationMatrix scale_matrix = Math::ScaleMatrix({ 160.0, 160.0 });
+
+        if (!faceRight)
+        {
+            scale_matrix = scale_matrix * Math::ScaleMatrix({ -1.0, 1.0 });
+        }
+
+        Math::TransformationMatrix final_transform = GetMatrix() * scale_matrix;
+
+        float alpha = 1.0f;
+        if (invincibilityTimer > 0.0)
+        {
+            if (static_cast<int>(invincibilityTimer * 10.0) % 2 == 0)
+            {
+                alpha = 0.4f;
+            }
+        }
+
+        renderer.DrawQuad(final_transform, texture->GetHandle(), Math::vec2{ 0.0, 0.0 }, Math::vec2{ 1.0, 1.0 }, CS200::pack_color({ 1.0f, 1.0f, 1.0f, alpha }));
     }
 
     CS230::GameObject::Draw(camera_matrix);

@@ -75,9 +75,6 @@ private:
     // Update player health status and handle recovery over time
     void UpdateHealthState(double dt);
 
-    // Half height of collision box for grounding calculations
-    const double collisionHalfHeight = 40.0;
-
     // System components
     Shield* shieldComponent = nullptr;
 
