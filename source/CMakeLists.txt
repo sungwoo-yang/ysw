@@ -70,6 +70,7 @@ set(SOURCE_CODE
     Game/Mirror.hpp Game/Mirror.cpp
     Game/Mode1.hpp Game/Mode1.cpp
     Game/Mode2.hpp Game/Mode2.cpp
+    Game/ObjectFactory.hpp Game/ObjectFactory.cpp
     Game/Player.hpp Game/Player.cpp
     Game/PushableMirror.hpp Game/PushableMirror.cpp
     Game/PuzzleStar.hpp Game/PuzzleStar.cpp
