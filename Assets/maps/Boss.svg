@@ -23,8 +23,8 @@
      inkscape:document-units="px"
      showguides="false"
      inkscape:zoom="0.53680556"
-     inkscape:cx="1572.2639"
-     inkscape:cy="593.3247"
+     inkscape:cx="463.85511"
+     inkscape:cy="410.76326"
      inkscape:window-width="1920"
      inkscape:window-height="991"
      inkscape:window-x="-9"
@@ -42,6 +42,13 @@
   </sodipodi:namedview>
   <defs
      id="defs1">
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="0 : 720 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="2560 : 720 : 1"
+       inkscape:persp3d-origin="1280 : 480 : 1"
+       id="perspective1" />
     <linearGradient
        id="swatch2"
        inkscape:swatch="solid">
@@ -62,34 +69,12 @@
     <path
        id="rect6-5"
        style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:5.78888"
-       d="M 1922.8944,522.89444 H 3837.1056 V 917.1056 H 1922.8944 Z" />
+       d="M 1912.8944,522.89444 H 3827.1056 V 917.1056 H 1912.8944 Z" />
     <path
        style="fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
-       id="P_W_R_S_01"
-       d="M 250.4902,250.4902 L 299.5102,250.4902 L 299.5102,299.5098 L 250.4902,299.5098 Z" />
-    <path
-       style="fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
-       id="P_R_B_S_02"
-       d="m 750.4902,250.4902 h 49.02 v 49.0196 h -49.02 z" />
-    <path
-       style="fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.98;stroke-dasharray:none;stroke-opacity:1"
-       id="P_Y_S_SW_03"
-       d="m 1250.49,250.4902 h 49.02 v 49.0196 h -49.02 z" />
-    <path
-       style="fill:#ffff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
-       id="H_Y_01"
-       d="m 1750.4902,250.4902 h 49.02 v 49.0196 h -49.02 z" />
-    <path
-       style="fill:#ffffff;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
-       id="T_01"
-       d="m 2000.4902,250.4902 h 49.02 v 49.0196 h -49.02 z" />
-    <path
-       style="fill:#ffff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
-       id="H_R_02"
-       d="m 2250.4902,250.4902 h 49.02 v 49.0196 h -49.02 z" />
-    <path
-       style="fill:#ff00ff;fill-opacity:1;stroke:#22002b;stroke-width:0.980393;stroke-opacity:1"
-       id="B_01"
-       d="m 2750.4902,62.340137 h 49.02 v 49.019603 h -49.02 z" />
+       id="LS_R_SHOT_TRACK_N_01"
+       d="m 373.43975,272.84467 h 49.02 v 49.0196 h -49.02 z"
+       inkscape:transform-center-x="52.160414"
+       inkscape:transform-center-y="-27.943079" />
   </g>
 </svg>

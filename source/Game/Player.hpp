@@ -4,7 +4,6 @@
 #include "Engine/Dash.hpp"
 #include "Engine/GameObject.hpp"
 #include "Engine/GameObjectTypes.hpp"
-#include "Engine/Skeleton.hpp"
 #include "Engine/Vec2.hpp"
 
 #include <memory>

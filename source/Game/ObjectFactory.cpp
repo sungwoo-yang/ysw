@@ -4,11 +4,10 @@
 #include "BossStar.hpp"
 #include "Door.hpp"
 #include "Gate.hpp"
-#include "HostileStar.hpp"
+#include "LaserStar.hpp"
 #include "Mirror.hpp"
 #include "Player.hpp"
 #include "PushableMirror.hpp"
-#include "PuzzleStar.hpp"
 #include "Sign.hpp"
 #include "TargetStar.hpp"
 
@@ -88,76 +87,97 @@ namespace
         return { 0.0, -1.0 };
     }
 
-    PuzzleStar::LaserType PuzzleLaserTypeFromIDToken(const std::string& token)
+    LaserStar::LaserType LaserTypeFromIDToken(const std::string& token)
     {
         if (token == "Y")
         {
-            return PuzzleStar::LaserType::Yellow;
+            return LaserStar::LaserType::Yellow;
         }
+
         if (token == "R")
         {
-            return PuzzleStar::LaserType::Red;
+            return LaserStar::LaserType::Red;
         }
 
-        return PuzzleStar::LaserType::White;
+        if (token == "W")
+        {
+            return LaserStar::LaserType::White;
+        }
+
+        Engine::GetLogger().LogError("Invalid LaserStar LaserType token: " + token);
+        return LaserStar::LaserType::White;
     }
 
-    PuzzleStar::Pattern PuzzlePatternFromIDToken(const std::string& token)
+    LaserStar::FireMode LaserFireModeFromIDToken(const std::string& token)
     {
-        if (token == "R")
+        if (token == "CONT")
         {
-            return PuzzleStar::Pattern::Rotating;
-        }
-        if (token == "B")
-        {
-            return PuzzleStar::Pattern::Blink;
+            return LaserStar::FireMode::Continuous;
         }
 
-        return PuzzleStar::Pattern::Static;
+        if (token == "SHOT")
+        {
+            return LaserStar::FireMode::WarningShot;
+        }
+
+        Engine::GetLogger().LogError("Invalid LaserStar FireMode token: " + token);
+        return LaserStar::FireMode::Continuous;
     }
 
-    CS230::GameObject* CreatePuzzleStar(Math::vec2 pos, Player* player, const std::string& id)
+    LaserStar::Pattern LaserPatternFromIDToken(const std::string& token)
     {
-        // ID format:
-        // P_(LaserType)_(Pattern)_(Direction)_(Num)
+        if (token == "STATIC")
+        {
+            return LaserStar::Pattern::Static;
+        }
+
+        if (token == "ROTATE")
+        {
+            return LaserStar::Pattern::Rotating;
+        }
+
+        if (token == "BLINK")
+        {
+            return LaserStar::Pattern::Blink;
+        }
+
+        if (token == "TRACK")
+        {
+            return LaserStar::Pattern::Tracking;
+        }
+
+        Engine::GetLogger().LogError("Invalid LaserStar Pattern token: " + token);
+        return LaserStar::Pattern::Static;
+    }
+
+    CS230::GameObject* CreateLaserStar(Math::vec2 pos, Player* player, const std::string& id)
+    {
+        // Required ID format:
         //
-        // Example:
-        // P_Y_S_E_01
-        // P_R_B_N_02
-        // P_W_R_SW_03
+        // LS_(LaserType)_(FireMode)_(Pattern)_(Direction)_(Num)
+        //
+        // Examples:
+        // LS_Y_CONT_STATIC_E_01
+        // LS_R_CONT_ROTATE_N_02
+        // LS_W_CONT_BLINK_E_03
+        // LS_Y_SHOT_TRACK_E_04
+        // LS_R_SHOT_TRACK_E_05
 
         auto parts = SplitID(id, '_');
 
-        if (parts.size() < 5 || parts[0] != "P")
+        if (parts.size() != 6 || parts[0] != "LS")
         {
-            Engine::GetLogger().LogError("Invalid PuzzleStar id: " + id);
+            Engine::GetLogger().LogError("Invalid LaserStar id: " + id);
+            Engine::GetLogger().LogError("Expected: LS_(LaserType)_(FireMode)_(Pattern)_(Direction)_(Num)");
             return nullptr;
         }
 
-        PuzzleStar::LaserType type    = PuzzleLaserTypeFromIDToken(parts[1]);
-        PuzzleStar::Pattern   pattern = PuzzlePatternFromIDToken(parts[2]);
-        Math::vec2            dir     = DirectionFromIDToken(parts[3]);
+        LaserStar::LaserType type    = LaserTypeFromIDToken(parts[1]);
+        LaserStar::FireMode  mode    = LaserFireModeFromIDToken(parts[2]);
+        LaserStar::Pattern   pattern = LaserPatternFromIDToken(parts[3]);
+        Math::vec2           dir     = DirectionFromIDToken(parts[4]);
 
-        auto* star = new PuzzleStar(pos, player, type, pattern, dir);
-        star->SetName(id);
-
-        return star;
-    }
-
-    CS230::GameObject* CreateHostileStar(Math::vec2 pos, Player* player, const std::string& id)
-    {
-        // ID format:
-        // H_Y_01
-        // H_R_01
-
-        HostileStar::StarType type = HostileStar::StarType::Yellow;
-
-        if (id.find("_R_") != std::string::npos)
-        {
-            type = HostileStar::StarType::Red;
-        }
-
-        auto* star = new HostileStar(pos, player, type);
+        auto* star = new LaserStar(pos, player, type, pattern, dir, mode);
         star->SetName(id);
 
         return star;
@@ -211,7 +231,7 @@ namespace ObjectFactory
             #8844ff = Pushable Mirror
 
             #ffffff = TargetStar
-            #00ff00 = PuzzleStar
+            #00ff00 = LaserStar
             #ffff00 = HostileStar
             #ff00ff = BossStar
             */
@@ -274,12 +294,7 @@ namespace ObjectFactory
 
             if (color == "#00ff00")
             {
-                return CreatePuzzleStar(pos, player, id);
-            }
-
-            if (color == "#ffff00")
-            {
-                return CreateHostileStar(pos, player, id);
+                return CreateLaserStar(pos, player, id);
             }
 
             if (color == "#ff00ff")

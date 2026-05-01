@@ -12,6 +12,8 @@ class Player;
 class WorldTextManager;
 class Gate;
 class TargetStar;
+class LaserStar;
+class Constellation;
 
 class Boss1 : public CS230::GameState
 {
@@ -29,6 +31,7 @@ public:
 
 private:
     void InitGame();
+    void BuildConstellation();
 
     enum class State
     {
@@ -39,17 +42,19 @@ private:
     State currentState = State::Loading;
 
     // Pointers for stage-specific logic and entities
-    Player*            player           = nullptr;
-    CS230::Camera*     camera           = nullptr;
-    CS230::MapManager* mapManager       = nullptr;
-    TargetStar*        puzzleTarget     = nullptr;
-    Gate*              puzzleGate       = nullptr;
-    WorldTextManager*  worldTextManager = nullptr;
+    Player*                  player           = nullptr;
+    CS230::Camera*           camera           = nullptr;
+    CS230::MapManager*       mapManager       = nullptr;
+    TargetStar*              puzzleTarget     = nullptr;
+    Gate*                    puzzleGate       = nullptr;
+    WorldTextManager*        worldTextManager = nullptr;
     std::vector<TargetStar*> targetStars;
-    double playingTimer = 0.0;
-    bool isCameraScaling = false;
-    const double targetCameraScale = 0.5;
-    const double cameraScaleSpeed = 0.5;
+    Constellation* constellation = nullptr;
+
+    double                   playingTimer      = 0.0;
+    bool                     isCameraScaling   = false;
+    const double             targetCameraScale = 0.5;
+    const double             cameraScaleSpeed  = 0.5;
 
     Math::rect level_boundary = {
         {    0.0,    0.0 },

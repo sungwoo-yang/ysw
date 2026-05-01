@@ -1,6 +1,8 @@
 #include "Boss1.hpp"
 
+#include "Constellation.hpp"
 #include "Gate.hpp"
+#include "LaserStar.hpp"
 #include "ObjectFactory.hpp"
 #include "Player.hpp"
 #include "RedHitParticle.hpp"
@@ -21,6 +23,42 @@
 #include "Engine/Window.hpp"
 
 #include <imgui.h>
+
+void Boss1::BuildConstellation()
+{
+    auto gom = GetGSComponent<CS230::GameObjectManager>();
+
+    if (gom == nullptr)
+    {
+        return;
+    }
+
+    constellation = new Constellation("Aries");
+
+    for (auto obj : gom->GetObjects())
+    {
+        if (obj == nullptr)
+        {
+            continue;
+        }
+
+        const std::string& name = obj->GetName();
+
+        if (obj->TypeName() == "LaserStar" && name == "ARIES_MAIN")
+        {
+            constellation->SetMainStar(static_cast<LaserStar*>(obj));
+        }
+        else if (obj->TypeName() == "TargetStar")
+        {
+            if (name == "ARIES_T_01" || name == "ARIES_T_02" || name == "ARIES_T_03")
+            {
+                constellation->AddTargetStar(static_cast<TargetStar*>(obj));
+            }
+        }
+    }
+
+    Engine::GetLogger().LogEvent("Aries boss built. Targets: " + std::to_string(constellation->GetTotalTargetCount()));
+}
 
 void Boss1::Load()
 {
@@ -50,7 +88,7 @@ void Boss1::Load()
 
     InitGame();
 
-    mapManager->AddMap(new CS230::Map("Assets/maps/Boss01.svg"));
+    mapManager->AddMap(new CS230::Map("Assets/maps/Boss.svg"));
     mapManager->LoadMap();
     AddGSComponent(mapManager);
 
@@ -76,6 +114,9 @@ void Boss1::Update(double dt)
         if (mapManager->GetCurrentMap() && mapManager->GetCurrentMap()->IsLevelLoaded())
         {
             Engine::GetLogger().LogEvent("Map Loading Complete! Starting Game...");
+
+            BuildConstellation();
+
             currentState = State::Playing;
 
             Engine::GetGameStateManager().HoldFadeIn(false);
@@ -223,12 +264,22 @@ void Boss1::DrawImGui()
         }
     }
 
+    if (constellation != nullptr)
+    {
+        ImGui::Text("Constellation: %s", constellation->GetName().c_str());
+        ImGui::Text("Targets: %d / %d", constellation->GetActivatedTargetCount(), constellation->GetTotalTargetCount());
+        ImGui::Text("Restored: %s", constellation->IsRestored() ? "Yes" : "No");
+    }
+
     ImGui::End();
 #endif
 }
 
 void Boss1::Unload()
 {
+    delete constellation;
+    constellation = nullptr;
+
     ClearGSComponents();
     player           = nullptr;
     mapManager       = nullptr;
