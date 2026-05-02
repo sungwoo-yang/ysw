@@ -22,9 +22,9 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="px"
      showguides="true"
-     inkscape:zoom="1.5183154"
-     inkscape:cx="2724.7303"
-     inkscape:cy="361.25564"
+     inkscape:zoom="0.37957885"
+     inkscape:cx="321.40885"
+     inkscape:cy="-180.46316"
      inkscape:window-width="1920"
      inkscape:window-height="991"
      inkscape:window-x="-9"
@@ -125,11 +125,11 @@
        inkscape:label="LS_R_SHOT_TRACK_E_P1A" />
     <path
        style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:1.23162;stroke-opacity:1"
-       id="LS_R_CONT_STATIC_S_LINEAR_E_120_3000_P1CHASE"
+       id="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P1CHASE"
        d="m -215.39641,-306.90943 h 48.64487 v 77.95786 h -48.64487 z"
        inkscape:transform-center-x="51.889439"
        inkscape:transform-center-y="-27.944221"
-       inkscape:label="LS_R_CONT_STATIC_S_LINEAR_E_120_3000_P1CHASE" />
+       inkscape:label="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P1CHASE" />
   </g>
   <g
      inkscape:groupmode="layer"
