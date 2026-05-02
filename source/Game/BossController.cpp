@@ -3,13 +3,18 @@
 #include "Constellation.hpp"
 #include "LaserStar.hpp"
 #include "Player.hpp"
+#include "TargetStar.hpp"
 
 #include "Engine/Engine.hpp"
 #include "Engine/GameObject.hpp"
 #include "Engine/GameObjectManager.hpp"
 #include "Engine/Logger.hpp"
 
-BossController::BossController(Player* in_player, Constellation* in_constellation) : player(in_player), constellation(in_constellation)
+#include <cctype>
+#include <string>
+
+BossController::BossController(Player* in_player, Constellation* in_constellation)
+    : player(in_player), constellation(in_constellation)
 {
 }
 
@@ -20,9 +25,7 @@ void BossController::CollectPhaseObjects(CS230::GameObjectManager* gom)
         return;
     }
 
-    phase1Objects.clear();
-    phase2Objects.clear();
-    phase3Objects.clear();
+    phaseObjects.clear();
     reflectObjects.clear();
 
     for (CS230::GameObject* obj : gom->GetObjects())
@@ -34,17 +37,17 @@ void BossController::CollectPhaseObjects(CS230::GameObjectManager* gom)
 
         const std::string name = obj->GetName();
 
-        if (NameContains(name, "P1"))
+        const int phaseNumber = ExtractPhaseNumber(name);
+        if (phaseNumber > 0)
         {
-            phase1Objects.push_back(obj);
-        }
-        else if (NameContains(name, "P2"))
-        {
-            phase2Objects.push_back(obj);
-        }
-        else if (NameContains(name, "P3"))
-        {
-            phase3Objects.push_back(obj);
+            const int phaseIndex = phaseNumber - 1;
+
+            if (static_cast<int>(phaseObjects.size()) <= phaseIndex)
+            {
+                phaseObjects.resize(static_cast<size_t>(phaseIndex + 1));
+            }
+
+            phaseObjects[static_cast<size_t>(phaseIndex)].push_back(obj);
         }
         else if (NameContains(name, "REFLECT"))
         {
@@ -52,44 +55,88 @@ void BossController::CollectPhaseObjects(CS230::GameObjectManager* gom)
         }
     }
 
-    Engine::GetLogger().LogEvent(
-        "BossController collected objects. "
-        "P1: " +
-        std::to_string(phase1Objects.size()) + ", P2: " + std::to_string(phase2Objects.size()) + ", P3: " + std::to_string(phase3Objects.size()) +
-        ", Reflect: " + std::to_string(reflectObjects.size()));
+    std::string log = "BossController collected objects. PhaseCount: " + std::to_string(phaseObjects.size());
 
-    SetPhase(Phase::Survival1);
+    for (size_t i = 0; i < phaseObjects.size(); ++i)
+    {
+        log += ", P" + std::to_string(i + 1) + ": " + std::to_string(phaseObjects[i].size());
+    }
+
+    log += ", Reflect: " + std::to_string(reflectObjects.size());
+
+    if (constellation != nullptr)
+    {
+        log += ", ConstellationTargets: " + std::to_string(constellation->GetTotalTargetCount());
+    }
+
+    Engine::GetLogger().LogEvent(log);
+
+    if (!phaseObjects.empty())
+    {
+        StartSurvivalPhase(0);
+    }
+    else
+    {
+        SetState(State::Reflect);
+    }
 }
 
 void BossController::Update(double)
 {
     if (constellation != nullptr && constellation->IsRestored())
     {
-        SetPhase(Phase::Clear);
+        SetState(State::Clear);
+        return;
     }
 
-    // 나중에 여기서 추가할 것:
-    // 1. 플레이어가 오른쪽 안전지대 도착했는지 확인
-    // 2. Survival1 -> Survival2
-    // 3. Survival2 -> Survival3
-    // 4. Survival3 -> Reflect
-    // 5. Reflect에서 TargetStar 점등 후 다시 Survival1 or Clear
+    switch (currentState)
+    {
+        case State::Intro:
+            if (!phaseObjects.empty())
+            {
+                StartSurvivalPhase(0);
+            }
+            else
+            {
+                SetState(State::Reflect);
+            }
+            break;
+
+        case State::Survival:
+            if (HasReachedCurrentSafeZone())
+            {
+                ++survivalClearCount;
+                StartReflectPhase();
+            }
+            break;
+
+        case State::Reflect:
+            if (constellation != nullptr &&
+                constellation->GetActivatedTargetCount() > targetCountAtReflectStart)
+            {
+                AdvanceAfterReflect();
+            }
+            break;
+
+        case State::Clear:
+            break;
+    }
 }
 
-void BossController::SetPhase(Phase nextPhase)
+void BossController::SetState(State nextState)
 {
-    if (currentPhase == nextPhase)
+    if (currentState == nextState)
     {
         return;
     }
 
-    currentPhase = nextPhase;
-    ApplyPhaseVisibility();
+    currentState = nextState;
+    ApplyStateVisibility();
 }
 
-BossController::Phase BossController::GetPhase() const
+BossController::State BossController::GetState() const
 {
-    return currentPhase;
+    return currentState;
 }
 
 int BossController::GetSurvivalClearCount() const
@@ -97,26 +144,46 @@ int BossController::GetSurvivalClearCount() const
     return survivalClearCount;
 }
 
-void BossController::ApplyPhaseVisibility()
+int BossController::GetCurrentPhaseIndex() const
 {
-    SetObjectsEnabled(phase1Objects, false);
-    SetObjectsEnabled(phase2Objects, false);
-    SetObjectsEnabled(phase3Objects, false);
-    SetObjectsEnabled(reflectObjects, false);
+    return currentPhaseIndex;
+}
 
-    switch (currentPhase)
+int BossController::GetPhaseCount() const
+{
+    return static_cast<int>(phaseObjects.size());
+}
+
+void BossController::ApplyStateVisibility()
+{
+    for (const auto& objects : phaseObjects)
     {
-        case Phase::Intro: break;
+        SetObjectsEnabled(objects, false);
+    }
 
-        case Phase::Survival1: SetObjectsEnabled(phase1Objects, true); break;
+    SetObjectsEnabled(reflectObjects, false);
+    SetConstellationEnabled(false);
 
-        case Phase::Survival2: SetObjectsEnabled(phase2Objects, true); break;
+    switch (currentState)
+    {
+        case State::Intro:
+            break;
 
-        case Phase::Survival3: SetObjectsEnabled(phase3Objects, true); break;
+        case State::Survival:
+            if (currentPhaseIndex >= 0 && currentPhaseIndex < static_cast<int>(phaseObjects.size()))
+            {
+                SetObjectsEnabled(phaseObjects[static_cast<size_t>(currentPhaseIndex)], true);
+            }
+            break;
 
-        case Phase::Reflect: SetObjectsEnabled(reflectObjects, true); break;
+        case State::Reflect:
+            SetObjectsEnabled(reflectObjects, true);
+            SetConstellationEnabled(true);
+            break;
 
-        case Phase::Clear: break;
+        case State::Clear:
+            SetConstellationEnabled(true);
+            break;
     }
 }
 
@@ -139,6 +206,124 @@ void BossController::SetObjectsEnabled(const std::vector<CS230::GameObject*>& ob
             obj->SetVisible(enabled);
         }
     }
+}
+
+void BossController::SetConstellationEnabled(bool enabled)
+{
+    if (constellation == nullptr)
+    {
+        return;
+    }
+
+    LaserStar* mainStar = constellation->GetMainStar();
+    if (mainStar != nullptr)
+    {
+        mainStar->SetEnabled(enabled);
+    }
+
+    for (TargetStar* target : constellation->GetTargetStars())
+    {
+        if (target == nullptr)
+        {
+            continue;
+        }
+
+        target->SetIsActive(enabled);
+        target->SetVisible(enabled);
+    }
+}
+
+void BossController::StartSurvivalPhase(int phaseIndex)
+{
+    if (phaseIndex < 0 || phaseIndex >= static_cast<int>(phaseObjects.size()))
+    {
+        SetState(State::Clear);
+        return;
+    }
+
+    currentPhaseIndex = phaseIndex;
+    SetState(State::Survival);
+
+    Engine::GetLogger().LogEvent("BossController Start Survival Phase: P" + std::to_string(currentPhaseIndex + 1));
+}
+
+void BossController::StartReflectPhase()
+{
+    if (constellation != nullptr)
+    {
+        targetCountAtReflectStart = constellation->GetActivatedTargetCount();
+    }
+    else
+    {
+        targetCountAtReflectStart = 0;
+    }
+
+    SetState(State::Reflect);
+
+    Engine::GetLogger().LogEvent("BossController Start Reflect Phase after P" + std::to_string(currentPhaseIndex + 1));
+}
+
+void BossController::AdvanceAfterReflect()
+{
+    const int nextPhaseIndex = currentPhaseIndex + 1;
+
+    if (nextPhaseIndex >= static_cast<int>(phaseObjects.size()))
+    {
+        SetState(State::Clear);
+        Engine::GetLogger().LogEvent("BossController Clear");
+        return;
+    }
+
+    StartSurvivalPhase(nextPhaseIndex);
+}
+
+bool BossController::HasReachedCurrentSafeZone() const
+{
+    if (player == nullptr)
+    {
+        return false;
+    }
+
+    if (ShouldMoveRightForCurrentPhase())
+    {
+        return player->GetPosition().x >= rightSafeX;
+    }
+
+    return player->GetPosition().x <= leftSafeX;
+}
+
+bool BossController::ShouldMoveRightForCurrentPhase() const
+{
+    return currentPhaseIndex % 2 == 0;
+}
+
+int BossController::ExtractPhaseNumber(const std::string& name) const
+{
+    for (size_t i = 0; i < name.size(); ++i)
+    {
+        if (name[i] != 'P')
+        {
+            continue;
+        }
+
+        const size_t digitStart = i + 1;
+
+        if (digitStart >= name.size() || !std::isdigit(static_cast<unsigned char>(name[digitStart])))
+        {
+            continue;
+        }
+
+        size_t digitEnd = digitStart;
+
+        while (digitEnd < name.size() && std::isdigit(static_cast<unsigned char>(name[digitEnd])))
+        {
+            ++digitEnd;
+        }
+
+        return std::stoi(name.substr(digitStart, digitEnd - digitStart));
+    }
+
+    return 0;
 }
 
 bool BossController::NameContains(const std::string& name, const std::string& token) const
