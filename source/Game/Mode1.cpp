@@ -162,7 +162,6 @@ void Mode1::Update(double dt)
         player->isInteracting = false;
 
     if (player != nullptr && player->isInteracting && player->interactionTarget != nullptr)
-
     {
         Door* interactedDoor = dynamic_cast<Door*>(player->interactionTarget);
 

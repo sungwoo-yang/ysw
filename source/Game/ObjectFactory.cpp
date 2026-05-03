@@ -248,7 +248,6 @@ namespace
         return sign;
     }
 
-    
     // Door
     Door::Destination DoorDestinationFromIDToken(const std::string& token)
     {
@@ -381,11 +380,9 @@ namespace ObjectFactory
             #00ff00 = LaserStar
             */
 
-            if (color == "#786721" || id.find("door") != std::string::npos)
+            if (color == "#786721" || StartsWith(id, "DOOR_"))
             {
-                auto* door = new Door(pos, { 100.0, 100.0 });
-                door->SetName(id);
-                return door;
+                return CreateDoor(pos, id);
             }
 
             if (color == "#808080")
