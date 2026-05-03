@@ -272,7 +272,7 @@ namespace
 
     Door::Event DoorEventFromIDToken(const std::string& token)
     {
-        if (token == "BOSSREFLECT")
+        if (token == "REFLECT")
         {
             return Door::Event::BossStartReflect;
         }

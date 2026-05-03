@@ -22,15 +22,15 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="px"
      showguides="true"
-     inkscape:zoom="0.21227892"
-     inkscape:cx="819.67629"
-     inkscape:cy="383.92884"
+     inkscape:zoom="0.42455785"
+     inkscape:cx="602.98026"
+     inkscape:cy="1039.9054"
      inkscape:window-width="1920"
      inkscape:window-height="991"
      inkscape:window-x="-9"
      inkscape:window-y="-9"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer5"
+     inkscape:current-layer="layer7"
      showborder="false"
      borderlayer="true"
      inkscape:clip-to-page="false">
@@ -74,12 +74,7 @@
   <g
      inkscape:groupmode="layer"
      id="layer2"
-     inkscape:label="Common_Objects">
-    <path
-       id="DOOR_TELEPORT_-625_1500_BOSSREFLECT"
-       style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.629567"
-       d="m 2836.2619,1485.2992 h 79.3705 v 119.3704 h -79.3705 z" />
-  </g>
+     inkscape:label="Common_Objects" />
   <g
      inkscape:groupmode="layer"
      id="layer7"
@@ -133,6 +128,10 @@
        inkscape:transform-center-x="52.289175"
        inkscape:transform-center-y="-17.571222"
        inkscape:label="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P1CHASE" />
+    <path
+       id="DOOR_TELEPORT_1500_50_REFLECT"
+       style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.629567"
+       d="m 2836.2619,1485.2992 h 79.3705 v 119.3704 h -79.3705 z" />
   </g>
   <g
      inkscape:groupmode="layer"

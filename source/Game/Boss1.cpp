@@ -102,7 +102,7 @@ void Boss1::InitGame()
 {
     auto gom = GetGSComponent<CS230::GameObjectManager>();
 
-    player = new Player({ 50.0, 200.0 });
+    player = new Player({ 50.0, -1500.0 });
     gom->Add(player);
 
     mapManager->SetGameObjectFactory(ObjectFactory::Create(player));
@@ -267,7 +267,35 @@ void Boss1::Draw()
     // Standard game object rendering pass
     Math::TransformationMatrix view_projection_matrix = CS200::build_ndc_matrix(display_size_int) * camera->GetMatrix();
     renderer.BeginScene(view_projection_matrix);
-    GetGSComponent<CS230::GameObjectManager>()->DrawAll(view_projection_matrix);
+
+    auto gom = GetGSComponent<CS230::GameObjectManager>();
+
+    if (gom != nullptr)
+    {
+        for (auto obj : gom->GetObjects())
+        {
+            if (obj == nullptr)
+            {
+                continue;
+            }
+
+            if (obj == player)
+            {
+                continue;
+            }
+
+            if (obj->IsVisible())
+            {
+                obj->Draw(view_projection_matrix);
+            }
+        }
+
+        if (player != nullptr && player->IsVisible())
+        {
+            player->Draw(view_projection_matrix);
+        }
+    }
+
     renderer.EndScene();
 
     // World text overlay (Sign contents, etc.)
