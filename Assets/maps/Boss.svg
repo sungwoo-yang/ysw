@@ -21,16 +21,16 @@
      inkscape:pagecheckerboard="true"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="px"
-     showguides="true"
+     showguides="false"
      inkscape:zoom="0.21227892"
      inkscape:cx="1290.7546"
-     inkscape:cy="440.45823"
+     inkscape:cy="817.3209"
      inkscape:window-width="1920"
      inkscape:window-height="991"
      inkscape:window-x="-9"
      inkscape:window-y="-9"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer5"
+     inkscape:current-layer="layer6"
      showborder="false"
      borderlayer="true"
      inkscape:clip-to-page="false">
@@ -79,7 +79,7 @@
      inkscape:groupmode="layer"
      id="layer7"
      inkscape:label="Phase1"
-     style="display:inline">
+     style="display:none">
     <path
        id="PLAT_P1A"
        style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.11202"
@@ -124,14 +124,15 @@
     <path
        style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980389;stroke-opacity:1"
        id="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P1CHASE"
-       d="m -220.51856,750.49019 h 49.01961 v 49.0196 h -49.01961 z"
+       d="m -324.50981,750.49019 h 49.01961 v 49.0196 h -49.01961 z"
        inkscape:transform-center-x="52.289175"
        inkscape:transform-center-y="-17.571222"
        inkscape:label="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P1CHASE" />
     <path
-       id="DOOR_TELEPORT_1500_50_REFLECT"
+       id="DOOR_TELEPORT_1500_50_REFLECT1"
        style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.629567"
-       d="m 2836.2619,1485.2992 h 79.3705 v 119.3704 h -79.3705 z" />
+       d="m 2860.3148,1480.3148 h 79.3705 v 119.3704 h -79.3705 z"
+       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT1" />
   </g>
   <g
      inkscape:groupmode="layer"
@@ -144,11 +145,37 @@
        style="display:inline;fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.642801"
        d="m 2702.8208,546.12863 h 292.9695 v 31.75846 h -292.9695 z"
        inkscape:label="PLAT_P1D" />
+    <path
+       id="DOOR_TELEPORT_1500_50_REFLECT2"
+       style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.299048"
+       d="m -64.349407,554.12769 h 105.1571 v 20.32899 h -105.1571 z"
+       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT2" />
+    <path
+       style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.465691;stroke-opacity:1"
+       id="LS_R_CONT_STATIC_S_LINEAR_W_150_0_P2CHASE"
+       d="m 4195.401,429.78382 h 64.9456 v 8.34812 h -64.9456 z"
+       inkscape:transform-center-x="52.289175"
+       inkscape:transform-center-y="-17.571222"
+       inkscape:label="LS_R_CONT_STATIC_S_LINEAR_W_150_0_P2CHASE" />
   </g>
   <g
      inkscape:groupmode="layer"
      id="layer4"
-     inkscape:label="Phase3" />
+     inkscape:label="Phase3">
+    <path
+       id="DOOR_TELEPORT_1500_50_REFLECT3"
+       style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.299048"
+       d="m 3645.3397,554.12769 h 105.1571 v 20.32899 h -105.1571 z"
+       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT3"
+       transform="matrix(0.75478023,0,0,5.8719295,108.88441,-1774.0471)" />
+    <path
+       style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980389;stroke-opacity:1"
+       id="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P3CHASE"
+       d="m -324.5098,750.49021 h 49.0196 v 49.0196 h -49.0196 z"
+       inkscape:transform-center-x="52.289175"
+       inkscape:transform-center-y="-17.571222"
+       inkscape:label="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P3CHASE" />
+  </g>
   <g
      inkscape:groupmode="layer"
      id="layer5"
@@ -158,6 +185,16 @@
        style="display:inline;fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.50903"
        d="M 890.27047,-1.8443112 H 2162.2166 V 38.469493 H 890.27047 Z"
        inkscape:label="PLAT_REFLECT1" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer6"
+     inkscape:label="Clear">
+    <path
+       id="DOOR_STATE_MODE3_CLEAR"
+       style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.629566"
+       d="m 1460.3148,1480.3148 h 79.3705 v 119.3704 h -79.3705 z"
+       inkscape:label="DOOR_STATE_MODE3_CLEAR" />
   </g>
   <g
      inkscape:groupmode="layer"

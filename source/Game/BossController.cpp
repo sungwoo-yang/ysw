@@ -26,6 +26,7 @@ void BossController::CollectPhaseObjects(CS230::GameObjectManager* gom)
 
     phaseObjects.clear();
     reflectObjects.clear();
+    clearObjects.clear();
 
     for (CS230::GameObject* obj : gom->GetObjects())
     {
@@ -37,7 +38,12 @@ void BossController::CollectPhaseObjects(CS230::GameObjectManager* gom)
         const std::string name = obj->GetName();
 
         const int phaseNumber = ExtractPhaseNumber(name);
-        if (phaseNumber > 0)
+
+        if (NameContains(name, "CLEAR"))
+        {
+            clearObjects.push_back(obj);
+        }
+        else if (phaseNumber > 0)
         {
             const int phaseIndex = phaseNumber - 1;
 
@@ -62,6 +68,7 @@ void BossController::CollectPhaseObjects(CS230::GameObjectManager* gom)
     }
 
     log += ", Reflect: " + std::to_string(reflectObjects.size());
+    log += ", Clear: " + std::to_string(clearObjects.size());
 
     if (constellation != nullptr)
     {
@@ -153,6 +160,7 @@ void BossController::ApplyStateVisibility()
     }
 
     SetObjectsEnabled(reflectObjects, false);
+    SetObjectsEnabled(clearObjects, false);
     SetConstellationEnabled(false);
 
     switch (currentState)
@@ -171,7 +179,10 @@ void BossController::ApplyStateVisibility()
             SetConstellationEnabled(true);
             break;
 
-        case State::Clear: SetConstellationEnabled(true); break;
+        case State::Clear:
+            SetConstellationEnabled(true);
+            SetObjectsEnabled(clearObjects, true);
+            break;
     }
 }
 

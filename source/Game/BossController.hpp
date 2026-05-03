@@ -60,6 +60,7 @@ private:
 
     std::vector<std::vector<CS230::GameObject*>> phaseObjects;
     std::vector<CS230::GameObject*>              reflectObjects;
+    std::vector<CS230::GameObject*>              clearObjects;
 
     void SetObjectsEnabled(const std::vector<CS230::GameObject*>& objects, bool enabled);
     void SetConstellationEnabled(bool enabled);
