@@ -30,7 +30,7 @@
      inkscape:window-x="-9"
      inkscape:window-y="-9"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer6"
+     inkscape:current-layer="layer4"
      showborder="false"
      borderlayer="true"
      inkscape:clip-to-page="false">
@@ -129,10 +129,10 @@
        inkscape:transform-center-y="-17.571222"
        inkscape:label="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P1CHASE" />
     <path
-       id="DOOR_TELEPORT_1500_50_REFLECT1"
+       id="DOOR_TELEPORT_1500_50_REFLECT_1"
        style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.629567"
        d="m 2860.3148,1480.3148 h 79.3705 v 119.3704 h -79.3705 z"
-       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT1" />
+       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT_1" />
   </g>
   <g
      inkscape:groupmode="layer"
@@ -146,10 +146,10 @@
        d="m 2702.8208,546.12863 h 292.9695 v 31.75846 h -292.9695 z"
        inkscape:label="PLAT_P1D" />
     <path
-       id="DOOR_TELEPORT_1500_50_REFLECT2"
+       id="DOOR_TELEPORT_1500_50_REFLECT_2"
        style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.299048"
        d="m -64.349407,554.12769 h 105.1571 v 20.32899 h -105.1571 z"
-       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT2" />
+       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT_2" />
     <path
        style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.465691;stroke-opacity:1"
        id="LS_R_CONT_STATIC_S_LINEAR_W_150_0_P2CHASE"
@@ -163,10 +163,10 @@
      id="layer4"
      inkscape:label="Phase3">
     <path
-       id="DOOR_TELEPORT_1500_50_REFLECT3"
+       id="DOOR_TELEPORT_1500_50_REFLECT_3"
        style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.299048"
        d="m 3645.3397,554.12769 h 105.1571 v 20.32899 h -105.1571 z"
-       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT3"
+       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT_3"
        transform="matrix(0.75478023,0,0,5.8719295,108.88441,-1774.0471)" />
     <path
        style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980389;stroke-opacity:1"
