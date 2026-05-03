@@ -29,13 +29,35 @@
 #include <span>
 #include <vector>
 
+std::optional<Math::vec2> Mode3::pendingReturnPosition = std::nullopt;
+
+void Mode3::SetReturnPosition(Math::vec2 position)
+{
+    pendingReturnPosition = position;
+
+    Engine::GetLogger().LogEvent("Mode3 return position saved: (" + std::to_string(position.x) + ", " + std::to_string(position.y) + ")");
+}
+
+void Mode3::ClearReturnPosition()
+{
+    pendingReturnPosition = std::nullopt;
+}
+
 void Mode3::Load()
 {
     Engine::GetGameStateManager().HoldFadeIn(true);
 
     AddGSComponent(new CS230::GameObjectManager());
 
-    player = new Player({ 0.0, 400.0 });
+    Math::vec2 spawnPosition = { 0.0, 400.0 };
+
+    if (pendingReturnPosition.has_value())
+    {
+        spawnPosition         = pendingReturnPosition.value();
+        pendingReturnPosition = std::nullopt;
+    }
+
+    player = new Player(spawnPosition);
 
     mapManager = new CS230::MapManager();
 
@@ -151,6 +173,13 @@ void Mode3::Update(double dt)
 
         if (interactedDoor != nullptr && interactedDoor->ConsumeInteractionRequest())
         {
+            const Door::Config& doorConfig = interactedDoor->GetConfig();
+
+            if ((doorConfig.actionType == Door::ActionType::ChangeState || doorConfig.actionType == Door::ActionType::CutsceneThenChangeState) && doorConfig.destination == Door::Destination::Boss1)
+            {
+                Mode3::SetReturnPosition(player->GetPosition());
+            }
+
             DoorActionHandler::Execute(*interactedDoor, *player);
 
             player->isInteracting     = false;

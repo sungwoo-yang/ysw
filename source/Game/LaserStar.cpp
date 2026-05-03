@@ -44,7 +44,7 @@ LaserStar::LaserStar(
 
         if (currentType == LaserType::Yellow)
         {
-            cooldownDuration = 9.0;
+            cooldownDuration = 0.0;
         }
         else
         {

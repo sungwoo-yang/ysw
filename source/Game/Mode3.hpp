@@ -7,8 +7,10 @@
 #include "OpenGL/Buffer.hpp"
 #include "OpenGL/Shader.hpp"
 #include "OpenGL/VertexArray.hpp"
+
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 class Player;
@@ -22,6 +24,9 @@ namespace CS230
 class Mode3 : public CS230::GameState
 {
 public:
+    static void SetReturnPosition(Math::vec2 position);
+    static void ClearReturnPosition();
+    
     void Load() override;
     void Update(double dt) override;
     void Unload() override;
@@ -36,6 +41,8 @@ public:
 private:
     void InitGame();
 
+    static std::optional<Math::vec2> pendingReturnPosition;
+
     enum class State
     {
         Loading,
@@ -44,11 +51,11 @@ private:
 
     State currentState = State::Loading;
 
-    CS230::Camera* camera;
-    Player* player;
-    CS230::MapManager* mapManager;
-    WorldTextManager* worldTextManager;
-    MiniMap* miniMap;
+    CS230::Camera*                     camera;
+    Player*                            player;
+    CS230::MapManager*                 mapManager;
+    WorldTextManager*                  worldTextManager;
+    MiniMap*                           miniMap;
     std::map<std::string, std::string> signTexts;
 
     OpenGL::CompiledShader    backgroundShader;
