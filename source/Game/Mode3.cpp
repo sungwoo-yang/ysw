@@ -1,7 +1,7 @@
 #include "Mode3.hpp"
 
-#include "Boss1.hpp"
 #include "Door.hpp"
+#include "DoorActionHandler.hpp"
 #include "MainMenu.hpp"
 #include "MiniMap.hpp"
 #include "ObjectFactory.hpp"
@@ -151,9 +151,7 @@ void Mode3::Update(double dt)
 
         if (interactedDoor != nullptr && interactedDoor->ConsumeInteractionRequest())
         {
-            Engine::GetLogger().LogEvent("Mode3 Door -> Boss1");
-
-            Engine::GetGameStateManager().ChangeStateWithFade<Boss1>();
+            DoorActionHandler::Execute(*interactedDoor, *player);
             return;
         }
     }

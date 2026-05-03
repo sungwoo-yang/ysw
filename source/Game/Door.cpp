@@ -1,15 +1,17 @@
 #include "Door.hpp"
 
 #include "CS200/IRenderer2D.hpp"
+
 #include "Engine/Collision.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/Logger.hpp"
 
-Door::Door(Math::vec2 in_position, Math::vec2 in_size) : CS230::GameObject(in_position), size(in_size)
+Door::Door(Math::vec2 in_position, Math::vec2 in_size)
+    : CS230::GameObject(in_position), size(in_size)
 {
     Math::irect collision_box{
         { static_cast<int>(-size.x / 2.0), static_cast<int>(-size.y / 2.0) },
-        {  static_cast<int>(size.x / 2.0),  static_cast<int>(size.y / 2.0) }
+        {  static_cast<int>( size.x / 2.0), static_cast<int>( size.y / 2.0) }
     };
 
     AddGOComponent(new CS230::RectCollision(collision_box, this));
@@ -31,6 +33,16 @@ void Door::Interact([[maybe_unused]] CS230::GameObject* interactor)
     interactionRequested = true;
 
     Engine::GetLogger().LogEvent("Door interaction requested: " + GetName());
+}
+
+void Door::SetConfig(const Config& newConfig)
+{
+    config = newConfig;
+}
+
+const Door::Config& Door::GetConfig() const
+{
+    return config;
 }
 
 bool Door::ConsumeInteractionRequest()

@@ -1,10 +1,9 @@
 #include "Mode1.hpp"
 
 #include "Door.hpp"
-#include "FallCutscene.hpp"
+#include "DoorActionHandler.hpp"
 #include "MainMenu.hpp"
 #include "MiniMap.hpp"
-#include "Mode3.hpp"
 #include "ObjectFactory.hpp"
 #include "Player.hpp"
 #include "WorldTextManager.hpp"
@@ -169,17 +168,8 @@ void Mode1::Update(double dt)
 
         if (interactedDoor != nullptr && interactedDoor->ConsumeInteractionRequest())
         {
-            const std::string& doorName = interactedDoor->GetName();
-
-            if (doorName == "DOOR_FALL_TO_MODE3")
-            {
-                FallCutscene::SetNextState([]() { Engine::GetGameStateManager().ChangeStateWithFade<Mode3>(); });
-
-                Engine::GetGameStateManager().ChangeStateWithFade<FallCutscene>();
-                return;
-            }
-
-            Engine::GetLogger().LogError("Mode1 unknown door id: " + doorName);
+            DoorActionHandler::Execute(*interactedDoor, *player);
+            return;
         }
     }
 
@@ -225,59 +215,6 @@ void Mode1::Update(double dt)
 
     miniMap->Update(dt);
 }
-
-// void Mode1::Update(double dt)
-// {
-//     UpdateGSComponents(dt);
-
-//     shaderTime += dt;
-
-//     if (currentState == State::Loading)
-//     {
-//         if (mapManager->GetCurrentMap() && mapManager->GetCurrentMap()->IsLevelLoaded())
-//         {
-//             Engine::GetLogger().LogEvent("Mode1 Map Loading Complete! Starting Game...");
-//             InitGame();
-//             currentState = State::Playing;
-//         }
-//         return;
-//     }
-
-//     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::M))
-//     {
-//         if (miniMap)
-//             miniMap->ToggleMode();
-//     }
-
-//     GetGSComponent<CS230::GameObjectManager>()->UpdateAll(dt);
-//     GetGSComponent<CS230::GameObjectManager>()->CollisionTest();
-
-//     if (player != nullptr && player->interactionTarget == nullptr)
-//         player->isInteracting = false;
-
-//     if (player != nullptr)
-//     {
-//         Math::vec2 winSize   = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
-
-//         Math::vec2 targetPos = player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.5 };
-
-
-//         camera->Update(targetPos, dt);
-//     }
-
-//     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
-//     {
-//         player->SetPosition({ 8000, 300 });
-//     }
-
-//     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))
-//     {
-//         Engine::GetGameStateManager().Clear();
-//         Engine::GetGameStateManager().PushState<MainMenu>();
-//     }
-
-//     miniMap->Update(dt);
-// }
 
 void Mode1::Draw()
 {

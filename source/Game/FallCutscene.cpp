@@ -1,9 +1,13 @@
 #include "FallCutscene.hpp"
+
 #include "CS200/IRenderer2D.hpp"
 #include "CS200/NDC.hpp"
+
 #include "Engine/Engine.hpp"
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Window.hpp"
+
+#include <utility>
 
 std::function<void()> FallCutscene::pendingNextStateAction = nullptr;
 

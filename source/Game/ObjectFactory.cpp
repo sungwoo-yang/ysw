@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <exception>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -48,6 +49,7 @@ namespace
         return tokens;
     }
 
+    // Star
     LaserStar::LaserType LaserTypeFromIDToken(const std::string& token)
     {
         if (token == "Y")
@@ -244,6 +246,104 @@ namespace
         sign->SetName(id);
 
         return sign;
+    }
+
+    
+    // Door
+    Door::Destination DoorDestinationFromIDToken(const std::string& token)
+    {
+        if (token == "MODE1")
+        {
+            return Door::Destination::Mode1;
+        }
+
+        if (token == "MODE3")
+        {
+            return Door::Destination::Mode3;
+        }
+
+        if (token == "BOSS1")
+        {
+            return Door::Destination::Boss1;
+        }
+
+        Engine::GetLogger().LogError("Invalid Door destination token: " + token);
+        return Door::Destination::None;
+    }
+
+    Door::Event DoorEventFromIDToken(const std::string& token)
+    {
+        if (token == "BOSSREFLECT")
+        {
+            return Door::Event::BossStartReflect;
+        }
+
+        return Door::Event::None;
+    }
+
+    Door::Config DoorConfigFromID(const std::string& id)
+    {
+        Door::Config config;
+
+        auto parts = SplitID(id, '_');
+
+        if (parts.empty() || parts[0] != "DOOR")
+        {
+            Engine::GetLogger().LogError("Invalid Door id: " + id);
+            return config;
+        }
+
+        if (parts.size() >= 3 && parts[1] == "STATE")
+        {
+            config.actionType  = Door::ActionType::ChangeState;
+            config.destination = DoorDestinationFromIDToken(parts[2]);
+            return config;
+        }
+
+        if (parts.size() >= 3 && parts[1] == "CUTSCENE")
+        {
+            config.actionType  = Door::ActionType::CutsceneThenChangeState;
+            config.destination = DoorDestinationFromIDToken(parts[2]);
+            return config;
+        }
+
+        if (parts.size() >= 4 && parts[1] == "TELEPORT")
+        {
+            config.actionType = Door::ActionType::Teleport;
+
+            try
+            {
+                config.teleportPosition = { std::stod(parts[2]), std::stod(parts[3]) };
+            }
+            catch (const std::exception& e)
+            {
+                Engine::GetLogger().LogError("Invalid Door teleport position in id: " + id);
+                Engine::GetLogger().LogError(e.what());
+
+                config.actionType = Door::ActionType::None;
+                return config;
+            }
+
+            if (parts.size() >= 5)
+            {
+                config.event = DoorEventFromIDToken(parts[4]);
+            }
+
+            return config;
+        }
+
+        Engine::GetLogger().LogError("Unknown Door id format: " + id);
+        return config;
+    }
+
+    CS230::GameObject* CreateDoor(Math::vec2 pos, const std::string& id)
+    {
+        auto* door = new Door(pos, { 100.0, 100.0 });
+
+        door->SetName(id);
+        door->SetConfig(DoorConfigFromID(id));
+
+        return door;
     }
 }
 

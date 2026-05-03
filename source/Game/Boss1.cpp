@@ -2,6 +2,8 @@
 
 #include "BossController.hpp"
 #include "Constellation.hpp"
+#include "Door.hpp"
+#include "DoorActionHandler.hpp"
 #include "Gate.hpp"
 #include "LaserStar.hpp"
 #include "ObjectFactory.hpp"
@@ -207,6 +209,27 @@ void Boss1::Update(double dt)
 
         Math::vec2 targetPos = player->GetPosition() - Math::vec2{ visibleWorldWidth * 0.5, visibleWorldHeight * 0.3 };
         camera->Update(targetPos, dt);
+    }
+
+    if (player != nullptr && player->isInteracting && player->interactionTarget != nullptr)
+    {
+        Door* interactedDoor = dynamic_cast<Door*>(player->interactionTarget);
+
+        if (interactedDoor != nullptr && interactedDoor->ConsumeInteractionRequest())
+        {
+            DoorActionHandler::Result result = DoorActionHandler::Execute(*interactedDoor, *player);
+
+            if (result.event == Door::Event::BossStartReflect)
+            {
+                if (bossController != nullptr)
+                {
+                    // 다음 단계에서 BossController에 public 함수로 추가할 예정
+                    // bossController->StartReflectFromDoor();
+                }
+            }
+
+            return;
+        }
     }
 }
 

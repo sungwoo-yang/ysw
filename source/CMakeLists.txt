@@ -61,6 +61,7 @@ set(SOURCE_CODE
     Game/BossController.hpp Game/BossController.cpp
     Game/Constellation.hpp Game/Constellation.cpp
     Game/Door.hpp Game/Door.cpp
+    Game/DoorActionHandler.hpp Game/DoorActionHandler.cpp
     Game/Gate.hpp Game/Gate.cpp
     Game/Laser.hpp Game/Laser.cpp
     Game/LaserStar.hpp Game/LaserStar.cpp
