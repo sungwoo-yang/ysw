@@ -1,7 +1,10 @@
 #include "Mode1.hpp"
 
+#include "Door.hpp"
+#include "FallCutscene.hpp"
 #include "MainMenu.hpp"
 #include "MiniMap.hpp"
+#include "Mode3.hpp"
 #include "ObjectFactory.hpp"
 #include "Player.hpp"
 #include "WorldTextManager.hpp"
@@ -158,6 +161,27 @@ void Mode1::Update(double dt)
 
     if (player != nullptr && player->interactionTarget == nullptr)
         player->isInteracting = false;
+
+    if (player != nullptr && player->isInteracting && player->interactionTarget != nullptr)
+
+    {
+        Door* interactedDoor = dynamic_cast<Door*>(player->interactionTarget);
+
+        if (interactedDoor != nullptr && interactedDoor->ConsumeInteractionRequest())
+        {
+            const std::string& doorName = interactedDoor->GetName();
+
+            if (doorName == "DOOR_FALL_TO_MODE3")
+            {
+                FallCutscene::SetNextState([]() { Engine::GetGameStateManager().ChangeStateWithFade<Mode3>(); });
+
+                Engine::GetGameStateManager().ChangeStateWithFade<FallCutscene>();
+                return;
+            }
+
+            Engine::GetLogger().LogError("Mode1 unknown door id: " + doorName);
+        }
+    }
 
     if (player != nullptr)
     {

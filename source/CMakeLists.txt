@@ -60,7 +60,6 @@ set(SOURCE_CODE
     Game/Bonfire.hpp Game/Bonfire.cpp
     Game/BossController.hpp Game/BossController.cpp
     Game/Constellation.hpp Game/Constellation.cpp
-    Game/BossStar.hpp Game/BossStar.cpp
     Game/Door.hpp Game/Door.cpp
     Game/Gate.hpp Game/Gate.cpp
     Game/Laser.hpp Game/Laser.cpp

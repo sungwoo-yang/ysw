@@ -18,10 +18,11 @@ public:
     }
 
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
-
-    // Handles level transition interaction
     void Interact(CS230::GameObject* interactor) override;
+    
+    bool ConsumeInteractionRequest();
 
 private:
     Math::vec2 size;
+    bool       interactionRequested = false;
 };

@@ -23,14 +23,14 @@
      inkscape:document-units="px"
      showguides="true"
      inkscape:zoom="0.37957885"
-     inkscape:cx="321.40885"
-     inkscape:cy="-180.46316"
+     inkscape:cx="1225.0419"
+     inkscape:cy="125.13869"
      inkscape:window-width="1920"
      inkscape:window-height="991"
      inkscape:window-x="-9"
      inkscape:window-y="-9"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer7"
+     inkscape:current-layer="layer5"
      showborder="true"
      borderlayer="true">
     <inkscape:page
@@ -65,9 +65,10 @@
      inkscape:groupmode="layer"
      id="layer1">
     <path
-       id="rect6"
+       id="PLAT_MAIN"
        style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:7.2251"
-       d="M 3.6125517,523.61255 H 2996.3874 V 916.38749 H 3.6125517 Z" />
+       d="M 3.6125517,523.61255 H 2996.3874 V 916.38749 H 3.6125517 Z"
+       inkscape:label="PLAT_MAIN" />
   </g>
   <g
      inkscape:groupmode="layer"
@@ -76,7 +77,8 @@
   <g
      inkscape:groupmode="layer"
      id="layer7"
-     inkscape:label="Phase1">
+     inkscape:label="Phase1"
+     style="display:none">
     <path
        id="PLAT_P1A"
        style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.11202"
@@ -134,7 +136,14 @@
   <g
      inkscape:groupmode="layer"
      id="layer3"
-     inkscape:label="Phase2" />
+     inkscape:label="Phase2"
+     transform="matrix(0.75478023,0,0,5.8719295,108.88441,-1774.0471)">
+    <path
+       id="PLAT_P1D-8-8"
+       style="display:inline;fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.642801"
+       d="m 2709.4407,362.04635 h 292.9695 v 31.75846 h -292.9695 z"
+       inkscape:label="PLAT_P1D" />
+  </g>
   <g
      inkscape:groupmode="layer"
      id="layer4"

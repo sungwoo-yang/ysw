@@ -1,7 +1,6 @@
 #include "ObjectFactory.hpp"
 
 #include "Bonfire.hpp"
-#include "BossStar.hpp"
 #include "Door.hpp"
 #include "Gate.hpp"
 #include "LaserStar.hpp"
@@ -280,7 +279,6 @@ namespace ObjectFactory
 
             #ffffff = TargetStar
             #00ff00 = LaserStar
-            #ff00ff = BossStar
             */
 
             if (color == "#786721" || id.find("door") != std::string::npos)
@@ -342,13 +340,6 @@ namespace ObjectFactory
             if (color == "#00ff00")
             {
                 return CreateLaserStar(pos, player, id);
-            }
-
-            if (color == "#ff00ff")
-            {
-                auto* boss = new BossStar(pos, player);
-                boss->SetName(id);
-                return boss;
             }
 
             return nullptr;

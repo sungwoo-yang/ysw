@@ -94,7 +94,7 @@ namespace CS230
         Engine::GetLogger().LogEvent(file_path + " SVG.");
     }
 
-void Map::ParseSVG()
+    void Map::ParseSVG()
     {
         if (level_loaded || !map_file.is_open())
             return;
@@ -113,7 +113,7 @@ void Map::ParseSVG()
         size_t tagEnd = currentTagBuffer.find('>');
         if (tagEnd == std::string::npos)
         {
-            return; 
+            return;
         }
 
         std::string currentTag = currentTagBuffer.substr(0, tagEnd + 1);
@@ -254,9 +254,9 @@ void Map::ParseSVG()
             }
 
             CS230::GameObject* newObj = nullptr;
-            GameObjectTypes type = GameObjectTypes::Background;
+            GameObjectTypes    type   = GameObjectTypes::Background;
 
-            if (fillColor == "#00ffff") 
+            if (fillColor == "#00ffff")
             {
                 type = GameObjectTypes::Floor;
             }
@@ -279,6 +279,11 @@ void Map::ParseSVG()
 
             if (newObj != nullptr)
             {
+                if (!objID.empty())
+                {
+                    newObj->SetName(objID);
+                }
+
                 Engine::GetGameStateManager().GetGSComponent<GameObjectManager>()->Add(newObj);
             }
 

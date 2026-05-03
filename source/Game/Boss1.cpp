@@ -292,9 +292,23 @@ void Boss1::DrawImGui()
 
     if (constellation != nullptr)
     {
-        ImGui::Text("Constellation: %s", constellation->GetName().c_str());
-        ImGui::Text("Targets: %d / %d", constellation->GetActivatedTargetCount(), constellation->GetTotalTargetCount());
-        ImGui::Text("Restored: %s", constellation->IsRestored() ? "Yes" : "No");
+        const char* bossStateStr = "Unknown";
+
+        switch (bossController->GetState())
+        {
+            case BossController::State::Intro: bossStateStr = "Intro"; break;
+
+            case BossController::State::Survival: bossStateStr = "Survival"; break;
+
+            case BossController::State::Reflect: bossStateStr = "Reflect"; break;
+
+            case BossController::State::Clear: bossStateStr = "Clear"; break;
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Boss Controller State: %s", bossStateStr);
+        ImGui::Text("Current Phase: %d / %d", bossController->GetCurrentPhaseIndex() + 1, bossController->GetPhaseCount());
+        ImGui::Text("Survival Clears: %d", bossController->GetSurvivalClearCount());
     }
 
     ImGui::End();

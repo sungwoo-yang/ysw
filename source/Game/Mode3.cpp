@@ -148,8 +148,11 @@ void Mode3::Update(double dt)
     if (player != nullptr && player->isInteracting && player->interactionTarget != nullptr)
     {
         Door* interactedDoor = dynamic_cast<Door*>(player->interactionTarget);
-        if (interactedDoor != nullptr)
+
+        if (interactedDoor != nullptr && interactedDoor->ConsumeInteractionRequest())
         {
+            Engine::GetLogger().LogEvent("Mode3 Door -> Boss1");
+
             Engine::GetGameStateManager().ChangeStateWithFade<Boss1>();
             return;
         }
