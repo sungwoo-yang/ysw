@@ -57,6 +57,9 @@ public:
     // Handle laser damage and trigger invincibility frames
     void ApplyLaserDamage(double damageAmount);
 
+    bool IsDead() const;
+    double GetHP() const;
+
     // Core movement and interaction states
     CS230::DashComponent  dashComponent;
     bool                  isJumping            = false;

@@ -2,6 +2,8 @@
 #include "Engine/GameState.hpp"
 #include "Engine/Rect.hpp"
 
+#include <string>
+
 namespace CS230
 {
     class Camera;
@@ -33,11 +35,14 @@ public:
 private:
     void InitGame();
     void BuildConstellation();
+    void EnterGameOver(const std::string& reason);
 
     enum class State
     {
         Loading,
-        Playing
+        Intro,
+        Playing,
+        GameOver
     };
 
     State currentState = State::Loading;
@@ -57,6 +62,12 @@ private:
     bool         isCameraScaling   = false;
     const double targetCameraScale = 0.5;
     const double cameraScaleSpeed  = 0.5;
+
+    double       introTimer    = 0.0;
+    const double introDuration = 3.0;
+
+    std::string  gameOverReason;
+    const double fallDeathY = -2500.0;
 
     Math::rect level_boundary = {
         {    0.0,    0.0 },

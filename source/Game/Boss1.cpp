@@ -20,6 +20,7 @@
 #include "Engine/Font.hpp"
 #include "Engine/GameObjectManager.hpp"
 #include "Engine/GameStateManager.hpp"
+#include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
 #include "Engine/MapManager.h"
 #include "Engine/ShowCollision.hpp"
@@ -61,6 +62,19 @@ void Boss1::BuildConstellation()
     }
 
     Engine::GetLogger().LogEvent("Aries boss built. Targets: " + std::to_string(constellation->GetTotalTargetCount()));
+}
+
+void Boss1::EnterGameOver(const std::string& reason)
+{
+    if (currentState == State::GameOver)
+    {
+        return;
+    }
+
+    currentState   = State::GameOver;
+    gameOverReason = reason;
+
+    Engine::GetLogger().LogEvent("Boss1 GameOver: " + reason);
 }
 
 void Boss1::Load()
@@ -110,28 +124,83 @@ void Boss1::InitGame()
 
 void Boss1::Update(double dt)
 {
-    UpdateGSComponents(dt);
+    auto& input = Engine::GetInput();
+
+    if (currentState == State::GameOver)
+    {
+        if (input.KeyJustPressed(CS230::Input::Keys::R))
+        {
+            Engine::GetGameStateManager().ChangeStateWithFade<Boss1>();
+        }
+
+        return;
+    }
 
     if (currentState == State::Loading)
     {
+        if (mapManager != nullptr)
+        {
+            mapManager->Update(dt);
+        }
+
         if (mapManager->GetCurrentMap() && mapManager->GetCurrentMap()->IsLevelLoaded())
         {
-            Engine::GetLogger().LogEvent("Map Loading Complete! Starting Game...");
+            Engine::GetLogger().LogEvent("Map Loading Complete! Starting Boss Intro...");
 
             BuildConstellation();
 
             bossController = new BossController(player, constellation);
             bossController->CollectPhaseObjects(GetGSComponent<CS230::GameObjectManager>());
 
-            currentState = State::Playing;
+            currentState = State::Intro;
+            introTimer   = 0.0;
 
             Engine::GetGameStateManager().HoldFadeIn(false);
 
             playingTimer    = 0.0;
             isCameraScaling = false;
         }
+
         return;
     }
+
+    if (currentState == State::Intro)
+    {
+        introTimer += dt;
+
+        if (camera != nullptr)
+        {
+            camera->SetScale(targetCameraScale);
+
+            Math::vec2 winSize            = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
+            double     visibleWorldWidth  = winSize.x / camera->GetScale();
+            double     visibleWorldHeight = winSize.y / camera->GetScale();
+
+            Math::vec2 focusPos = { 1500.0, 500.0 };
+
+            if (constellation != nullptr && constellation->GetMainStar() != nullptr)
+            {
+                focusPos = constellation->GetMainStar()->GetPosition();
+            }
+
+            camera->SetPosition(focusPos - Math::vec2{ visibleWorldWidth * 0.5, visibleWorldHeight * 0.5 });
+        }
+
+        if (introTimer >= introDuration)
+        {
+            if (bossController != nullptr)
+            {
+                bossController->StartFirstPhase();
+            }
+
+            currentState    = State::Playing;
+            playingTimer    = 0.0;
+            isCameraScaling = false;
+        }
+
+        return;
+    }
+
 
     if (currentState == State::Playing)
     {
@@ -166,6 +235,21 @@ void Boss1::Update(double dt)
 
     gom->UpdateAll(dt);
     gom->CollisionTest();
+
+    if (player != nullptr)
+    {
+        if (player->IsDead())
+        {
+            EnterGameOver("HP reached 0");
+            return;
+        }
+
+        if (player->GetPosition().y < fallDeathY)
+        {
+            EnterGameOver("Fell out of the boss arena");
+            return;
+        }
+    }
 
     if (puzzleGate == nullptr)
     {
@@ -307,6 +391,31 @@ void Boss1::Draw()
     {
         worldTextManager->Draw();
     }
+
+
+    if (currentState == State::GameOver)
+    {
+        CS230::Font& font = Engine::GetFont(0);
+
+        auto titleTex = font.PrintToTexture("GAME OVER", CS200::RED);
+        if (titleTex)
+        {
+            Math::ivec2 texSize = titleTex->GetSize();
+            Math::vec2  drawPos = { display_size_int.x * 0.5 - texSize.x * 0.5, display_size_int.y * 0.5 + 40.0 };
+
+            titleTex->Draw(Math::TranslationMatrix(drawPos));
+        }
+
+        auto infoTex = font.PrintToTexture("Press R to Restart", CS200::WHITE);
+        if (infoTex)
+        {
+            Math::ivec2 texSize = infoTex->GetSize();
+            Math::vec2  drawPos = { display_size_int.x * 0.5 - texSize.x * 0.5, display_size_int.y * 0.5 - 30.0 };
+
+            infoTex->Draw(Math::TranslationMatrix(drawPos));
+        }
+    }
+
     renderer.EndScene();
 }
 

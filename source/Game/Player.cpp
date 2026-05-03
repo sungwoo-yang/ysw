@@ -432,6 +432,16 @@ void Player::ApplyLaserDamage(double damageAmount)
     }
 }
 
+bool Player::IsDead() const
+{
+    return healthState == HealthState::Dead || playerHp <= 0.0;
+}
+
+double Player::GetHP() const
+{
+    return playerHp;
+}
+
 void Player::UpdateHealthState(double dt)
 {
     if (healthState == HealthState::Dead)

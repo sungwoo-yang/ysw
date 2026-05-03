@@ -31,6 +31,7 @@ public:
     void Update(double dt);
 
     void StartReflectFromDoor(Math::vec2 returnPosition);
+    void StartFirstPhase();
 
     void  SetState(State nextPhase);
     State GetState() const;

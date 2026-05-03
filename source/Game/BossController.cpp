@@ -77,14 +77,7 @@ void BossController::CollectPhaseObjects(CS230::GameObjectManager* gom)
 
     Engine::GetLogger().LogEvent(log);
 
-    if (!phaseObjects.empty())
-    {
-        StartSurvivalPhase(0);
-    }
-    else
-    {
-        SetState(State::Reflect);
-    }
+    SetState(State::Intro);
 }
 
 void BossController::Update(double)
@@ -165,7 +158,7 @@ void BossController::ApplyStateVisibility()
 
     switch (currentState)
     {
-        case State::Intro: break;
+        case State::Intro: SetConstellationEnabled(true); break;
 
         case State::Survival:
             if (currentPhaseIndex >= 0 && currentPhaseIndex < static_cast<int>(phaseObjects.size()))
@@ -275,6 +268,18 @@ void BossController::StartReflectFromDoor(Math::vec2 returnPosition)
 
     ++survivalClearCount;
     StartReflectPhase();
+}
+
+void BossController::StartFirstPhase()
+{
+    if (!phaseObjects.empty())
+    {
+        StartSurvivalPhase(0);
+    }
+    else
+    {
+        SetState(State::Reflect);
+    }
 }
 
 void BossController::AdvanceAfterReflect()
