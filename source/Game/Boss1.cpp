@@ -223,10 +223,12 @@ void Boss1::Update(double dt)
             {
                 if (bossController != nullptr)
                 {
-                    // 다음 단계에서 BossController에 public 함수로 추가할 예정
-                    // bossController->StartReflectFromDoor();
+                    bossController->StartReflectFromDoor();
                 }
             }
+
+            player->isInteracting     = false;
+            player->interactionTarget = nullptr;
 
             return;
         }

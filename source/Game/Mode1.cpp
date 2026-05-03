@@ -111,10 +111,6 @@ void Mode1::InitGame()
     worldTextManager->SetCamera(camera);
     AddGSComponent(worldTextManager);
 
-    // Create player and link to UI systems
-    player = new Player({ 0.0, 400.0 });
-    gom->Add(player);
-
     if (miniMap)
     {
         miniMap->AttachPlayer(player);
@@ -168,6 +164,10 @@ void Mode1::Update(double dt)
         if (interactedDoor != nullptr && interactedDoor->ConsumeInteractionRequest())
         {
             DoorActionHandler::Execute(*interactedDoor, *player);
+
+            player->isInteracting     = false;
+            player->interactionTarget = nullptr;
+
             return;
         }
     }

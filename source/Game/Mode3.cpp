@@ -152,6 +152,10 @@ void Mode3::Update(double dt)
         if (interactedDoor != nullptr && interactedDoor->ConsumeInteractionRequest())
         {
             DoorActionHandler::Execute(*interactedDoor, *player);
+
+            player->isInteracting     = false;
+            player->interactionTarget = nullptr;
+
             return;
         }
     }

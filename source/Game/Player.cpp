@@ -330,14 +330,12 @@ void Player::ResolveCollision(GameObject* other_object)
         if (input.KeyJustPressed(CS230::Input::Keys::F))
         {
             isInteracting = true;
-        }
-
-        if (isInteracting)
-        {
             other_object->Interact(this);
         }
         else
         {
+            isInteracting = false;
+
             if (textManager != nullptr)
             {
                 textManager->ShowTextBelow(other_object, "Press 'F'", 0.5, CS200::WHITE);

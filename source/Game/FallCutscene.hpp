@@ -2,6 +2,8 @@
 
 #include "Engine/GameState.hpp"
 #include "Engine/Vec2.hpp"
+
+#include <functional>
 #include <gsl/gsl>
 
 class FallCutscene : public CS230::GameState

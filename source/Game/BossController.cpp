@@ -13,8 +13,7 @@
 #include <cctype>
 #include <string>
 
-BossController::BossController(Player* in_player, Constellation* in_constellation)
-    : player(in_player), constellation(in_constellation)
+BossController::BossController(Player* in_player, Constellation* in_constellation) : player(in_player), constellation(in_constellation)
 {
 }
 
@@ -49,7 +48,7 @@ void BossController::CollectPhaseObjects(CS230::GameObjectManager* gom)
 
             phaseObjects[static_cast<size_t>(phaseIndex)].push_back(obj);
         }
-        else if (NameContains(name, "REFLECT"))
+        else if (name.rfind("DOOR_", 0) != 0 && NameContains(name, "REFLECT"))
         {
             reflectObjects.push_back(obj);
         }
@@ -102,24 +101,16 @@ void BossController::Update(double)
             }
             break;
 
-        case State::Survival:
-            if (HasReachedCurrentSafeZone())
-            {
-                ++survivalClearCount;
-                StartReflectPhase();
-            }
-            break;
+        case State::Survival: break;
 
         case State::Reflect:
-            if (constellation != nullptr &&
-                constellation->GetActivatedTargetCount() > targetCountAtReflectStart)
+            if (constellation != nullptr && constellation->GetActivatedTargetCount() > targetCountAtReflectStart)
             {
                 AdvanceAfterReflect();
             }
             break;
 
-        case State::Clear:
-            break;
+        case State::Clear: break;
     }
 }
 
@@ -166,8 +157,7 @@ void BossController::ApplyStateVisibility()
 
     switch (currentState)
     {
-        case State::Intro:
-            break;
+        case State::Intro: break;
 
         case State::Survival:
             if (currentPhaseIndex >= 0 && currentPhaseIndex < static_cast<int>(phaseObjects.size()))
@@ -181,9 +171,7 @@ void BossController::ApplyStateVisibility()
             SetConstellationEnabled(true);
             break;
 
-        case State::Clear:
-            SetConstellationEnabled(true);
-            break;
+        case State::Clear: SetConstellationEnabled(true); break;
     }
 }
 
@@ -261,6 +249,18 @@ void BossController::StartReflectPhase()
     SetState(State::Reflect);
 
     Engine::GetLogger().LogEvent("BossController Start Reflect Phase after P" + std::to_string(currentPhaseIndex + 1));
+}
+
+void BossController::StartReflectFromDoor()
+{
+    if (currentState != State::Survival)
+    {
+        Engine::GetLogger().LogEvent("BossController ignored door reflect request because current state is not Survival.");
+        return;
+    }
+
+    ++survivalClearCount;
+    StartReflectPhase();
 }
 
 void BossController::AdvanceAfterReflect()

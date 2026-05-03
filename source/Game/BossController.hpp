@@ -30,6 +30,8 @@ public:
     void CollectPhaseObjects(CS230::GameObjectManager* gom);
     void Update(double dt);
 
+    void StartReflectFromDoor();
+
     void  SetState(State nextPhase);
     State GetState() const;
 
