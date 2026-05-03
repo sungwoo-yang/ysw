@@ -1,5 +1,5 @@
 #pragma once
-
+#include "Engine/Vec2.hpp"
 #include <string>
 #include <vector>
 
@@ -30,7 +30,7 @@ public:
     void CollectPhaseObjects(CS230::GameObjectManager* gom);
     void Update(double dt);
 
-    void StartReflectFromDoor();
+    void StartReflectFromDoor(Math::vec2 returnPosition);
 
     void  SetState(State nextPhase);
     State GetState() const;
@@ -74,4 +74,7 @@ private:
 
     int  ExtractPhaseNumber(const std::string& name) const;
     bool NameContains(const std::string& name, const std::string& token) const;
+
+    Math::vec2 reflectReturnPosition    = { 0.0, 0.0 };
+    bool       hasReflectReturnPosition = false;
 };

@@ -22,15 +22,15 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="px"
      showguides="true"
-     inkscape:zoom="0.42455785"
-     inkscape:cx="602.98026"
-     inkscape:cy="1039.9054"
+     inkscape:zoom="0.21227892"
+     inkscape:cx="1290.7546"
+     inkscape:cy="440.45823"
      inkscape:window-width="1920"
      inkscape:window-height="991"
      inkscape:window-x="-9"
      inkscape:window-y="-9"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer7"
+     inkscape:current-layer="layer5"
      showborder="false"
      borderlayer="true"
      inkscape:clip-to-page="false">
@@ -137,7 +137,8 @@
      inkscape:groupmode="layer"
      id="layer3"
      inkscape:label="Phase2"
-     transform="matrix(0.75478023,0,0,5.8719295,108.88441,-1774.0471)">
+     transform="matrix(0.75478023,0,0,5.8719295,108.88441,-1774.0471)"
+     style="display:inline">
     <path
        id="PLAT_P2A"
        style="display:inline;fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.642801"
@@ -154,8 +155,8 @@
      inkscape:label="Reflect">
     <path
        id="PLAT_REFLECT1"
-       style="display:inline;fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.95012"
-       d="M 428.83426,-1.6237642 H 2576.545 V 38.248946 H 428.83426 Z"
+       style="display:inline;fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.50903"
+       d="M 890.27047,-1.8443112 H 2162.2166 V 38.469493 H 890.27047 Z"
        inkscape:label="PLAT_REFLECT1" />
   </g>
   <g

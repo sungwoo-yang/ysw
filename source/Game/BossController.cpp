@@ -251,13 +251,16 @@ void BossController::StartReflectPhase()
     Engine::GetLogger().LogEvent("BossController Start Reflect Phase after P" + std::to_string(currentPhaseIndex + 1));
 }
 
-void BossController::StartReflectFromDoor()
+void BossController::StartReflectFromDoor(Math::vec2 returnPosition)
 {
     if (currentState != State::Survival)
     {
         Engine::GetLogger().LogEvent("BossController ignored door reflect request because current state is not Survival.");
         return;
     }
+
+    reflectReturnPosition    = returnPosition;
+    hasReflectReturnPosition = true;
 
     ++survivalClearCount;
     StartReflectPhase();
@@ -273,6 +276,16 @@ void BossController::AdvanceAfterReflect()
         Engine::GetLogger().LogEvent("BossController Clear");
         return;
     }
+
+    if (player != nullptr && hasReflectReturnPosition)
+    {
+        player->SetPosition(reflectReturnPosition);
+        player->velocityY         = 0.0;
+        player->isInteracting     = false;
+        player->interactionTarget = nullptr;
+    }
+
+    hasReflectReturnPosition = false;
 
     StartSurvivalPhase(nextPhaseIndex);
 }

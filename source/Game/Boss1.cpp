@@ -217,13 +217,15 @@ void Boss1::Update(double dt)
 
         if (interactedDoor != nullptr && interactedDoor->ConsumeInteractionRequest())
         {
+            Math::vec2 returnPosition = player->GetPosition();
+
             DoorActionHandler::Result result = DoorActionHandler::Execute(*interactedDoor, *player);
 
             if (result.event == Door::Event::BossStartReflect)
             {
                 if (bossController != nullptr)
                 {
-                    bossController->StartReflectFromDoor();
+                    bossController->StartReflectFromDoor(returnPosition);
                 }
             }
 
