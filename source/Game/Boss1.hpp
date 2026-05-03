@@ -1,8 +1,12 @@
 #pragma once
 #include "Engine/GameState.hpp"
+#include "Engine/Matrix.hpp"
 #include "Engine/Rect.hpp"
+#include "Engine/Texture.hpp"
 
+#include <memory>
 #include <string>
+#include <vector>
 
 namespace CS230
 {
@@ -36,6 +40,9 @@ private:
     void InitGame();
     void BuildConstellation();
     void EnterGameOver(const std::string& reason);
+    void DrawAriesBackground(const Math::TransformationMatrix& view_projection_matrix);
+
+    std::shared_ptr<CS230::Texture> ariesBackgroundTexture = nullptr;
 
     enum class State
     {

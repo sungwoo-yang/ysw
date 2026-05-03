@@ -24,6 +24,8 @@
 #include "Engine/Logger.hpp"
 #include "Engine/MapManager.h"
 #include "Engine/ShowCollision.hpp"
+#include "Engine/Texture.hpp"
+#include "Engine/TextureManager.hpp"
 #include "Engine/Window.hpp"
 
 #include <imgui.h>
@@ -77,6 +79,43 @@ void Boss1::EnterGameOver(const std::string& reason)
     Engine::GetLogger().LogEvent("Boss1 GameOver: " + reason);
 }
 
+void Boss1::DrawAriesBackground(const Math::TransformationMatrix& view_projection_matrix)
+{
+    if (ariesBackgroundTexture == nullptr)
+    {
+        return;
+    }
+
+    Math::ivec2 textureSize = ariesBackgroundTexture->GetSize();
+
+    if (textureSize.x <= 0 || textureSize.y <= 0)
+    {
+        return;
+    }
+
+    const double worldLeft   = level_boundary.Left();
+    const double worldRight  = level_boundary.Right();
+    const double worldTop    = level_boundary.Top();
+    const double worldBottom = -5000.0;
+
+    const double worldWidth  = worldRight - worldLeft;
+    const double worldHeight = worldTop - worldBottom;
+
+    const double scaleX = worldWidth / static_cast<double>(textureSize.x);
+    const double scaleY = worldHeight / static_cast<double>(textureSize.y);
+
+    const double backgroundScale = std::max(scaleX, scaleY);
+
+    const double scaledWidth  = static_cast<double>(textureSize.x) * backgroundScale;
+    const double scaledHeight = static_cast<double>(textureSize.y) * backgroundScale;
+
+    Math::vec2 bottomLeft = { worldLeft + (worldWidth - scaledWidth) * 0.5, worldBottom + (worldHeight - scaledHeight) * 0.5 };
+
+    Math::TransformationMatrix backgroundMatrix = view_projection_matrix * Math::TranslationMatrix(bottomLeft) * Math::ScaleMatrix({ backgroundScale, backgroundScale });
+
+    ariesBackgroundTexture->Draw(backgroundMatrix);
+}
+
 void Boss1::Load()
 {
     Engine::GetGameStateManager().HoldFadeIn(true);
@@ -99,6 +138,8 @@ void Boss1::Load()
             { static_cast<int>(level_boundary.Right()), static_cast<int>(level_boundary.Top()) }
     });
     AddGSComponent(camera);
+
+    ariesBackgroundTexture = Engine::GetTextureManager().Load("Assets/images/Aries.png");
 
     // Load boss-specific map geometry
     mapManager = new CS230::MapManager();
@@ -354,6 +395,8 @@ void Boss1::Draw()
     Math::TransformationMatrix view_projection_matrix = CS200::build_ndc_matrix(display_size_int) * camera->GetMatrix();
     renderer.BeginScene(view_projection_matrix);
 
+    DrawAriesBackground(view_projection_matrix);
+
     auto gom = GetGSComponent<CS230::GameObjectManager>();
 
     if (gom != nullptr)
@@ -486,6 +529,8 @@ void Boss1::Unload()
 
     delete bossController;
     bossController = nullptr;
+
+    ariesBackgroundTexture = nullptr;
 
     ClearGSComponents();
     player           = nullptr;
