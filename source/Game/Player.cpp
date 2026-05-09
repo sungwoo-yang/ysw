@@ -23,14 +23,12 @@
 
 namespace
 {
-    // Utility: Clamp
     template <typename T>
     T Clamp(T v, T lo, T hi)
     {
         return (v < lo) ? lo : (v > hi) ? hi : v;
     }
 
-    // Utility: Vector Lerp
     Math::vec2 LerpV(Math::vec2 a, Math::vec2 b, double t)
     {
         return { a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t };
@@ -41,10 +39,6 @@ Player::Player(Math::vec2 in_start_pos)
     : CS230::GameObject(in_start_pos), isJumping(true), velocityY(0.0), faceRight(true), shieldComponent(nullptr), startPosition(in_start_pos), previousPosition(in_start_pos),
       healthState(HealthState::Full), playerHp(5.0), maxPlayerHp(5.0), recoverDelayTimer(0.0), tookDamageThisFrame(false), invincibilityTimer(0.0)
 {
-    // auto character = new CS230::Sprite("Assets/images/Character.spt", this);
-    // AddGOComponent(character);
-    // SetScale({ 0.04, 0.08 });
-
     Engine::GetTextureManager().Load("Assets/images/Character.png");
     AddGOComponent(new CS230::RectCollision(
         {
@@ -53,12 +47,11 @@ Player::Player(Math::vec2 in_start_pos)
     },
         this));
 
-    // Initialize core components
     shieldComponent = new Shield(this);
     AddGOComponent(shieldComponent);
-
-    // Add physical collision bounds
-    //     AddGOComponent(new CS230::RectCollision(PLAYER_COLLISION_BOX, this));
+    
+    dashComponent.dashSpeed = 700.0;
+    dashComponent.dashDuration = 0.12;
     dashComponent.dashCooldown = 1.0;
 }
 
@@ -67,16 +60,13 @@ void Player::Update(double dt)
     interactionTarget = nullptr;
     previousPosition  = GetPosition();
 
-    // Jumping State
     wasJumpingLastFrame = isJumping;
 
-    // Process invincibility timer
     if (invincibilityTimer > 0.0)
     {
         invincibilityTimer -= dt;
     }
 
-    // Process platforming assist timers
     if (jumpBufferTimer > 0.0)
         jumpBufferTimer -= dt;
     if (coyoteTimer > 0.0)
@@ -85,7 +75,6 @@ void Player::Update(double dt)
     HandleInput(dt);
     dashComponent.UpdateTimers(dt);
 
-    // Apply gravity unless disabled by dashing mechanics
     bool applyGravity = true;
     if (dashComponent.IsDashing() && dashComponent.disableGravityOnDash)
         applyGravity = false;
@@ -93,13 +82,12 @@ void Player::Update(double dt)
     if (applyGravity)
         velocityY -= gravity * dt;
 
-    // Override horizontal velocity if dashing
     double finalVelX = GetVelocity().x;
     if (dashComponent.IsDashing())
         finalVelX = dashComponent.GetDashVelocityX();
     SetVelocity({ finalVelX, velocityY });
 
-    isJumping            = true; // Assume jumping until collision resolution says otherwise
+    isJumping            = true;
     currentPlatformIndex = std::nullopt;
 
     CS230::GameObject::Update(dt);
@@ -109,7 +97,6 @@ void Player::Update(double dt)
 
 void Player::ResetState()
 {
-    // Complete reset of player entity for respawns
     SetPosition(startPosition);
     previousPosition     = startPosition;
     velocityY            = 0.0;
@@ -131,7 +118,6 @@ void Player::ResetState()
     tookDamageThisFrame = false;
     invincibilityTimer  = 0.0;
 
-    // Reinitialize shield component
     if (shieldComponent != nullptr)
     {
         RemoveGOComponent<Shield>();
@@ -155,7 +141,6 @@ void Player::HandleInput(double dt)
         shieldComponent->HandleInput(dt);
     }
 
-    // Respawn hotkey
     if (input.KeyJustPressed(CS230::Input::Keys::R))
     {
         ResetState();
@@ -189,7 +174,7 @@ void Player::HandleInput(double dt)
                 currentSpeedMultiplier = targetMult;
         }
 
-        double currentSpeed = baseSpeed * currentSpeedMultiplier;
+        double targetMaxSpeed = maxRunSpeed * currentSpeedMultiplier;
 
         Math::vec2 move{ 0.0, 0.0 };
         if (input.KeyDown(CS230::Input::Keys::A))
@@ -203,14 +188,48 @@ void Player::HandleInput(double dt)
             faceRight = true;
         }
 
-        SetVelocity({ move.x * currentSpeed, GetVelocity().y });
+        double currentVelX = GetVelocity().x;
+        double targetVelX = move.x * targetMaxSpeed;
 
-        // Jump processing
+        bool isGrounded = !isJumping;
+        double accel = isGrounded ? groundAcceleration : airAcceleration;
+        double friction = isGrounded ? groundFriction : airFriction;
+
+        if (std::abs(move.x) > 0.1)
+        {
+            if ((move.x > 0 && currentVelX < 0) || (move.x < 0 && currentVelX > 0))
+            {
+                 accel *= 1.5;
+            }
+
+            if (currentVelX < targetVelX)
+            {
+                currentVelX = std::min(currentVelX + accel * dt, targetVelX);
+            }
+            else if (currentVelX > targetVelX)
+            {
+                currentVelX = std::max(currentVelX - accel * dt, targetVelX);
+            }
+        }
+        else
+        {
+            if (currentVelX > 0.0)
+            {
+                currentVelX = std::max(0.0, currentVelX - friction * dt);
+            }
+            else if (currentVelX < 0.0)
+            {
+                currentVelX = std::min(0.0, currentVelX + friction * dt);
+            }
+        }
+
+        SetVelocity({ currentVelX, GetVelocity().y });
+
         if (!isJumping && (input.KeyJustPressed(CS230::Input::Keys::W) || input.KeyJustPressed(CS230::Input::Keys::Space)))
         {
             jumpBufferTimer = jumpStrength;
         }
-
+        
         if (coyoteTimer > 0.0 && jumpBufferTimer > 0.0 && velocityY <= 0.0)
         {
             velocityY = jumpStrength;
@@ -220,6 +239,14 @@ void Player::HandleInput(double dt)
             coyoteTimer     = 0.0;
 
             Engine::GetLogger().LogEvent("Event: Player Jump (Buffered/Coyote)");
+        }
+
+        if (isJumping && velocityY > 0.0)
+        {
+            if (input.KeyJustReleased(CS230::Input::Keys::W) || input.KeyJustReleased(CS230::Input::Keys::Space))
+            {
+                velocityY *= jumpCutMultiplier;
+            }
         }
     }
 }
@@ -542,6 +569,4 @@ void Player::DrawImGui()
         ImGui::TreePop();
     }
     ImGui::PopID();
-
-    // animEditor.DrawImGui();
 }

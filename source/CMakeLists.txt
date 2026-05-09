@@ -84,7 +84,8 @@ set(SOURCE_CODE
     Game/YellowLaser.hpp Game/YellowLaser.cpp
     Game/FallCutscene.hpp Game/FallCutscene.cpp
     Game/Mode3.hpp Game/Mode3.cpp
-
+    Game/PostProcessor.hpp Game/PostProcessor.cpp
+    
     OpenGL/Buffer.hpp OpenGL/Buffer.cpp
     OpenGL/Environment.hpp
     OpenGL/Framebuffer.hpp OpenGL/Framebuffer.cpp

@@ -101,7 +101,7 @@ namespace CS230
     {
         if (fullscreen)
         {
-            SDL_SetWindowFullscreen(sdlWindow, SDL_WINDOW_FULLSCREEN);
+             SDL_SetWindowFullscreen(sdlWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
         }
         else
         {
@@ -160,7 +160,7 @@ namespace CS230
         hint_gl(SDL_GL_MULTISAMPLEBUFFERS, 1);
         hint_gl(SDL_GL_MULTISAMPLESAMPLES, 4);
 
-        sdlWindow = SDL_CreateWindow(title.data(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, default_width, default_height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+        sdlWindow = SDL_CreateWindow(title.data(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, default_width, default_height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_FULLSCREEN_DESKTOP);
         if (sdlWindow == nullptr)
         {
             throw_error_message("Failed to create window: ", SDL_GetError());

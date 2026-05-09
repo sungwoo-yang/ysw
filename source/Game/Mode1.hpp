@@ -7,6 +7,7 @@
 #include "OpenGL/Buffer.hpp"
 #include "OpenGL/Shader.hpp"
 #include "OpenGL/VertexArray.hpp"
+#include "PostProcessor.hpp"
 #include <map>
 #include <memory>
 
@@ -75,4 +76,5 @@ private:
         {  -500,  2000 },
         { 10000, -2000 }
     };
+    PostProcessor postProcessor;
 };

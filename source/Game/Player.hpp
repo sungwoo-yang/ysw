@@ -81,11 +81,16 @@ private:
     Shield* shieldComponent = nullptr;
 
     // Movement physics constants
-    const double gravity      = 1500.0;
-    const double jumpStrength = 700.0;
-    const double baseSpeed    = 300.0;
+    const double gravity           = 1800.0;
+    const double jumpStrength      = 850.0; 
+    const double jumpCutMultiplier = 0.4;
 
-    // Shield movement modifiers
+    const double maxRunSpeed        = 480.0;
+    const double groundAcceleration = 3500.0;
+    const double groundFriction     = 4500.0;
+    const double airAcceleration    = 400.0;
+    const double airFriction        = 100.0;
+
     double       currentSpeedMultiplier = 1.0;
     const double shieldSlowdownRate     = 4.0;
     const double minShieldSpeedMult     = 0.3;

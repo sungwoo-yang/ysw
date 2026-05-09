@@ -69,8 +69,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     try
     {
         Engine& engine = Engine::Instance();
-        engine.Start("Sungwoo Yang");
+        engine.Start("OLLIM");
 
+        Engine::GetWindow().SetFullscreen(true);
+        
         engine.AddFont("Assets/fonts/Font_Outlined.png");
         engine.AddFont("Assets/fonts/Font_Simple.png");
 

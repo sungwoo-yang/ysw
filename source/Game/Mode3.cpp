@@ -49,7 +49,7 @@ void Mode3::Load()
 
     AddGSComponent(new CS230::GameObjectManager());
 
-    Math::vec2 spawnPosition = { 0.0, 400.0 };
+    Math::vec2 spawnPosition = { 0.0, -2200.0 };
 
     if (pendingReturnPosition.has_value())
     {
@@ -80,8 +80,8 @@ void Mode3::Load()
 
     camera->SetLimit(
         Math::irect{
-            {              static_cast<int>(level_boundary.Left()), -5000 },
-            { static_cast<int>(level_boundary.Right()) - winSize.x,  5000 }
+            {  static_cast<int>(level_boundary.Left()) - 2000, -10000 },
+            { static_cast<int>(level_boundary.Right()) + 2000,  10000 }
     });
 
     AddGSComponent(camera);
@@ -203,8 +203,8 @@ void Mode3::Update(double dt)
         double minX = level_boundary.Left();
         double maxX = level_boundary.Right() - scaledWinSize.x;
 
-        double minY = -800.0;
-        double maxY = 800.0;
+        double minY = -2800.0;
+        double maxY = 1600.0;
 
         if (targetPos.x < minX)
             targetPos.x = minX;
