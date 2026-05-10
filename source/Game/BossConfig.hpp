@@ -3,10 +3,25 @@
 namespace Boss::Config
 {
     // -------------------------------------------------------------------------
+    // Arena
+    // -------------------------------------------------------------------------
+
+    inline constexpr float ArenaLeftX   = 0.0f;
+    inline constexpr float ArenaRightX  = 3000.0f;
+    inline constexpr float ArenaTopY    = 1440.0f;
+    inline constexpr float ArenaCenterX = 1500.0f;
+    inline constexpr float ArenaCenterY = 500.0f;
+
+    // Ground line used for yellow laser/light-orb intersection.
+    // Adjust this later to match the actual boss arena floor.
+    inline constexpr float GroundY = 0.0f;
+
+    // -------------------------------------------------------------------------
     // Shield Energy
     // -------------------------------------------------------------------------
 
-    inline constexpr float MaxShieldEnergy = 100.0f;
+    inline constexpr float MaxShieldEnergy      = 100.0f;
+    inline constexpr float RequiredChargeEnergy = 100.0f;
 
     inline constexpr float LightOrbEnergyGain   = 15.0f;
     inline constexpr float ShortParryEnergyGain = 25.0f;
@@ -43,12 +58,11 @@ namespace Boss::Config
     // Charge Shot
     // -------------------------------------------------------------------------
 
-    inline constexpr float RequiredChargeEnergy = 100.0f;
-    inline constexpr float ChargeHoldTime       = 0.8f;
+    inline constexpr float ChargeHoldTime = 0.8f;
 
     // -------------------------------------------------------------------------
     // Pattern Weights
-    // Later, adjust only these values to rebalance pattern frequency.
+    // Adjust these values later to rebalance random pattern frequency.
     // -------------------------------------------------------------------------
 
     inline constexpr int FourWayRotatingYellowLaserWeight = 20;
@@ -62,59 +76,42 @@ namespace Boss::Config
     // -------------------------------------------------------------------------
 
     inline constexpr float PatternInterval = 2.0f;
-    inline constexpr float WarningTime     = 1.0f;
 
-    // -------------------------------------------------------------------------
-    // Four-way rotating yellow laser
-    // -------------------------------------------------------------------------
+    // This is the warning telegraph time currently used by BossPatternController.
+    inline constexpr double BossLaserWarningTime = 1.0;
 
-    inline constexpr float FourWayRotateMinAngle = 90.0f;
-    inline constexpr float FourWayRotateMaxAngle = 180.0f;
-    inline constexpr float FourWayRotateSpeed    = 45.0f;
-
-    // -------------------------------------------------------------------------
-    // Triple short parry laser
-    // -------------------------------------------------------------------------
-
-    inline constexpr int TripleShortLaserCount = 3;
-
-    inline constexpr float TripleShortLaserInterval = 0.4f;
-    inline constexpr float TripleShortLaserDuration = 0.2f;
-
-    // -------------------------------------------------------------------------
-    // Arena
-    // -------------------------------------------------------------------------
-
-    inline constexpr float ArenaLeftX   = 0.0f;
-    inline constexpr float ArenaRightX  = 3000.0f;
-    inline constexpr float ArenaTopY    = 1440.0f;
-    inline constexpr float ArenaCenterX = 1500.0f;
-    inline constexpr float ArenaCenterY = 500.0f;
-    inline constexpr float GroundY      = 0.0f;
+    // Keep this alias only if older code still references Config::WarningTime.
+    inline constexpr float WarningTime = static_cast<float>(BossLaserWarningTime);
 
     // -------------------------------------------------------------------------
     // Boss Laser Common
     // -------------------------------------------------------------------------
 
     inline constexpr double BossLaserDefaultLength = 3200.0;
-    inline constexpr double BossLaserWarningTime   = 1.0;
 
     // -------------------------------------------------------------------------
-    // Four-way rotating yellow laser
+    // Four-way Rotating Yellow Laser
     // -------------------------------------------------------------------------
 
     inline constexpr double FourWayLaserLength     = 3200.0;
     inline constexpr double FourWayLaserActiveTime = 4.0;
 
+    // Unit: degrees per second.
+    inline constexpr float FourWayRotateSpeed = 45.0f;
+
+    // Reserved for later if the pattern needs a limited sweep angle.
+    inline constexpr float FourWayRotateMinAngle = 90.0f;
+    inline constexpr float FourWayRotateMaxAngle = 180.0f;
+
     // -------------------------------------------------------------------------
-    // Cross wall yellow laser
+    // Cross Wall Yellow Laser
     // -------------------------------------------------------------------------
 
     inline constexpr double CrossWallLaserLength     = 3200.0;
     inline constexpr double CrossWallLaserActiveTime = 1.2;
 
     // -------------------------------------------------------------------------
-    // Orange laser rain
+    // Orange Laser Rain
     // -------------------------------------------------------------------------
 
     inline constexpr int OrangeRainLaserCount = 8;
@@ -123,18 +120,20 @@ namespace Boss::Config
     inline constexpr double OrangeRainLaserActiveTime = 0.8;
 
     // -------------------------------------------------------------------------
-    // Red tracking laser
+    // Red Tracking Laser
     // -------------------------------------------------------------------------
 
     inline constexpr double RedTrackingLaserLength     = 3200.0;
     inline constexpr double RedTrackingLaserActiveTime = 2.5;
 
     // -------------------------------------------------------------------------
-    // Triple short parry laser
+    // Triple Short Parry Laser
     // -------------------------------------------------------------------------
 
-    inline constexpr double ShortParryLaserLength = 1200.0;
+    inline constexpr int TripleShortLaserCount = 3;
 
-    // TripleShortLaserCount, TripleShortLaserInterval, TripleShortLaserDuration가
-    // 이미 있으면 기존 값 유지.
+    inline constexpr float TripleShortLaserInterval = 0.4f;
+    inline constexpr float TripleShortLaserDuration = 0.2f;
+
+    inline constexpr double ShortParryLaserLength = 1200.0;
 }

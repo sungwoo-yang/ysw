@@ -10,6 +10,14 @@ namespace CS230
     class MapManager;
 }
 
+namespace Boss
+{
+    class ShieldEnergy;
+    class LightOrbManager;
+    class BossLaserManager;
+    class BossPatternController;
+}
+
 class Player;
 class WorldTextManager;
 class Gate;
@@ -35,6 +43,7 @@ public:
 private:
     void InitGame();
     void BuildConstellation();
+    void DisableLegacyLaserStars();
     void EnterGameOver(const std::string& reason);
 
     enum class State
@@ -57,6 +66,11 @@ private:
     std::vector<TargetStar*> targetStars;
     Constellation*           constellation  = nullptr;
     BossController*          bossController = nullptr;
+
+    Boss::ShieldEnergy*          shieldEnergy          = nullptr;
+    Boss::LightOrbManager*       lightOrbManager       = nullptr;
+    Boss::BossLaserManager*      bossLaserManager      = nullptr;
+    Boss::BossPatternController* bossPatternController = nullptr;
 
     double       playingTimer      = 0.0;
     bool         isCameraScaling   = false;

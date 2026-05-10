@@ -1,14 +1,18 @@
 #include "Boss1.hpp"
 
 #include "BossController.hpp"
+#include "BossLaserManager.hpp"
+#include "BossPatternController.hpp"
 #include "Constellation.hpp"
 #include "Door.hpp"
 #include "DoorActionHandler.hpp"
 #include "Gate.hpp"
 #include "LaserStar.hpp"
+#include "LightOrbManager.hpp"
 #include "ObjectFactory.hpp"
 #include "Player.hpp"
 #include "RedHitParticle.hpp"
+#include "ShieldEnergy.hpp"
 #include "TargetStar.hpp"
 #include "WorldTextManager.hpp"
 
@@ -62,6 +66,29 @@ void Boss1::BuildConstellation()
     }
 
     Engine::GetLogger().LogEvent("Aries boss built. Targets: " + std::to_string(constellation->GetTotalTargetCount()));
+}
+
+void Boss1::DisableLegacyLaserStars()
+{
+    auto gom = GetGSComponent<CS230::GameObjectManager>();
+
+    if (gom == nullptr)
+    {
+        return;
+    }
+
+    for (auto obj : gom->GetObjects())
+    {
+        if (obj == nullptr)
+        {
+            continue;
+        }
+
+        if (obj->TypeName() == "LaserStar")
+        {
+            static_cast<LaserStar*>(obj)->SetEnabled(false);
+        }
+    }
 }
 
 void Boss1::EnterGameOver(const std::string& reason)
@@ -148,9 +175,17 @@ void Boss1::Update(double dt)
             Engine::GetLogger().LogEvent("Map Loading Complete! Starting Boss Intro...");
 
             BuildConstellation();
+            DisableLegacyLaserStars();
 
-            bossController = new BossController(player, constellation);
-            bossController->CollectPhaseObjects(GetGSComponent<CS230::GameObjectManager>());
+            shieldEnergy = new Boss::ShieldEnergy();
+
+            lightOrbManager = new Boss::LightOrbManager(player, shieldEnergy);
+            lightOrbManager->SetGameObjectManager(GetGSComponent<CS230::GameObjectManager>());
+
+            bossLaserManager = new Boss::BossLaserManager(player, shieldEnergy, lightOrbManager);
+
+            bossPatternController = new Boss::BossPatternController(player, bossLaserManager);
+            bossPatternController->SetEnabled(false);
 
             currentState = State::Intro;
             introTimer   = 0.0;
@@ -188,9 +223,9 @@ void Boss1::Update(double dt)
 
         if (introTimer >= introDuration)
         {
-            if (bossController != nullptr)
+            if (bossPatternController != nullptr)
             {
-                bossController->StartFirstPhase();
+                bossPatternController->SetEnabled(true);
             }
 
             currentState    = State::Playing;
@@ -224,17 +259,30 @@ void Boss1::Update(double dt)
                 camera->SetScale(currentScale);
             }
         }
-
-        if (bossController != nullptr)
-        {
-            bossController->Update(dt);
-        }
     }
 
     auto gom = GetGSComponent<CS230::GameObjectManager>();
 
     gom->UpdateAll(dt);
     gom->CollisionTest();
+
+    if (currentState == State::Playing)
+    {
+        if (bossPatternController != nullptr)
+        {
+            bossPatternController->Update(dt);
+        }
+
+        if (bossLaserManager != nullptr)
+        {
+            bossLaserManager->Update(dt);
+        }
+
+        if (lightOrbManager != nullptr)
+        {
+            lightOrbManager->Update(dt);
+        }
+    }
 
     if (player != nullptr)
     {
@@ -380,6 +428,11 @@ void Boss1::Draw()
         {
             player->Draw(view_projection_matrix);
         }
+
+        if (bossLaserManager != nullptr)
+        {
+            bossLaserManager->Draw(view_projection_matrix);
+        }
     }
 
     renderer.EndScene();
@@ -454,25 +507,36 @@ void Boss1::DrawImGui()
         }
     }
 
+    if (bossPatternController != nullptr)
+    {
+        ImGui::Separator();
+        ImGui::Text("New Boss Pattern Controller");
+
+        ImGui::Text("Enabled: %s", bossPatternController->IsEnabled() ? "true" : "false");
+        ImGui::Text("Pattern Active: %s", bossPatternController->IsPatternActive() ? "true" : "false");
+        ImGui::Text("Current Pattern: %s", bossPatternController->GetCurrentPatternName().c_str());
+    }
+
+    if (shieldEnergy != nullptr)
+    {
+        ImGui::Separator();
+        ImGui::Text("Shield Energy: %.1f / %.1f", shieldEnergy->GetEnergy(), shieldEnergy->GetMaxEnergy());
+        ImGui::ProgressBar(shieldEnergy->GetRatio(), ImVec2(200.0f, 18.0f));
+    }
+
+    if (lightOrbManager != nullptr)
+    {
+        ImGui::Text("Light Orbs: %d", lightOrbManager->GetActiveOrbCount());
+    }
+
+    if (bossLaserManager != nullptr)
+    {
+        ImGui::Text("Boss Lasers: %d", bossLaserManager->GetActiveLaserCount());
+    }
+
     if (constellation != nullptr)
     {
-        const char* bossStateStr = "Unknown";
-
-        switch (bossController->GetState())
-        {
-            case BossController::State::Intro: bossStateStr = "Intro"; break;
-
-            case BossController::State::Survival: bossStateStr = "Survival"; break;
-
-            case BossController::State::Reflect: bossStateStr = "Reflect"; break;
-
-            case BossController::State::Clear: bossStateStr = "Clear"; break;
-        }
-
-        ImGui::Separator();
-        ImGui::Text("Boss Controller State: %s", bossStateStr);
-        ImGui::Text("Current Phase: %d / %d", bossController->GetCurrentPhaseIndex() + 1, bossController->GetPhaseCount());
-        ImGui::Text("Survival Clears: %d", bossController->GetSurvivalClearCount());
+        ImGui::Text("Constellation: %d / %d", constellation->GetActivatedTargetCount(), constellation->GetTotalTargetCount());
     }
 
     ImGui::End();
@@ -481,6 +545,32 @@ void Boss1::DrawImGui()
 
 void Boss1::Unload()
 {
+    delete constellation;
+    constellation = nullptr;
+
+    delete bossController;
+    bossController = nullptr;
+
+    delete bossPatternController;
+    bossPatternController = nullptr;
+
+    if (bossLaserManager != nullptr)
+    {
+        bossLaserManager->Clear();
+    }
+    delete bossLaserManager;
+    bossLaserManager = nullptr;
+
+    if (lightOrbManager != nullptr)
+    {
+        lightOrbManager->Clear();
+    }
+    delete lightOrbManager;
+    lightOrbManager = nullptr;
+
+    delete shieldEnergy;
+    shieldEnergy = nullptr;
+
     delete constellation;
     constellation = nullptr;
 
