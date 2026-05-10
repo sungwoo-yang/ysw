@@ -230,8 +230,8 @@ namespace Boss
         tripleShortFiredCount = 0;
         tripleShortTimer      = 0.0;
 
-        patternDuration = Config::BossLaserWarningTime + Config::TripleShortLaserInterval * static_cast<double>(Config::TripleShortLaserCount - 1) + Config::TripleShortLaserDuration + 0.5;
-
+        patternDuration = Config::TripleShortLaserInterval * static_cast<double>(Config::TripleShortLaserCount - 1) + Config::ShortParryLaserActiveTime + 0.2;
+        
         SpawnShortParryLaserAtPlayer();
     }
 

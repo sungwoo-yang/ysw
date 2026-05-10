@@ -116,7 +116,7 @@ namespace Boss::Config
 
     inline constexpr int OrangeRainLaserCount = 8;
 
-    inline constexpr double OrangeRainLaserLength     = 1800.0;
+    inline constexpr double OrangeRainLaserLength     = 3000.0;
     inline constexpr double OrangeRainLaserActiveTime = 0.8;
 
     // -------------------------------------------------------------------------
@@ -131,12 +131,13 @@ namespace Boss::Config
     // Triple Short Parry Laser
     // -------------------------------------------------------------------------
 
-
     inline constexpr int TripleShortLaserCount = 3;
 
     inline constexpr float TripleShortLaserInterval = 0.4f;
     inline constexpr float TripleShortLaserDuration = 0.8f;
 
-    inline constexpr double ShortParryLaserLength = 160.0;
-    inline constexpr double ShortParryLaserSpeed  = 900.0;
+    inline constexpr double ShortParryLaserLength     = 160.0;
+    inline constexpr double ShortParryLaserSpeed      = 900.0;
+    inline constexpr double ShortParryLaserRange      = 3000.0;
+    inline constexpr double ShortParryLaserActiveTime = ShortParryLaserRange / ShortParryLaserSpeed;
 }
