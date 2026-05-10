@@ -18,22 +18,35 @@ namespace CS230
     {
     public:
         using CS230::Component::Update;
-        
+
         Camera(Math::rect pz);
-        void                       SetPosition(Math::vec2 new_position);
-        const Math::vec2&          GetPosition() const;
-        void                       SetLimit(Math::irect new_limit);
-        void Update(const Math::vec2& target_position, double dt);
-        void SetScale(double new_scale) { scale = new_scale; };
-        double GetScale() const { return scale; }
+        void              SetPosition(Math::vec2 new_position);
+        const Math::vec2& GetPosition() const;
+        void              SetLimit(Math::irect new_limit);
+        void              Update(const Math::vec2& target_position, double dt);
+
+        void SetScale(double new_scale)
+        {
+            scale = new_scale;
+        };
+
+        double GetScale() const
+        {
+            return scale;
+        }
+
         Math::TransformationMatrix GetMatrix();
-        void SetSmoothing(float new_smoothing) { smoothing = new_smoothing; }
+
+        void SetSmoothing(float new_smoothing)
+        {
+            smoothing = new_smoothing;
+        }
 
     private:
         Math::irect limit;
         Math::rect  player_zone;
         Math::vec2  position;
-        float       smoothing = 1.0f;
-        double      scale = 1.0;
+        float       smoothing = 0.0f;
+        double      scale     = 1.0;
     };
 }

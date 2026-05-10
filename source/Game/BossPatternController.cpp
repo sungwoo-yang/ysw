@@ -3,6 +3,7 @@
 #include "BossConfig.hpp"
 #include "BossLaser.hpp"
 #include "BossLaserManager.hpp"
+#include "LaserStar.hpp"
 #include "Player.hpp"
 
 #include <cmath>
@@ -10,15 +11,25 @@
 
 namespace
 {
-    constexpr double Pi = 3.14159265358979323846;
+    double NormalizeAngleDifference(double diff)
+    {
+        while (diff <= -PI)
+        {
+            diff += 2.0 * PI;
+        }
+
+        while (diff > PI)
+        {
+            diff -= 2.0 * PI;
+        }
+
+        return diff;
+    }
 }
 
 namespace Boss
 {
-    BossPatternController::BossPatternController(Player* in_player, BossLaserManager* in_laserManager)
-        : player(in_player),
-          laserManager(in_laserManager),
-          rng(std::random_device{}())
+    BossPatternController::BossPatternController(Player* in_player, BossLaserManager* in_laserManager) : player(in_player), laserManager(in_laserManager), rng(std::random_device{}())
     {
     }
 
@@ -78,6 +89,11 @@ namespace Boss
         return enabled;
     }
 
+    void BossPatternController::SetMainStar(LaserStar* in_mainStar)
+    {
+        mainStar = in_mainStar;
+    }
+
     bool BossPatternController::IsPatternActive() const
     {
         return patternActive;
@@ -92,20 +108,15 @@ namespace Boss
     {
         switch (currentPattern)
         {
-            case BossPatternType::FourWayRotatingYellowLaser:
-                return "FourWayRotatingYellowLaser";
+            case BossPatternType::FourWayRotatingYellowLaser: return "FourWayRotatingYellowLaser";
 
-            case BossPatternType::CrossWallYellowLaser:
-                return "CrossWallYellowLaser";
+            case BossPatternType::CrossWallYellowLaser: return "CrossWallYellowLaser";
 
-            case BossPatternType::OrangeLaserRain:
-                return "OrangeLaserRain";
+            case BossPatternType::OrangeLaserRain: return "OrangeLaserRain";
 
-            case BossPatternType::RedTrackingLaser:
-                return "RedTrackingLaser";
+            case BossPatternType::RedTrackingLaser: return "RedTrackingLaser";
 
-            case BossPatternType::TripleShortParryLaser:
-                return "TripleShortParryLaser";
+            case BossPatternType::TripleShortParryLaser: return "TripleShortParryLaser";
         }
 
         return "Unknown";
@@ -121,59 +132,39 @@ namespace Boss
         currentPattern = pattern;
 
         patternActive = true;
-        patternTimer = 0.0;
+        patternTimer  = 0.0;
         activePatternLasers.clear();
 
         switch (currentPattern)
         {
-            case BossPatternType::FourWayRotatingYellowLaser:
-                StartFourWayRotatingYellowLaser();
-                break;
+            case BossPatternType::FourWayRotatingYellowLaser: StartFourWayRotatingYellowLaser(); break;
 
-            case BossPatternType::CrossWallYellowLaser:
-                StartCrossWallYellowLaser();
-                break;
+            case BossPatternType::CrossWallYellowLaser: StartCrossWallYellowLaser(); break;
 
-            case BossPatternType::OrangeLaserRain:
-                StartOrangeLaserRain();
-                break;
+            case BossPatternType::OrangeLaserRain: StartOrangeLaserRain(); break;
 
-            case BossPatternType::RedTrackingLaser:
-                StartRedTrackingLaser();
-                break;
+            case BossPatternType::RedTrackingLaser: StartRedTrackingLaser(); break;
 
-            case BossPatternType::TripleShortParryLaser:
-                StartTripleShortParryLaser();
-                break;
+            case BossPatternType::TripleShortParryLaser: StartTripleShortParryLaser(); break;
         }
     }
 
     void BossPatternController::StartFourWayRotatingYellowLaser()
     {
-        const Math::vec2 center =
-        {
-            static_cast<double>(Config::ArenaCenterX),
-            static_cast<double>(Config::ArenaCenterY)
-        };
+        const Math::vec2 center = { static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::ArenaCenterY) };
 
-        fourWayBaseAngle = RandomDouble(0.0, Pi * 2.0);
+        fourWayBaseAngle    = RandomDouble(0.0, PI * 2.0);
         fourWayRotationSign = RandomInt(0, 1) == 0 ? -1.0 : 1.0;
 
         patternDuration = Config::BossLaserWarningTime + Config::FourWayLaserActiveTime;
 
         for (int i = 0; i < 4; ++i)
         {
-            const double angle = fourWayBaseAngle + static_cast<double>(i) * (Pi * 0.5);
+            const double     angle     = fourWayBaseAngle + static_cast<double>(i) * (PI * 0.5);
             const Math::vec2 direction = { std::cos(angle), std::sin(angle) };
 
-            BossLaser* laser = laserManager->SpawnLaser(
-                center,
-                direction,
-                LaserType::Yellow,
-                LaserSource::Ophiuchus,
-                Config::FourWayLaserLength,
-                Config::BossLaserWarningTime,
-                Config::FourWayLaserActiveTime);
+            BossLaser* laser =
+                laserManager->SpawnLaser(center, direction, LaserType::Yellow, LaserSource::Ophiuchus, Config::FourWayLaserLength, Config::BossLaserWarningTime, Config::FourWayLaserActiveTime);
 
             activePatternLasers.push_back(laser);
         }
@@ -181,50 +172,25 @@ namespace Boss
 
     void BossPatternController::StartCrossWallYellowLaser()
     {
-        const Math::vec2 targetPosition =
-            player != nullptr
-                ? player->GetPosition()
-                : Math::vec2{ static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::GroundY) };
+        const Math::vec2 targetPosition = player != nullptr ? player->GetPosition() : Math::vec2{ static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::GroundY) };
 
         const double minY = static_cast<double>(Config::GroundY) + 180.0;
         const double maxY = static_cast<double>(Config::ArenaTopY);
 
-        const Math::vec2 leftStart =
-        {
-            static_cast<double>(Config::ArenaLeftX),
-            RandomDouble(minY, maxY)
-        };
+        const Math::vec2 leftStart = { static_cast<double>(Config::ArenaLeftX), RandomDouble(minY, maxY) };
 
-        const Math::vec2 rightStart =
-        {
-            static_cast<double>(Config::ArenaRightX),
-            RandomDouble(minY, maxY)
-        };
+        const Math::vec2 rightStart = { static_cast<double>(Config::ArenaRightX), RandomDouble(minY, maxY) };
 
-        const Math::vec2 leftDirection = (targetPosition - leftStart).Normalize();
+        const Math::vec2 leftDirection  = (targetPosition - leftStart).Normalize();
         const Math::vec2 rightDirection = (targetPosition - rightStart).Normalize();
 
         patternDuration = Config::BossLaserWarningTime + Config::CrossWallLaserActiveTime;
 
-        activePatternLasers.push_back(
-            laserManager->SpawnLaser(
-                leftStart,
-                leftDirection,
-                LaserType::Yellow,
-                LaserSource::Ophiuchus,
-                Config::CrossWallLaserLength,
-                Config::BossLaserWarningTime,
-                Config::CrossWallLaserActiveTime));
+        activePatternLasers.push_back(laserManager->SpawnLaser(
+            leftStart, leftDirection, LaserType::Yellow, LaserSource::Ophiuchus, Config::CrossWallLaserLength, Config::BossLaserWarningTime, Config::CrossWallLaserActiveTime));
 
-        activePatternLasers.push_back(
-            laserManager->SpawnLaser(
-                rightStart,
-                rightDirection,
-                LaserType::Yellow,
-                LaserSource::Ophiuchus,
-                Config::CrossWallLaserLength,
-                Config::BossLaserWarningTime,
-                Config::CrossWallLaserActiveTime));
+        activePatternLasers.push_back(laserManager->SpawnLaser(
+            rightStart, rightDirection, LaserType::Yellow, LaserSource::Ophiuchus, Config::CrossWallLaserLength, Config::BossLaserWarningTime, Config::CrossWallLaserActiveTime));
     }
 
     void BossPatternController::StartOrangeLaserRain()
@@ -233,69 +199,38 @@ namespace Boss
 
         for (int i = 0; i < Config::OrangeRainLaserCount; ++i)
         {
-            const double x = RandomDouble(
-                static_cast<double>(Config::ArenaLeftX),
-                static_cast<double>(Config::ArenaRightX));
+            const double x = RandomDouble(static_cast<double>(Config::ArenaLeftX), static_cast<double>(Config::ArenaRightX));
 
-            const Math::vec2 start =
-            {
-                x,
-                static_cast<double>(Config::ArenaTopY)
-            };
+            const Math::vec2 start = { x, static_cast<double>(Config::ArenaTopY) };
 
-            const double xDrift = RandomDouble(-0.25, 0.25);
+            const double     xDrift    = RandomDouble(-0.25, 0.25);
             const Math::vec2 direction = Math::vec2{ xDrift, -1.0 }.Normalize();
 
             activePatternLasers.push_back(
-                laserManager->SpawnLaser(
-                    start,
-                    direction,
-                    LaserType::Orange,
-                    LaserSource::Ophiuchus,
-                    Config::OrangeRainLaserLength,
-                    Config::BossLaserWarningTime,
-                    Config::OrangeRainLaserActiveTime));
+                laserManager->SpawnLaser(start, direction, LaserType::Orange, LaserSource::Ophiuchus, Config::OrangeRainLaserLength, Config::BossLaserWarningTime, Config::OrangeRainLaserActiveTime));
         }
     }
 
     void BossPatternController::StartRedTrackingLaser()
     {
-        const Math::vec2 start =
-        {
-            static_cast<double>(Config::ArenaCenterX),
-            static_cast<double>(Config::ArenaTopY)
-        };
+        const Math::vec2 start = GetMainStarPosition();
 
-        const Math::vec2 target =
-            player != nullptr
-                ? player->GetPosition()
-                : Math::vec2{ static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::GroundY) };
+        const Math::vec2 target = player != nullptr ? player->GetPosition() : Math::vec2{ static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::GroundY) };
 
         const Math::vec2 direction = (target - start).Normalize();
 
         patternDuration = Config::BossLaserWarningTime + Config::RedTrackingLaserActiveTime;
 
-        activePatternLasers.push_back(
-            laserManager->SpawnLaser(
-                start,
-                direction,
-                LaserType::RedTracking,
-                LaserSource::MainConstellation,
-                Config::RedTrackingLaserLength,
-                Config::BossLaserWarningTime,
-                Config::RedTrackingLaserActiveTime));
+        activePatternLasers.push_back(laserManager->SpawnLaser(
+            start, direction, LaserType::RedTracking, LaserSource::MainConstellation, Config::RedTrackingLaserLength, Config::BossLaserWarningTime, Config::RedTrackingLaserActiveTime));
     }
 
     void BossPatternController::StartTripleShortParryLaser()
     {
         tripleShortFiredCount = 0;
-        tripleShortTimer = 0.0;
+        tripleShortTimer      = 0.0;
 
-        patternDuration =
-            Config::BossLaserWarningTime
-            + Config::TripleShortLaserInterval * static_cast<double>(Config::TripleShortLaserCount - 1)
-            + Config::TripleShortLaserDuration
-            + 0.5;
+        patternDuration = Config::BossLaserWarningTime + Config::TripleShortLaserInterval * static_cast<double>(Config::TripleShortLaserCount - 1) + Config::TripleShortLaserDuration + 0.5;
 
         SpawnShortParryLaserAtPlayer();
     }
@@ -304,36 +239,22 @@ namespace Boss
     {
         switch (currentPattern)
         {
-            case BossPatternType::FourWayRotatingYellowLaser:
-                UpdateFourWayRotatingYellowLaser();
-                break;
+            case BossPatternType::FourWayRotatingYellowLaser: UpdateFourWayRotatingYellowLaser(); break;
 
-            case BossPatternType::RedTrackingLaser:
-                UpdateRedTrackingLaser();
-                break;
+            case BossPatternType::RedTrackingLaser: UpdateRedTrackingLaser(dt); break;
 
-            case BossPatternType::TripleShortParryLaser:
-                UpdateTripleShortParryLaser(dt);
-                break;
+            case BossPatternType::TripleShortParryLaser: UpdateTripleShortParryLaser(dt); break;
 
             case BossPatternType::CrossWallYellowLaser:
-            case BossPatternType::OrangeLaserRain:
-                break;
+            case BossPatternType::OrangeLaserRain: break;
         }
     }
 
     void BossPatternController::UpdateFourWayRotatingYellowLaser()
     {
-        const Math::vec2 center =
-        {
-            static_cast<double>(Config::ArenaCenterX),
-            static_cast<double>(Config::ArenaCenterY)
-        };
+        const Math::vec2 center = { static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::ArenaCenterY) };
 
-        const double angleOffset =
-            fourWayRotationSign
-            * DegreesToRadians(static_cast<double>(Config::FourWayRotateSpeed))
-            * patternTimer;
+        const double angleOffset = fourWayRotationSign * DegreesToRadians(static_cast<double>(Config::FourWayRotateSpeed)) * patternTimer;
 
         for (size_t i = 0; i < activePatternLasers.size(); ++i)
         {
@@ -344,7 +265,7 @@ namespace Boss
                 continue;
             }
 
-            const double angle = fourWayBaseAngle + static_cast<double>(i) * (Pi * 0.5) + angleOffset;
+            const double     angle     = fourWayBaseAngle + static_cast<double>(i) * (PI * 0.5) + angleOffset;
             const Math::vec2 direction = { std::cos(angle), std::sin(angle) };
 
             laser->SetStartPosition(center);
@@ -352,7 +273,7 @@ namespace Boss
         }
     }
 
-    void BossPatternController::UpdateRedTrackingLaser()
+    void BossPatternController::UpdateRedTrackingLaser(double dt)
     {
         if (player == nullptr || activePatternLasers.empty())
         {
@@ -366,11 +287,31 @@ namespace Boss
             return;
         }
 
-        const Math::vec2 target = player->GetPosition();
-        const Math::vec2 start = laser->GetStartPosition();
+        const Math::vec2 start = GetMainStarPosition();
+        laser->SetStartPosition(start);
 
-        const Math::vec2 direction = (target - start).Normalize();
-        laser->SetDirection(direction);
+        const Math::vec2 targetDirection  = (player->GetPosition() - start).Normalize();
+        const Math::vec2 currentDirection = laser->GetDirection();
+
+        double currentAngle = std::atan2(currentDirection.y, currentDirection.x);
+        double targetAngle  = std::atan2(targetDirection.y, targetDirection.x);
+
+        const double diff = NormalizeAngleDifference(targetAngle - currentAngle);
+
+        const double maxRotate = DegreesToRadians(static_cast<double>(Config::RedTrackingRotateSpeed)) * dt;
+
+        if (std::abs(diff) <= maxRotate)
+        {
+            currentAngle = targetAngle;
+        }
+        else
+        {
+            currentAngle += diff > 0.0 ? maxRotate : -maxRotate;
+        }
+
+        const Math::vec2 newDirection = { std::cos(currentAngle), std::sin(currentAngle) };
+
+        laser->SetDirection(newDirection);
     }
 
     void BossPatternController::UpdateTripleShortParryLaser(double dt)
@@ -401,13 +342,13 @@ namespace Boss
 
         activePatternLasers.clear();
 
-        patternActive = false;
-        patternTimer = 0.0;
+        patternActive   = false;
+        patternTimer    = 0.0;
         patternDuration = 0.0;
-        cooldownTimer = Config::PatternInterval;
+        cooldownTimer   = Config::PatternInterval;
 
         tripleShortFiredCount = 0;
-        tripleShortTimer = 0.0;
+        tripleShortTimer      = 0.0;
     }
 
     void BossPatternController::SpawnShortParryLaserAtPlayer()
@@ -417,28 +358,14 @@ namespace Boss
             return;
         }
 
-        const Math::vec2 start =
-        {
-            static_cast<double>(Config::ArenaCenterX),
-            static_cast<double>(Config::ArenaTopY)
-        };
+        const Math::vec2 start = { static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::ArenaTopY) };
 
-        const Math::vec2 target =
-            player != nullptr
-                ? player->GetPosition()
-                : Math::vec2{ static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::GroundY) };
+        const Math::vec2 target = player != nullptr ? player->GetPosition() : Math::vec2{ static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::GroundY) };
 
         const Math::vec2 direction = (target - start).Normalize();
 
-        activePatternLasers.push_back(
-            laserManager->SpawnLaser(
-                start,
-                direction,
-                LaserType::ShortParry,
-                LaserSource::MainConstellation,
-                Config::ShortParryLaserLength,
-                Config::BossLaserWarningTime,
-                Config::TripleShortLaserDuration));
+        activePatternLasers.push_back(laserManager->SpawnLaser(
+            start, direction, LaserType::ShortParry, LaserSource::MainConstellation, Config::ShortParryLaserLength, Config::BossLaserWarningTime, Config::TripleShortLaserDuration));
 
         ++tripleShortFiredCount;
     }
@@ -483,11 +410,17 @@ namespace Boss
 
     int BossPatternController::GetTotalPatternWeight() const
     {
-        return Config::FourWayRotatingYellowLaserWeight
-             + Config::CrossWallYellowLaserWeight
-             + Config::OrangeLaserRainWeight
-             + Config::RedTrackingLaserWeight
-             + Config::TripleShortParryLaserWeight;
+        return Config::FourWayRotatingYellowLaserWeight + Config::CrossWallYellowLaserWeight + Config::OrangeLaserRainWeight + Config::RedTrackingLaserWeight + Config::TripleShortParryLaserWeight;
+    }
+
+    Math::vec2 BossPatternController::GetMainStarPosition() const
+    {
+        if (mainStar != nullptr)
+        {
+            return mainStar->GetPosition();
+        }
+
+        return { static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::ArenaTopY) };
     }
 
     double BossPatternController::RandomDouble(double minValue, double maxValue)
@@ -504,6 +437,6 @@ namespace Boss
 
     double BossPatternController::DegreesToRadians(double degrees)
     {
-        return degrees * Pi / 180.0;
+        return degrees * PI / 180.0;
     }
 }

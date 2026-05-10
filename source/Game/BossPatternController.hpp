@@ -8,6 +8,7 @@
 #include <vector>
 
 class Player;
+class LaserStar;
 
 namespace Boss
 {
@@ -25,9 +26,11 @@ namespace Boss
         void SetEnabled(bool enabled);
         bool IsEnabled() const;
 
-        bool IsPatternActive() const;
+        void SetMainStar(LaserStar* in_mainStar);
+
+        bool            IsPatternActive() const;
         BossPatternType GetCurrentPatternType() const;
-        std::string GetCurrentPatternName() const;
+        std::string     GetCurrentPatternName() const;
 
     private:
         void StartRandomPattern();
@@ -41,7 +44,7 @@ namespace Boss
 
         void UpdateActivePattern(double dt);
         void UpdateFourWayRotatingYellowLaser();
-        void UpdateRedTrackingLaser();
+        void UpdateRedTrackingLaser(double dt);
         void UpdateTripleShortParryLaser(double dt);
 
         void EndCurrentPattern();
@@ -50,34 +53,36 @@ namespace Boss
 
         BossPatternType PickWeightedPattern();
 
-        int GetTotalPatternWeight() const;
+        int        GetTotalPatternWeight() const;
+        Math::vec2 GetMainStarPosition() const;
 
         double RandomDouble(double minValue, double maxValue);
-        int RandomInt(int minValue, int maxValue);
+        int    RandomInt(int minValue, int maxValue);
 
         static double DegreesToRadians(double degrees);
 
-        Player* player = nullptr;
+        Player*    player   = nullptr;
+        LaserStar* mainStar = nullptr;
         BossLaserManager* laserManager = nullptr;
 
-        bool enabled = true;
+        bool enabled       = true;
         bool patternActive = false;
 
         BossPatternType currentPattern = BossPatternType::CrossWallYellowLaser;
 
-        double cooldownTimer = 0.0;
-        double patternTimer = 0.0;
+        double cooldownTimer   = 0.0;
+        double patternTimer    = 0.0;
         double patternDuration = 0.0;
 
         std::vector<BossLaser*> activePatternLasers;
 
         // Four-way rotating laser state
-        double fourWayBaseAngle = 0.0;
+        double fourWayBaseAngle    = 0.0;
         double fourWayRotationSign = 1.0;
 
         // Triple short parry laser state
-        int tripleShortFiredCount = 0;
-        double tripleShortTimer = 0.0;
+        int    tripleShortFiredCount = 0;
+        double tripleShortTimer      = 0.0;
 
         std::mt19937 rng;
     };

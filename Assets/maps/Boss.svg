@@ -30,7 +30,7 @@
      inkscape:window-x="-9"
      inkscape:window-y="-9"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer4"
+     inkscape:current-layer="layer2"
      showborder="false"
      borderlayer="true"
      inkscape:clip-to-page="false">
@@ -68,7 +68,7 @@
     <path
        id="PLAT_MAIN"
        style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:7.2251"
-       d="M 3.6125557,1603.6126 H 2996.3874 v 392.7749 H 3.6125557 Z"
+       d="M -1.0982276,6.6570474 H 2991.6766 V 399.43195 H -1.0982276 Z"
        inkscape:label="PLAT_MAIN" />
   </g>
   <g
@@ -77,108 +77,8 @@
      inkscape:label="Common_Objects" />
   <g
      inkscape:groupmode="layer"
-     id="layer7"
-     inkscape:label="Phase1"
-     style="display:none">
-    <path
-       id="PLAT_P1A"
-       style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.11202"
-       d="m 782.70256,1458.7407 h 165.46342 v 168.2862 H 782.70256 Z"
-       inkscape:label="PLAT_P1A" />
-    <path
-       id="PLAT_P1B"
-       style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.80364"
-       d="m 945.72304,1331.2778 h 242.84076 v 301.6527 H 945.72304 Z"
-       inkscape:label="PLAT_P1B" />
-    <path
-       id="PLAT_P1C"
-       style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.37871"
-       d="m 1344.4618,1492.1172 h 276.4266 v 154.844 h -276.4266 z"
-       inkscape:label="PLAT_P1C" />
-    <path
-       id="PLAT_P1D"
-       style="fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.37871"
-       d="m 1814.5873,1495.6313 h 276.4266 v 154.844 h -276.4266 z"
-       inkscape:label="PLAT_P1D" />
-    <path
-       style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980387;stroke-opacity:1"
-       id="LS_R_CONT_BLINK_S_P1B"
-       d="m 1237.2203,881.40839 h 49.0196 v 49.02 h -49.0196 z"
-       inkscape:transform-center-x="52.289168"
-       inkscape:transform-center-y="-17.57122"
-       inkscape:label="LS_R_CONT_BLINK_S_P1B" />
-    <path
-       style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980387;stroke-opacity:1"
-       id="LS_R_CONT_STATIC_E_P1C"
-       d="m 1612.3977,1536.4808 h 49.0196 v 49.0196 h -49.0196 z"
-       inkscape:transform-center-x="52.289168"
-       inkscape:transform-center-y="-17.57122"
-       inkscape:label="LS_R_CONT_STATIC_E_P1C" />
-    <path
-       style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980387;stroke-opacity:1"
-       id="LS_R_SHOT_TRACK_E_P1A"
-       d="m 384.30126,1061.3279 h 49.01961 v 49.0196 h -49.01961 z"
-       inkscape:transform-center-x="52.289173"
-       inkscape:transform-center-y="-17.57122"
-       inkscape:label="LS_R_SHOT_TRACK_E_P1A" />
-    <path
-       style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980389;stroke-opacity:1"
-       id="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P1CHASE"
-       d="m -324.50981,750.49019 h 49.01961 v 49.0196 h -49.01961 z"
-       inkscape:transform-center-x="52.289175"
-       inkscape:transform-center-y="-17.571222"
-       inkscape:label="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P1CHASE" />
-    <path
-       id="DOOR_TELEPORT_1500_50_REFLECT_P1"
-       style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.629567"
-       d="m 2860.3148,1480.3148 h 79.3705 v 119.3704 h -79.3705 z"
-       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT_P1" />
-  </g>
-  <g
-     inkscape:groupmode="layer"
-     id="layer3"
-     inkscape:label="Phase2"
-     style="display:inline">
-    <path
-       id="DOOR_TELEPORT_1500_50_REFLECT_P2"
-       style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.629566"
-       d="m 50.314783,1480.3148 h 79.370437 v 119.3704 H 50.314783 Z"
-       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT_P2" />
-    <path
-       style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.98039;stroke-opacity:1"
-       id="LS_R_CONT_STATIC_S_LINEAR_W_150_0_P2CHASE"
-       d="m 3325.4901,750.4902 h 49.0197 v 49.01961 h -49.0197 z"
-       inkscape:transform-center-x="39.466804"
-       inkscape:transform-center-y="-103.17716"
-       inkscape:label="LS_R_CONT_STATIC_S_LINEAR_W_150_0_P2CHASE" />
-  </g>
-  <g
-     inkscape:groupmode="layer"
-     id="layer4"
-     inkscape:label="Phase3">
-    <path
-       id="DOOR_TELEPORT_1500_50_REFLECT_P3"
-       style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.629566"
-       d="m 2860.3148,1480.3148 h 79.3703 v 119.4 h -79.3703 z"
-       inkscape:label="DOOR_TELEPORT_1500_50_REFLECT_P3" />
-    <path
-       style="display:inline;fill:#00ff00;fill-opacity:1;stroke:#22002b;stroke-width:0.980389;stroke-opacity:1"
-       id="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P3CHASE"
-       d="m -324.5098,750.49021 h 49.0196 v 49.0196 h -49.0196 z"
-       inkscape:transform-center-x="52.289175"
-       inkscape:transform-center-y="-17.571222"
-       inkscape:label="LS_R_CONT_STATIC_S_LINEAR_E_150_3000_P3CHASE" />
-  </g>
-  <g
-     inkscape:groupmode="layer"
      id="layer5"
-     inkscape:label="Reflect">
-    <path
-       id="PLAT_REFLECT1"
-       style="display:inline;fill:#00ffff;fill-opacity:0.984314;stroke:#22002b;stroke-width:1.50903"
-       d="M 890.27047,-1.8443112 H 2162.2166 V 38.469493 H 890.27047 Z"
-       inkscape:label="PLAT_REFLECT1" />
-  </g>
+     inkscape:label="Reflect" />
   <g
      inkscape:groupmode="layer"
      id="layer6"
@@ -186,7 +86,7 @@
     <path
        id="DOOR_STATE_MODE3_CLEAR"
        style="display:inline;fill:#786721;fill-opacity:0.984314;stroke:#22002b;stroke-width:0.629566"
-       d="m 1460.3148,1480.3148 h 79.3705 v 119.3704 h -79.3705 z"
+       d="m 1455.604,-116.64075 h 79.3705 V 2.7296474 h -79.3705 z"
        inkscape:label="DOOR_STATE_MODE3_CLEAR" />
   </g>
   <g

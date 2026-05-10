@@ -143,7 +143,7 @@ void Boss1::InitGame()
 {
     auto gom = GetGSComponent<CS230::GameObjectManager>();
 
-    player = new Player({ 50.0, -1500.0 });
+    player = new Player({ 50.0, 50.0 });
     gom->Add(player);
 
     mapManager->SetGameObjectFactory(ObjectFactory::Create(player));
@@ -185,6 +185,12 @@ void Boss1::Update(double dt)
             bossLaserManager = new Boss::BossLaserManager(player, shieldEnergy, lightOrbManager);
 
             bossPatternController = new Boss::BossPatternController(player, bossLaserManager);
+
+            if (constellation != nullptr)
+            {
+                bossPatternController->SetMainStar(constellation->GetMainStar());
+            }
+
             bossPatternController->SetEnabled(false);
 
             currentState = State::Intro;
@@ -352,14 +358,6 @@ void Boss1::Update(double dt)
             Math::vec2 returnPosition = player->GetPosition();
 
             DoorActionHandler::Result result = DoorActionHandler::Execute(*interactedDoor, *player);
-
-            if (result.event == Door::Event::BossStartReflect)
-            {
-                if (bossController != nullptr)
-                {
-                    bossController->StartReflectFromDoor(returnPosition);
-                }
-            }
 
             player->isInteracting     = false;
             player->interactionTarget = nullptr;
@@ -545,12 +543,6 @@ void Boss1::DrawImGui()
 
 void Boss1::Unload()
 {
-    delete constellation;
-    constellation = nullptr;
-
-    delete bossController;
-    bossController = nullptr;
-
     delete bossPatternController;
     bossPatternController = nullptr;
 
@@ -578,7 +570,10 @@ void Boss1::Unload()
     bossController = nullptr;
 
     ClearGSComponents();
+
     player           = nullptr;
     mapManager       = nullptr;
     worldTextManager = nullptr;
+    puzzleTarget     = nullptr;
+    puzzleGate       = nullptr;
 }

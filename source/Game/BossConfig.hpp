@@ -10,7 +10,7 @@ namespace Boss::Config
     inline constexpr float ArenaRightX  = 3000.0f;
     inline constexpr float ArenaTopY    = 1440.0f;
     inline constexpr float ArenaCenterX = 1500.0f;
-    inline constexpr float ArenaCenterY = 500.0f;
+    inline constexpr float ArenaCenterY = 250.0f;
 
     // Ground line used for yellow laser/light-orb intersection.
     // Adjust this later to match the actual boss arena floor.
@@ -97,7 +97,7 @@ namespace Boss::Config
     inline constexpr double FourWayLaserActiveTime = 4.0;
 
     // Unit: degrees per second.
-    inline constexpr float FourWayRotateSpeed = 45.0f;
+    inline constexpr float FourWayRotateSpeed = 20.0f;
 
     // Reserved for later if the pattern needs a limited sweep angle.
     inline constexpr float FourWayRotateMinAngle = 90.0f;
@@ -125,6 +125,7 @@ namespace Boss::Config
 
     inline constexpr double RedTrackingLaserLength     = 3200.0;
     inline constexpr double RedTrackingLaserActiveTime = 2.5;
+    inline constexpr float  RedTrackingRotateSpeed     = 120.0f;
 
     // -------------------------------------------------------------------------
     // Triple Short Parry Laser

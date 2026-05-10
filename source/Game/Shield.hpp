@@ -92,9 +92,9 @@ private:
     const double shieldColorRecoveryTime = 1.0;
 
     // State machine logic
-    bool   isGuarding = false;
-    double cooldownTimer = 0.0;
-    const double shieldCooldown = 1.0;
+    bool         isGuarding     = false;
+    double       cooldownTimer  = 0.0;
+    const double shieldCooldown = 0.1;
 
     bool isParrying        = false;
     bool parryWindowActive = false;

@@ -3,6 +3,7 @@
 #include "Engine/Rect.hpp"
 
 #include <string>
+#include <vector>
 
 namespace CS230
 {

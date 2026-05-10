@@ -5,6 +5,8 @@
 #include "Engine/Engine.hpp"
 #include "Player.hpp"
 
+#include <cmath>
+
 namespace Boss
 {
     LightOrb::LightOrb(Math::vec2 spawnPosition)

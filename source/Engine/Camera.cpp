@@ -59,8 +59,15 @@ void CS230::Camera::SetLimit(Math::irect new_limit)
 // }
 void CS230::Camera::Update(const Math::vec2& target_position, double dt)
 {
-    position.x += (target_position.x - position.x) * smoothing * static_cast<float>(dt);
-    position.y += (target_position.y - position.y) * smoothing * static_cast<float>(dt);
+    if (smoothing <= 0.0f)
+    {
+        position = target_position;
+    }
+    else
+    {
+        position.x += (target_position.x - position.x) * smoothing * static_cast<float>(dt);
+        position.y += (target_position.y - position.y) * smoothing * static_cast<float>(dt);
+    }
 
     if (position.x < limit.Left())
     {
