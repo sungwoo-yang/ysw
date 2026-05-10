@@ -58,23 +58,31 @@ set(SOURCE_CODE
     Engine/BackgroundElement.hpp Engine/BackgroundElement.cpp
 
     Game/Bonfire.hpp Game/Bonfire.cpp
+    Game/Boss1.hpp Game/Boss1.cpp
     Game/BossController.hpp Game/BossController.cpp
+    Game/BossLaser.hpp Game/BossLaser.cpp
+    Game/BossLaserManager.hpp Game/BossLaserManager.cpp
+    Game/BossPatternController.hpp Game/BossPatternController.cpp
+    Game/BossTypes.hpp
+    Game/BossConfig.hpp
     Game/Constellation.hpp Game/Constellation.cpp
     Game/Door.hpp Game/Door.cpp
     Game/DoorActionHandler.hpp Game/DoorActionHandler.cpp
     Game/Gate.hpp Game/Gate.cpp
     Game/Laser.hpp Game/Laser.cpp
     Game/LaserStar.hpp Game/LaserStar.cpp
+    Game/LightOrb.hpp Game/LightOrb.cpp
+    Game/LightOrbManager.hpp Game/LightOrbManager.cpp
     Game/MainMenu.hpp Game/MainMenu.cpp
     Game/MiniMap.hpp Game/MiniMap.cpp
     Game/Mirror.hpp Game/Mirror.cpp
     Game/Mode1.hpp Game/Mode1.cpp
-    Game/Boss1.hpp Game/Boss1.cpp
     Game/ObjectFactory.hpp Game/ObjectFactory.cpp
     Game/Player.hpp Game/Player.cpp
     Game/PushableMirror.hpp Game/PushableMirror.cpp
     Game/RedLaser.hpp Game/RedLaser.cpp
     Game/Shield.hpp Game/Shield.cpp
+    Game/ShieldEnergy.hpp Game/ShieldEnergy.cpp
     Game/Sign.hpp Game/Sign.cpp
     Game/Splash.hpp Game/Splash.cpp
     Game/Star.hpp Game/Star.cpp
