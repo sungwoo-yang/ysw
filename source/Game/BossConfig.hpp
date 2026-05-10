@@ -145,8 +145,6 @@ namespace Boss::Config
     // Charge Shot
     // -------------------------------------------------------------------------
 
-    inline constexpr float ChargeHoldTime = 0.8f;
-
     inline constexpr double ChargeShotLength       = 3200.0;
     inline constexpr double ChargeShotBeamDuration = 0.25;
     inline constexpr double ChargeShotWidth        = 18.0;
