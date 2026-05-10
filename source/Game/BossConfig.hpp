@@ -75,10 +75,10 @@ namespace Boss::Config
     // Pattern Timing
     // -------------------------------------------------------------------------
 
-    inline constexpr float PatternInterval = 2.0f;
+    inline constexpr float PatternInterval = 3.0f;
 
     // This is the warning telegraph time currently used by BossPatternController.
-    inline constexpr double BossLaserWarningTime = 1.0;
+    inline constexpr double BossLaserWarningTime = 2.0;
 
     // Keep this alias only if older code still references Config::WarningTime.
     inline constexpr float WarningTime = static_cast<float>(BossLaserWarningTime);
@@ -107,7 +107,7 @@ namespace Boss::Config
     // Cross Wall Yellow Laser
     // -------------------------------------------------------------------------
 
-    inline constexpr double CrossWallLaserLength     = 3200.0;
+    inline constexpr double CrossWallLaserLength     = 5000.0;
     inline constexpr double CrossWallLaserActiveTime = 1.2;
 
     // -------------------------------------------------------------------------
@@ -123,18 +123,20 @@ namespace Boss::Config
     // Red Tracking Laser
     // -------------------------------------------------------------------------
 
-    inline constexpr double RedTrackingLaserLength     = 3200.0;
+    inline constexpr double RedTrackingLaserLength     = 2000.0;
     inline constexpr double RedTrackingLaserActiveTime = 2.5;
-    inline constexpr float  RedTrackingRotateSpeed     = 120.0f;
+    inline constexpr float  RedTrackingRotateSpeed     = 10.0f;
 
     // -------------------------------------------------------------------------
     // Triple Short Parry Laser
     // -------------------------------------------------------------------------
 
+
     inline constexpr int TripleShortLaserCount = 3;
 
     inline constexpr float TripleShortLaserInterval = 0.4f;
-    inline constexpr float TripleShortLaserDuration = 0.2f;
+    inline constexpr float TripleShortLaserDuration = 0.8f;
 
-    inline constexpr double ShortParryLaserLength = 1200.0;
+    inline constexpr double ShortParryLaserLength = 160.0;
+    inline constexpr double ShortParryLaserSpeed  = 900.0;
 }

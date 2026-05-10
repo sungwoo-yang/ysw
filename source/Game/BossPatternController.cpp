@@ -316,6 +316,23 @@ namespace Boss
 
     void BossPatternController::UpdateTripleShortParryLaser(double dt)
     {
+        for (BossLaser* laser : activePatternLasers)
+        {
+            if (laser == nullptr || laser->IsExpired())
+            {
+                continue;
+            }
+
+            if (laser->GetLaserType() != LaserType::ShortParry)
+            {
+                continue;
+            }
+
+            const Math::vec2 newStart = laser->GetStartPosition() + laser->GetDirection() * (Config::ShortParryLaserSpeed * dt);
+
+            laser->SetStartPosition(newStart);
+        }
+
         if (tripleShortFiredCount >= Config::TripleShortLaserCount)
         {
             return;
@@ -358,14 +375,14 @@ namespace Boss
             return;
         }
 
-        const Math::vec2 start = { static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::ArenaTopY) };
+        const Math::vec2 start = GetMainStarPosition();
 
         const Math::vec2 target = player != nullptr ? player->GetPosition() : Math::vec2{ static_cast<double>(Config::ArenaCenterX), static_cast<double>(Config::GroundY) };
 
         const Math::vec2 direction = (target - start).Normalize();
 
-        activePatternLasers.push_back(laserManager->SpawnLaser(
-            start, direction, LaserType::ShortParry, LaserSource::MainConstellation, Config::ShortParryLaserLength, Config::BossLaserWarningTime, Config::TripleShortLaserDuration));
+        activePatternLasers.push_back(
+            laserManager->SpawnLaser(start, direction, LaserType::ShortParry, LaserSource::MainConstellation, Config::ShortParryLaserLength, 0.0, Config::TripleShortLaserDuration));
 
         ++tripleShortFiredCount;
     }

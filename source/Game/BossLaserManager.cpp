@@ -15,6 +15,9 @@ namespace Boss
 
     void BossLaserManager::Update(double dt)
     {
+        Shield* shield                = player != nullptr ? player->GetShield() : nullptr;
+        bool    shouldOpenParryWindow = false;
+
         for (BossLaser* laser : lasers)
         {
             if (laser == nullptr)
@@ -24,11 +27,21 @@ namespace Boss
 
             laser->Update(dt);
 
+            if (!laser->IsExpired() && laser->CanParry())
+            {
+                shouldOpenParryWindow = true;
+            }
+
             if (laser->IsActiveLaser())
             {
                 HandleLightOrbSpawn(*laser);
                 HandlePlayerCollision(*laser);
             }
+        }
+
+        if (shield != nullptr)
+        {
+            shield->SetParryWindowActive(shouldOpenParryWindow);
         }
 
         RemoveExpiredLasers();
@@ -45,14 +58,7 @@ namespace Boss
         }
     }
 
-    BossLaser* BossLaserManager::SpawnLaser(
-        Math::vec2 start,
-        Math::vec2 direction,
-        LaserType type,
-        LaserSource source,
-        double length,
-        double warningTime,
-        double activeTime)
+    BossLaser* BossLaserManager::SpawnLaser(Math::vec2 start, Math::vec2 direction, LaserType type, LaserSource source, double length, double warningTime, double activeTime)
     {
         BossLaser* laser = new BossLaser(start, direction, type, source, length, warningTime, activeTime);
         lasers.push_back(laser);
@@ -62,6 +68,13 @@ namespace Boss
 
     void BossLaserManager::Clear()
     {
+        Shield* shield = player != nullptr ? player->GetShield() : nullptr;
+
+        if (shield != nullptr)
+        {
+            shield->SetParryWindowActive(false);
+        }
+
         for (BossLaser* laser : lasers)
         {
             if (laser != nullptr)
@@ -153,8 +166,7 @@ namespace Boss
     {
         lasers.erase(
             std::remove_if(
-                lasers.begin(),
-                lasers.end(),
+                lasers.begin(), lasers.end(),
                 [](BossLaser* laser)
                 {
                     if (laser == nullptr)

@@ -77,6 +77,13 @@ void Boss1::DisableLegacyLaserStars()
         return;
     }
 
+    LaserStar* mainStar = nullptr;
+
+    if (constellation != nullptr)
+    {
+        mainStar = constellation->GetMainStar();
+    }
+
     for (auto obj : gom->GetObjects())
     {
         if (obj == nullptr)
@@ -84,10 +91,21 @@ void Boss1::DisableLegacyLaserStars()
             continue;
         }
 
-        if (obj->TypeName() == "LaserStar")
+        if (obj->TypeName() != "LaserStar")
         {
-            static_cast<LaserStar*>(obj)->SetEnabled(false);
+            continue;
         }
+
+        LaserStar* laserStar = static_cast<LaserStar*>(obj);
+
+        if (laserStar == mainStar)
+        {
+            laserStar->SetIsActive(false);
+            laserStar->SetVisible(true);
+            continue;
+        }
+
+        laserStar->SetEnabled(false);
     }
 }
 
