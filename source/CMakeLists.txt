@@ -83,6 +83,7 @@ set(SOURCE_CODE
     Game/RedLaser.hpp Game/RedLaser.cpp
     Game/Shield.hpp Game/Shield.cpp
     Game/ShieldEnergy.hpp Game/ShieldEnergy.cpp
+    Game/ShieldChargeShot.hpp Game/ShieldChargeShot.cpp
     Game/Sign.hpp Game/Sign.cpp
     Game/Splash.hpp Game/Splash.cpp
     Game/Star.hpp Game/Star.cpp

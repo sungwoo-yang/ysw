@@ -140,4 +140,15 @@ namespace Boss::Config
     inline constexpr double ShortParryLaserSpeed      = 900.0;
     inline constexpr double ShortParryLaserRange      = 3000.0;
     inline constexpr double ShortParryLaserActiveTime = ShortParryLaserRange / ShortParryLaserSpeed;
+
+    // -------------------------------------------------------------------------
+    // Charge Shot
+    // -------------------------------------------------------------------------
+
+    inline constexpr float ChargeHoldTime = 0.8f;
+
+    inline constexpr double ChargeShotLength       = 3200.0;
+    inline constexpr double ChargeShotBeamDuration = 0.25;
+    inline constexpr double ChargeShotWidth        = 18.0;
+    inline constexpr double ChargeShotHitRadius    = 48.0;
 }

@@ -55,6 +55,14 @@ void TargetStar::OnHit()
     isBeingHit = true;
 }
 
+void TargetStar::ActivateInstantly()
+{
+    isHit = true;
+    isBeingHit = false;
+    hitTimer = activationTime;
+    color = 0x00FF00FF;
+}
+
 bool TargetStar::IsHit() const
 {
     return isHit;

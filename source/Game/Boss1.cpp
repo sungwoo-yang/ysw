@@ -12,6 +12,7 @@
 #include "ObjectFactory.hpp"
 #include "Player.hpp"
 #include "RedHitParticle.hpp"
+#include "ShieldChargeShot.hpp"
 #include "ShieldEnergy.hpp"
 #include "TargetStar.hpp"
 #include "WorldTextManager.hpp"
@@ -209,6 +210,13 @@ void Boss1::Update(double dt)
                 bossPatternController->SetMainStar(constellation->GetMainStar());
             }
 
+            shieldChargeShot = new Boss::ShieldChargeShot(player, shieldEnergy);
+
+            if (constellation != nullptr)
+            {
+                shieldChargeShot->SetTargetStars(constellation->GetTargetStars());
+            }
+
             bossPatternController->SetEnabled(false);
 
             currentState = State::Intro;
@@ -305,6 +313,11 @@ void Boss1::Update(double dt)
         if (lightOrbManager != nullptr)
         {
             lightOrbManager->Update(dt);
+        }
+
+        if (shieldChargeShot != nullptr)
+        {
+            shieldChargeShot->Update(dt);
         }
     }
 
@@ -449,6 +462,11 @@ void Boss1::Draw()
         {
             bossLaserManager->Draw(view_projection_matrix);
         }
+
+        if (shieldChargeShot != nullptr)
+        {
+            shieldChargeShot->Draw(view_projection_matrix);
+        }
     }
 
     renderer.EndScene();
@@ -460,7 +478,6 @@ void Boss1::Draw()
     {
         worldTextManager->Draw();
     }
-
 
     if (currentState == State::GameOver)
     {
@@ -540,6 +557,13 @@ void Boss1::DrawImGui()
         ImGui::ProgressBar(shieldEnergy->GetRatio(), ImVec2(200.0f, 18.0f));
     }
 
+    if (shieldChargeShot != nullptr)
+    {
+        ImGui::Text("Charge Shot Charging: %s", shieldChargeShot->IsCharging() ? "true" : "false");
+        ImGui::Text("Charge Shot Ready: %s", shieldChargeShot->IsReadyToFire() ? "true" : "false");
+        ImGui::ProgressBar(shieldChargeShot->GetChargeRatio(), ImVec2(200.0f, 18.0f));
+    }
+
     if (lightOrbManager != nullptr)
     {
         ImGui::Text("Light Orbs: %d", lightOrbManager->GetActiveOrbCount());
@@ -563,6 +587,9 @@ void Boss1::Unload()
 {
     delete bossPatternController;
     bossPatternController = nullptr;
+
+    delete shieldChargeShot;
+    shieldChargeShot = nullptr;
 
     if (bossLaserManager != nullptr)
     {

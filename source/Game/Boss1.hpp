@@ -17,6 +17,7 @@ namespace Boss
     class LightOrbManager;
     class BossLaserManager;
     class BossPatternController;
+    class ShieldChargeShot;
 }
 
 class Player;
@@ -72,6 +73,7 @@ private:
     Boss::LightOrbManager*       lightOrbManager       = nullptr;
     Boss::BossLaserManager*      bossLaserManager      = nullptr;
     Boss::BossPatternController* bossPatternController = nullptr;
+    Boss::ShieldChargeShot*      shieldChargeShot      = nullptr;
 
     double       playingTimer      = 0.0;
     bool         isCameraScaling   = false;

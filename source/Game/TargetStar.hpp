@@ -12,6 +12,8 @@ public:
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
 
     void OnHit();
+    void ActivateInstantly();
+
     bool IsHit() const;
     double GetRadius() const;
 
