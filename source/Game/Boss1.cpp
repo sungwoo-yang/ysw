@@ -110,6 +110,34 @@ void Boss1::DisableLegacyLaserStars()
     }
 }
 
+void Boss1::EnterClear()
+{
+    if (currentState == State::Clear)
+    {
+        return;
+    }
+
+    if (bossPatternController != nullptr)
+    {
+        bossPatternController->SetEnabled(false);
+    }
+
+    if (bossLaserManager != nullptr)
+    {
+        bossLaserManager->Clear();
+    }
+
+    if (lightOrbManager != nullptr)
+    {
+        lightOrbManager->Clear();
+    }
+
+    currentState = State::Clear;
+    clearTimer   = 0.0;
+
+    Engine::GetLogger().LogEvent("Boss Clear: Constellation restored.");
+}
+
 void Boss1::EnterGameOver(const std::string& reason)
 {
     if (currentState == State::GameOver)
@@ -180,6 +208,14 @@ void Boss1::Update(double dt)
         }
 
         return;
+    }
+    
+    if (currentState == State::Clear)
+    {
+        clearTimer += dt;
+
+        // For now, stay in clear state.
+        // Later, connect this to a door, cutscene, or next stage transition.
     }
 
     if (currentState == State::Loading)
@@ -268,7 +304,6 @@ void Boss1::Update(double dt)
         return;
     }
 
-
     if (currentState == State::Playing)
     {
         playingTimer += dt;
@@ -318,6 +353,11 @@ void Boss1::Update(double dt)
         if (shieldChargeShot != nullptr)
         {
             shieldChargeShot->Update(dt);
+        }
+
+        if (constellation != nullptr && constellation->IsRestored())
+        {
+            EnterClear();
         }
     }
 
@@ -518,7 +558,10 @@ void Boss1::DrawImGui()
         switch (currentState)
         {
             case State::Loading: stateStr = "Loading"; break;
+            case State::Intro: stateStr = "Intro"; break;
             case State::Playing: stateStr = "Playing"; break;
+            case State::Clear: stateStr = "Clear"; break;
+            case State::GameOver: stateStr = "GameOver"; break;
         }
         ImGui::Text("Current State: %s", stateStr);
 

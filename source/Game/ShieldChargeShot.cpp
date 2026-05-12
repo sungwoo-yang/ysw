@@ -109,7 +109,18 @@ namespace Boss
             }
 
             const Math::vec2 rawPreviewEnd = start + direction * Config::ChargeShotLength;
-            const Math::vec2 previewEnd    = ClipEndByBlockingObjects(start, rawPreviewEnd);
+            Math::vec2       previewEnd    = ClipEndByBlockingObjects(start, rawPreviewEnd);
+
+            TargetStar* previewTarget = FindFirstHitTarget(start, previewEnd);
+
+            if (previewTarget != nullptr)
+            {
+                const Math::vec2 toTarget          = previewTarget->GetPosition() - start;
+                const double     projectedDistance = std::max(0.0, toTarget.Dot(direction));
+                const double     stopDistance      = std::max(0.0, projectedDistance - previewTarget->GetRadius());
+
+                previewEnd = start + direction * stopDistance;
+            }
 
             const CS200::RGBA previewColor = readyToFire ? 0xFFFFAAFF : 0x88FFFFFF;
             renderer.DrawLine(start, previewEnd, previewColor, 4.0);
