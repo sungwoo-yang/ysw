@@ -40,6 +40,7 @@ public:
 
 private:
     void InitGame();
+    bool CanPause() const override;
 
     static std::optional<Math::vec2> pendingReturnPosition;
 
@@ -51,11 +52,11 @@ private:
 
     State currentState = State::Loading;
 
-    CS230::Camera*                     camera;
-    Player*                            player;
-    CS230::MapManager*                 mapManager;
-    WorldTextManager*                  worldTextManager;
-    MiniMap*                           miniMap;
+    CS230::Camera*     camera           = nullptr;
+    Player*            player           = nullptr;
+    CS230::MapManager* mapManager       = nullptr;
+    WorldTextManager*  worldTextManager = nullptr;
+    MiniMap*           miniMap          = nullptr;
     std::map<std::string, std::string> signTexts;
 
     OpenGL::CompiledShader    backgroundShader;

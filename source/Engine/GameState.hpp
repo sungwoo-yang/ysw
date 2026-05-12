@@ -22,6 +22,10 @@ namespace CS230
         virtual void          Draw()            = 0;
         virtual void          DrawImGui()       = 0;
         virtual gsl::czstring GetName() const   = 0;
+        virtual bool          CanPause() const
+        {
+            return false;
+        }
         virtual ~GameState()                    = default;
 
         template <typename T>

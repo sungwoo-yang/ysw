@@ -32,6 +32,7 @@ namespace CS230
         void          ForceResize(int desired_width, int desired_height);
         void          SetFullscreen(bool fullscreen);
         void          SetBordered(bool bordered);
+        void          SetVSync(bool enabled);
         SDL_Window*   GetSDLWindow() const;
         SDL_GLContext GetGLContext() const;
 

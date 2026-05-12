@@ -46,6 +46,9 @@ namespace CS230
 
         void HoldFadeIn(bool hold) { mHoldFadeIn = hold; }
 
+        template <typename STATE>
+        void SetPauseState();
+
         // Change to template function
         template <typename STATE>
         void ChangeStateWithFade();
@@ -61,6 +64,7 @@ namespace CS230
         float mFadeAlpha = 0.0f;
         float mFadeSpeed = 0.5f; 
         std::function<void()> mFadeAction;
+        std::function<void()> mPauseAction;
         bool mHoldFadeIn = false;
     };
 
@@ -81,6 +85,12 @@ namespace CS230
     }
     
     // Change to template function implementation
+    template <typename STATE>
+    void GameStateManager::SetPauseState()
+    {
+        mPauseAction = [this]() { PushState<STATE>(); };
+    }
+
     template <typename STATE>
     void GameStateManager::ChangeStateWithFade()
     {

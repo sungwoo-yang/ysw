@@ -12,6 +12,7 @@
 // #include "Game/Mainmenu.hpp"
 #include "Game/Mode1.hpp"
 #include "Game/Boss1.hpp"
+#include "Game/PauseMenu.hpp"
 #include "Game/Splash.hpp"
 #include <iostream>
 
@@ -72,10 +73,11 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
         engine.Start("OLLIM");
 
         Engine::GetWindow().SetFullscreen(true);
-        
+
         engine.AddFont("Assets/fonts/Font_Outlined.png");
         engine.AddFont("Assets/fonts/Font_Simple.png");
 
+        engine.GetGameStateManager().SetPauseState<PauseMenu>();
         engine.GetGameStateManager().PushState<Splash>();
 
 #if !defined(__EMSCRIPTEN__)

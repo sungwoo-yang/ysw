@@ -20,6 +20,18 @@
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
 #include "Engine/MapManager.h"
+#include "Engine/BackgroundElement.hpp"
+#include "Engine/Engine.hpp"
+#include "Engine/Font.hpp"
+#include "Engine/GameObjectManager.hpp"
+#include "Engine/GameObjectTypes.hpp"
+#include "Engine/GameStateManager.hpp"
+#include "Engine/Input.hpp"
+#include "Engine/Logger.hpp"
+#include "Engine/MapElement.h"
+#include "Engine/MapManager.h"
+#include "Engine/ShowCollision.hpp"
+#include "Engine/TextureManager.hpp"
 #include "Engine/Window.hpp"
 
 #include "OpenGL/GL.hpp"
@@ -109,6 +121,11 @@ void Mode3::Load()
     AudioManager::LoadSound("SFX_Landing", std::filesystem::path("Assets/sounds/Landing_Effect.mp3"), AudioTypes::SFX);
 }
 
+bool Mode3::CanPause() const
+{
+    return currentState == State::Playing;
+}
+
 void Mode3::InitGame()
 {
     auto gom = GetGSComponent<CS230::GameObjectManager>();
@@ -149,7 +166,6 @@ void Mode3::Update(double dt)
             Engine::GetLogger().LogEvent("Mode3 Map Loading Complete! Starting Game...");
             InitGame();
             currentState = State::Playing;
-
             Engine::GetGameStateManager().HoldFadeIn(false);
         }
         return;

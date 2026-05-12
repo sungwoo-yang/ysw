@@ -35,10 +35,10 @@ void Mode1::Load()
 
     AddGSComponent(new CS230::GameObjectManager());
 
-    player = new Player({ 0.0, 0.0 });
+    player = new Player({ 0.0, 400.0 });
 
     mapManager = new CS230::MapManager();
-    signTexts  = {
+    signTexts = {
         { "sign_01",                  "A/D to Move" },
         { "sign_02",           "W or Space to Jump" },
         { "sign_03", "Press 'F' at Bonfire to Save" },
@@ -46,19 +46,15 @@ void Mode1::Load()
     };
     mapManager->SetGameObjectFactory(ObjectFactory::Create(player, signTexts));
 
-    camera = new CS230::Camera(
-        Math::rect{
-            {   0,   0 },
-            { 800, 600 }
-    });
+    camera = new CS230::Camera(Math::rect{{ 0, 0 }, { 800, 600 }});
     Math::ivec2 winSize = Engine::GetWindow().GetSize();
 
     postProcessor.Initialize(winSize);
 
     camera->SetLimit(
         Math::irect{
-            {              static_cast<int>(level1_boundary.Left()), -5000 },
-            { static_cast<int>(level1_boundary.Right()) - winSize.x,  5000 }
+            { static_cast<int>(level1_boundary.Left()), -5000 },
+            { static_cast<int>(level1_boundary.Right()) - winSize.x, 5000 }
     });
     AddGSComponent(camera);
 
@@ -66,18 +62,23 @@ void Mode1::Load()
     mapManager->LoadMap();
     AddGSComponent(mapManager);
 
-    backgroundShader                = OpenGL::CreateShader(std::filesystem::path("Assets/shaders/Cradle.vert"), std::filesystem::path("Assets/shaders/Cradle.frag"));
+    backgroundShader = OpenGL::CreateShader(std::filesystem::path("Assets/shaders/Cradle.vert"), std::filesystem::path("Assets/shaders/Cradle.frag"));
     std::vector<float> quadVertices = { -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 1.0f };
-    backgroundVBO                   = OpenGL::CreateBuffer(OpenGL::BufferType::Vertices, std::as_bytes(std::span{ quadVertices }));
+    backgroundVBO = OpenGL::CreateBuffer(OpenGL::BufferType::Vertices, std::as_bytes(std::span{ quadVertices }));
     OpenGL::VertexBuffer vb;
-    vb.Handle     = backgroundVBO;
-    vb.Layout     = OpenGL::BufferLayout({ OpenGL::Attribute::Float2, OpenGL::Attribute::Float2 });
+    vb.Handle = backgroundVBO;
+    vb.Layout = OpenGL::BufferLayout({ OpenGL::Attribute::Float2, OpenGL::Attribute::Float2 });
     backgroundVAO = OpenGL::CreateVertexArrayObject({ vb });
 
     miniMap = new MiniMap();
     miniMap->SetWorldBounds(level1_boundary);
     AudioManager::LoadSound("BGM_Virgo", std::filesystem::path("Assets/sounds/Virgo.mp3"), AudioTypes::BGM);
     AudioManager::LoadSound("SFX_Landing", std::filesystem::path("Assets/sounds/Landing_Effect.mp3"), AudioTypes::SFX);
+}
+
+bool Mode1::CanPause() const
+{
+    return currentState == State::Playing;
 }
 
 void Mode1::InitGame()
@@ -124,8 +125,7 @@ void Mode1::Update(double dt)
 
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::M))
     {
-        if (miniMap)
-            miniMap->ToggleMode();
+        if (miniMap) miniMap->ToggleMode();
     }
 
     auto gom = GetGSComponent<CS230::GameObjectManager>();
@@ -152,22 +152,17 @@ void Mode1::Update(double dt)
         if (player->interactionTarget == nullptr)
             player->isInteracting = false;
 
-        Math::vec2 winSize      = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
-        float      currentScale = 0.8f;
+        Math::vec2 winSize = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
+        float currentScale = 0.8f;
         camera->SetScale(currentScale);
 
         Math::vec2 scaledWinSize = winSize / currentScale;
-        Math::vec2 targetPos     = player->GetPosition() - Math::vec2{ scaledWinSize.x * 0.5, scaledWinSize.y * 0.5 };
+        Math::vec2 targetPos = player->GetPosition() - Math::vec2{ scaledWinSize.x * 0.5, scaledWinSize.y * 0.5 };
 
         targetPos.x = std::clamp(targetPos.x, level1_boundary.Left(), level1_boundary.Right() - scaledWinSize.x);
         targetPos.y = std::clamp(targetPos.y, -800.0, 800.0);
 
         camera->Update(targetPos, dt);
-    }
-
-    if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
-    {
-        player->SetPosition({ 3000, 300 });
     }
 
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))
@@ -188,12 +183,12 @@ void Mode1::Draw()
         Engine::GetWindow().Clear(CS200::BLACK);
         Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
         renderer.BeginScene(screen_matrix);
-        CS230::Font& font       = Engine::GetFont(0);
-        auto         loadingTex = font.PrintToTexture("Loading Tutorial...", CS200::WHITE);
+        CS230::Font& font = Engine::GetFont(0);
+        auto loadingTex = font.PrintToTexture("Loading Tutorial...", CS200::WHITE);
         if (loadingTex)
         {
             Math::vec2 centerPos = { display_size_int.x * 0.5, display_size_int.y * 0.5 };
-            Math::vec2 drawPos   = centerPos - (static_cast<Math::vec2>(loadingTex->GetSize()) * 0.5);
+            Math::vec2 drawPos = centerPos - (static_cast<Math::vec2>(loadingTex->GetSize()) * 0.5);
             loadingTex->Draw(Math::TranslationMatrix(drawPos));
         }
         renderer.EndScene();
@@ -203,7 +198,7 @@ void Mode1::Draw()
     postProcessor.BeginSceneRender();
     {
         GL::UseProgram(backgroundShader.Shader);
-        GLint resLoc  = GL::GetUniformLocation(backgroundShader.Shader, "u_resolution");
+        GLint resLoc = GL::GetUniformLocation(backgroundShader.Shader, "u_resolution");
         GLint timeLoc = GL::GetUniformLocation(backgroundShader.Shader, "u_time");
         GL::Uniform2f(resLoc, static_cast<float>(display_size_int.x), static_cast<float>(display_size_int.y));
         GL::Uniform1f(timeLoc, static_cast<float>(shaderTime));
@@ -247,12 +242,10 @@ void Mode1::DrawImGui()
         ImGui::Text("Camera Pos: (%.1f, %.1f)", camPos.x, camPos.y);
     }
     auto gom = GetGSComponent<CS230::GameObjectManager>();
-    if (gom)
-        gom->DrawAllImGui();
+    if (gom) gom->DrawAllImGui();
     ImGui::End();
 #endif
-    if (miniMap)
-        miniMap->DrawImGui();
+    if (miniMap) miniMap->DrawImGui();
 }
 
 void Mode1::Unload()
@@ -266,9 +259,9 @@ void Mode1::Unload()
     postProcessor.Shutdown();
 
     ClearGSComponents();
-    player                   = nullptr;
-    mapManager               = nullptr;
-    worldTextManager         = nullptr;
+    player = nullptr;
+    mapManager = nullptr;
+    worldTextManager = nullptr;
     textureLayer3_Silhouette = nullptr;
 
     delete miniMap;

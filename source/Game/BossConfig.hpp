@@ -75,7 +75,7 @@ namespace Boss::Config
     // Pattern Timing
     // -------------------------------------------------------------------------
 
-    inline constexpr float PatternInterval = 2.5f;
+    inline constexpr float PatternInterval = 3.0f;
 
     // This is the warning telegraph time currently used by BossPatternController.
     inline constexpr double BossLaserWarningTime = 2.0;

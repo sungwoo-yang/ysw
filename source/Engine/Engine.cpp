@@ -18,12 +18,14 @@
 #include "GameStateManager.hpp"
 #include "Input.hpp"
 #include "Logger.hpp"
+#include "SettingsManager.hpp"
 #include "TextureManager.hpp"
 #include "Timer.hpp"
 #include "Window.hpp"
 
 #include <algorithm>
 #include <chrono>
+#include <thread>
 
 // Pimpl implementation class
 class Engine::Impl
@@ -169,6 +171,18 @@ void Engine::updateEnvironment()
 {
     auto&  environment       = impl->environment;
     double actualElaspedTime = impl->timer.GetElapsedSeconds();
+
+    const int frameLimit = CS230::SettingsManager::Instance().GetFrameLimit();
+    if (frameLimit > 0)
+    {
+        const double targetFrameTime = 1.0 / static_cast<double>(frameLimit);
+        if (actualElaspedTime < targetFrameTime)
+        {
+            std::this_thread::sleep_for(std::chrono::duration<double>(targetFrameTime - actualElaspedTime));
+            actualElaspedTime = impl->timer.GetElapsedSeconds();
+        }
+    }
+
     environment.DeltaTime    = (actualElaspedTime > 0.05) ? 0.05 : actualElaspedTime;
     impl->timer.ResetTimeStamp();
     environment.ElapsedTime += environment.DeltaTime;

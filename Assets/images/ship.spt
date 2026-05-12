@@ -1,0 +1,11 @@
+Assets/Ship.png
+HotSpot 50 41
+HotSpot -15 -41
+HotSpot 15 -41
+HotSpot -25 25
+HotSpot 25 25
+FrameSize 100 82
+NumFrames 14
+CircleCollision 35
+Anim Assets/None.anm
+Anim Assets/Explosion.anm

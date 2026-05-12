@@ -1,0 +1,19 @@
+Assets/Cat.png
+FrameSize 128 128
+HotSpot 65 15
+Frame 0 0
+Frame 128 0
+Frame 256 0 
+Frame 384 0
+Frame 512 0
+Frame 0 128 
+Frame 128 128 
+Frame 256 128 
+Frame 384 128 
+Frame 512 128
+Anim Assets/CatIdle.anm
+Anim Assets/CatRunning.anm
+Anim Assets/CatJumping.anm
+Anim Assets/CatFalling.anm
+Anim Assets/CatSkidding.anm
+RectCollision -31 0 36 64

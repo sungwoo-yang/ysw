@@ -8,11 +8,12 @@
  */
 
 #include "GameStateManager.hpp"
-#include "Engine.hpp"
-#include "GameObjectManager.hpp"
 #include "CS200/IRenderer2D.hpp"
 #include "CS200/NDC.hpp"
 #include "CS200/RGBA.hpp"
+#include "Engine.hpp"
+#include "GameObjectManager.hpp"
+#include "Input.hpp"
 #include "Window.hpp"
 
 namespace CS230
@@ -59,7 +60,7 @@ namespace CS230
         }
         else if (mFadeState == FadeState::FadeIn)
         {
-            if (!mHoldFadeIn) 
+            if (!mHoldFadeIn)
             {
                 mFadeAlpha -= static_cast<float>(mFadeSpeed * dt);
                 if (mFadeAlpha <= 0.0f)
@@ -74,6 +75,13 @@ namespace CS230
         {
             return;
         }
+
+        if (mFadeState == FadeState::None && mPauseAction && mGameStateStack.back()->CanPause() && Engine::GetInput().KeyJustPressed(Input::Keys::Escape))
+        {
+            mPauseAction();
+            return;
+        }
+
         is_updating = true;
 
         mGameStateStack.back()->Update(dt);
@@ -86,6 +94,7 @@ namespace CS230
 
         is_updating = false;
     }
+
     void GameStateManager::Draw()
     {
         for (auto& game_state : mGameStateStack)
@@ -95,17 +104,17 @@ namespace CS230
 
         if (mFadeAlpha > 0.0f)
         {
-            auto& renderer = Engine::GetRenderer2D();
+            auto&       renderer     = Engine::GetRenderer2D();
             Math::ivec2 display_size = Engine::GetWindow().GetSize();
 
             renderer.BeginScene(CS200::build_ndc_matrix(display_size));
 
-            CS200::RGBA fadeColor = CS200::pack_color({0.0f, 0.0f, 0.0f, mFadeAlpha});
-            
-            double width = static_cast<double>(display_size.x);
+            CS200::RGBA fadeColor = CS200::pack_color({ 0.0f, 0.0f, 0.0f, mFadeAlpha });
+
+            double width  = static_cast<double>(display_size.x);
             double height = static_cast<double>(display_size.y);
-            
-            Math::TransformationMatrix transform = Math::TranslationMatrix(Math::vec2{width / 2.0, height / 2.0}) * Math::ScaleMatrix(Math::vec2{width, height});
+
+            Math::TransformationMatrix transform = Math::TranslationMatrix(Math::vec2{ width / 2.0, height / 2.0 }) * Math::ScaleMatrix(Math::vec2{ width, height });
 
             renderer.DrawRectangle(transform, fadeColor, CS200::CLEAR, 0.0);
 

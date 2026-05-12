@@ -57,6 +57,53 @@ public:
     bool ConsumeParryState();
 
     bool IsGuardUp() const;
+    bool IsCoolingDown() const
+    {
+        return cooldownTimer > 0.0;
+    }
+
+    bool IsFrozen() const
+    {
+        return isShieldFrozen;
+    }
+
+    double GetCooldownRatio() const
+    {
+        if (shieldCooldown <= 0.0)
+        {
+            return 0.0;
+        }
+
+        double ratio = cooldownTimer / shieldCooldown;
+        if (ratio < 0.0)
+        {
+            return 0.0;
+        }
+        if (ratio > 1.0)
+        {
+            return 1.0;
+        }
+        return ratio;
+    }
+
+    double GetFreezeRatio() const
+    {
+        if (shieldFreezeDuration <= 0.0)
+        {
+            return 0.0;
+        }
+
+        double ratio = shieldFrozenTimer / shieldFreezeDuration;
+        if (ratio < 0.0)
+        {
+            return 0.0;
+        }
+        if (ratio > 1.0)
+        {
+            return 1.0;
+        }
+        return ratio;
+    }
 
     // Returns world-space coordinates of the shield for laser physics
     std::vector<std::pair<Math::vec2, Math::vec2>> GetSegments() const;

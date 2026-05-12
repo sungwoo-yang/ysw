@@ -46,7 +46,6 @@ private:
     void InitGame();
     void BuildConstellation();
     void DisableLegacyLaserStars();
-    void EnterClear();
     void EnterGameOver(const std::string& reason);
 
     enum class State
@@ -54,7 +53,6 @@ private:
         Loading,
         Intro,
         Playing,
-        Clear,
         GameOver
     };
 
@@ -86,7 +84,6 @@ private:
     const double introDuration = 3.0;
 
     std::string  gameOverReason;
-    double       clearTimer = 0.0;
     const double fallDeathY = -2500.0;
 
     Math::rect level_boundary = {

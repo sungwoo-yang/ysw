@@ -16,6 +16,7 @@
 #include "OpenGL/GL.hpp"
 #include <GL/glew.h>
 #include <SDL.h>
+#include <algorithm>
 #include <functional>
 #include <sstream>
 
@@ -29,6 +30,48 @@ namespace
             Engine::GetLogger().LogError(std::string{ "Failed to Set GL Attribute: " } + SDL_GetError());
         }
     }
+
+    Math::ivec2 fit_size_to_current_display(SDL_Window* window, Math::ivec2 desired_size)
+    {
+        SDL_Rect display_bounds{};
+        int      display_index = 0;
+
+        if (window != nullptr)
+        {
+            display_index = SDL_GetWindowDisplayIndex(window);
+            if (display_index < 0)
+            {
+                display_index = 0;
+            }
+        }
+
+        if (SDL_GetDisplayUsableBounds(display_index, &display_bounds) != 0 || display_bounds.w <= 0 || display_bounds.h <= 0)
+        {
+            if (SDL_GetDisplayBounds(display_index, &display_bounds) != 0 || display_bounds.w <= 0 || display_bounds.h <= 0)
+            {
+                return desired_size;
+            }
+        }
+
+        if (desired_size.x <= display_bounds.w && desired_size.y <= display_bounds.h)
+        {
+            return desired_size;
+        }
+
+        const double scale = std::min(
+            static_cast<double>(display_bounds.w) / static_cast<double>(desired_size.x),
+            static_cast<double>(display_bounds.h) / static_cast<double>(desired_size.y));
+
+        Math::ivec2 fitted_size = {
+            std::max(1, static_cast<int>(static_cast<double>(desired_size.x) * scale)),
+            std::max(1, static_cast<int>(static_cast<double>(desired_size.y) * scale))
+        };
+
+        fitted_size.x = std::min(fitted_size.x, display_bounds.w);
+        fitted_size.y = std::min(fitted_size.y, display_bounds.h);
+
+        return fitted_size;
+    }
 }
 
 namespace CS230
@@ -38,7 +81,7 @@ namespace CS230
         setupSDLWindow(title);
         setupOpenGL();
 
-        SDL_GL_GetDrawableSize(sdlWindow, &size.x, &size.y);
+        SDL_GetWindowSize(sdlWindow, &size.x, &size.y);
 
         CS200::RenderingAPI::SetClearColor(default_background);
 
@@ -90,10 +133,10 @@ namespace CS230
 
     void Window::ForceResize(int desired_width, int desired_height)
     {
-        SDL_SetWindowSize(sdlWindow, desired_width, desired_height);
+        const Math::ivec2 fitted_size = fit_size_to_current_display(sdlWindow, { desired_width, desired_height });
+        SDL_SetWindowSize(sdlWindow, fitted_size.x, fitted_size.y);
         SDL_SetWindowPosition(sdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-        size.x = desired_width;
-        size.y = desired_height;
+        SDL_GetWindowSize(sdlWindow, &size.x, &size.y);
         GL::Viewport(0, 0, size.x, size.y);
     }
 
@@ -101,17 +144,36 @@ namespace CS230
     {
         if (fullscreen)
         {
-             SDL_SetWindowFullscreen(sdlWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
+            // Use SDL_WINDOW_FULLSCREEN_DESKTOP to prevent desktop windows from rearranging
+            SDL_SetWindowFullscreen(sdlWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
         }
         else
         {
             SDL_SetWindowFullscreen(sdlWindow, 0);
         }
+        SDL_GetWindowSize(sdlWindow, &size.x, &size.y);
+        GL::Viewport(0, 0, size.x, size.y);
     }
 
     void Window::SetBordered(bool bordered)
     {
         SDL_SetWindowBordered(sdlWindow, bordered ? SDL_TRUE : SDL_FALSE);
+    }
+
+    void Window::SetVSync(bool enabled)
+    {
+        if (!enabled)
+        {
+            SDL_GL_SetSwapInterval(0);
+            return;
+        }
+
+        constexpr int ADAPTIVE_VSYNC = -1;
+        constexpr int VSYNC          = 1;
+        if (SDL_GL_SetSwapInterval(ADAPTIVE_VSYNC) != 0)
+        {
+            SDL_GL_SetSwapInterval(VSYNC);
+        }
     }
 
     SDL_Window* Window::GetSDLWindow() const
@@ -161,10 +223,11 @@ namespace CS230
         hint_gl(SDL_GL_MULTISAMPLESAMPLES, 4);
 
         sdlWindow = SDL_CreateWindow(title.data(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, default_width, default_height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_FULLSCREEN_DESKTOP);
+        
         if (sdlWindow == nullptr)
-        {
-            throw_error_message("Failed to create window: ", SDL_GetError());
-        }
+    {
+        throw_error_message("Failed to create window: ", SDL_GetError());
+    }
     }
 
     void Window::setupOpenGL()
@@ -181,12 +244,7 @@ namespace CS230
             throw_error_message("Unable to initialize GLEW - error: ", glewGetErrorString(result));
         }
 
-        constexpr int ADAPTIVE_VSYNC = -1;
-        constexpr int VSYNC          = 1;
-        if (const auto result = SDL_GL_SetSwapInterval(ADAPTIVE_VSYNC); result != 0)
-        {
-            SDL_GL_SetSwapInterval(VSYNC);
-        }
+        SetVSync(true);
 
         CS200::RenderingAPI::Init();
     }

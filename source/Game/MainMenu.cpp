@@ -1,6 +1,7 @@
 #include "MainMenu.hpp"
 #include "CS200/IRenderer2D.hpp"
 #include "CS200/NDC.hpp"
+#include "CS200/RenderingAPI.hpp"
 #include "Engine/AudioManager.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/Font.hpp"
@@ -11,7 +12,64 @@
 #include "Engine/SettingsManager.hpp"
 #include "Engine/Window.hpp"
 #include "Mode1.hpp"
+#include <algorithm>
 #include <imgui.h>
+#include <initializer_list>
+
+namespace
+{
+    Math::rect MakeRect(Math::vec2 bottomLeft, Math::vec2 size)
+    {
+        return {
+            bottomLeft,
+            { bottomLeft.x + size.x, bottomLeft.y + size.y }
+        };
+    }
+
+    Math::TransformationMatrix RectTransform(const Math::rect& rect)
+    {
+        const Math::vec2 size   = rect.Size();
+        const Math::vec2 center = { rect.Left() + size.x * 0.5, rect.Bottom() + size.y * 0.5 };
+        return Math::TranslationMatrix(center) * Math::ScaleMatrix(size);
+    }
+
+    bool ContainsPoint(const Math::rect& rect, Math::vec2 point)
+    {
+        return point.x >= rect.Left() && point.x <= rect.Right() && point.y >= rect.Bottom() && point.y <= rect.Top();
+    }
+
+    Math::vec2 TextPositionInRect(const Math::rect& rect, const CS230::Texture& texture)
+    {
+        const Math::ivec2 texSize = texture.GetSize();
+        return {
+            rect.Left() + 12.0,
+            rect.Bottom() + (rect.Size().y - static_cast<double>(texSize.y)) * 0.5
+        };
+    }
+
+    Math::vec2 DropdownSize(std::initializer_list<std::shared_ptr<CS230::Texture>> textures)
+    {
+        double maxWidth  = 0.0;
+        double maxHeight = 0.0;
+
+        for (const auto& texture : textures)
+        {
+            if (texture == nullptr)
+            {
+                continue;
+            }
+
+            const Math::ivec2 size = texture->GetSize();
+            maxWidth               = std::max(maxWidth, static_cast<double>(size.x));
+            maxHeight              = std::max(maxHeight, static_cast<double>(size.y));
+        }
+
+        return {
+            std::max(260.0, maxWidth + 43.0),
+            std::max(52.0, maxHeight + 20.0)
+        };
+    }
+}
 
 void MainMenu::Load()
 {
@@ -37,14 +95,23 @@ void MainMenu::Load()
     backTexture        = menuFont.PrintToTexture("Back", CS200::WHITE);
     waitingTexture     = menuFont.PrintToTexture("Press Any Key...", CS200::YELLOW);
 
-    res1600Texture    = menuFont.PrintToTexture("1600x900", CS200::WHITE);
-    res1280Texture    = menuFont.PrintToTexture("1280x720", CS200::WHITE);
-    windowedTexture   = menuFont.PrintToTexture("Windowed", CS200::WHITE);
-    borderlessTexture = menuFont.PrintToTexture("Borderless", CS200::WHITE);
-    fullscreenTexture = menuFont.PrintToTexture("Fullscreen", CS200::WHITE);
-    applyTexture      = menuFont.PrintToTexture("Apply Settings", CS200::GREEN);
-    labelResolution   = menuFont.PrintToTexture("Resolution", CS200::GREY);
-    labelMode         = menuFont.PrintToTexture("Window Mode", CS200::GREY);
+    res3840Texture      = menuFont.PrintToTexture("3840x2160", CS200::WHITE);
+    res2560Texture      = menuFont.PrintToTexture("2560x1440", CS200::WHITE);
+    res1920Texture      = menuFont.PrintToTexture("1920x1080", CS200::WHITE);
+    res1600Texture      = menuFont.PrintToTexture("1600x900", CS200::WHITE);
+    res1280Texture      = menuFont.PrintToTexture("1280x720", CS200::WHITE);
+    windowedTexture     = menuFont.PrintToTexture("Windowed", CS200::WHITE);
+    borderlessTexture   = menuFont.PrintToTexture("Borderless", CS200::WHITE);
+    fullscreenTexture   = menuFont.PrintToTexture("Fullscreen", CS200::WHITE);
+    fps30Texture        = menuFont.PrintToTexture("30 FPS", CS200::WHITE);
+    fps60Texture        = menuFont.PrintToTexture("60 FPS", CS200::WHITE);
+    fps120Texture       = menuFont.PrintToTexture("120 FPS", CS200::WHITE);
+    fps144Texture       = menuFont.PrintToTexture("144 FPS", CS200::WHITE);
+    fpsUnlimitedTexture = menuFont.PrintToTexture("Unlimited", CS200::WHITE);
+    applyTexture        = menuFont.PrintToTexture("Apply Settings", CS200::GREEN);
+    labelResolution     = menuFont.PrintToTexture("Resolution", CS200::GREY);
+    labelMode           = menuFont.PrintToTexture("Window Mode", CS200::GREY);
+    labelFrameLimit     = menuFont.PrintToTexture("Frame Limit", CS200::GREY);
 
     // Sound
     labelBGM = menuFont.PrintToTexture("BGM Volume", CS200::GREY);
@@ -60,7 +127,25 @@ void MainMenu::Load()
 
     // Synchronize the UI state with current engine settings
     auto& settings  = CS230::SettingsManager::Instance().GetSettings();
-    pendingResIndex = (settings.resolutionX == 1600) ? 0 : 1;
+    pendingResIndex = ResolutionOptionCount - 1;
+    for (int i = 0; i < ResolutionOptionCount; ++i)
+    {
+        if (settings.resolutionX == resolutions[i].x && settings.resolutionY == resolutions[i].y)
+        {
+            pendingResIndex = i;
+            break;
+        }
+    }
+
+    pendingFrameLimitIndex = 1;
+    for (int i = 0; i < FrameLimitOptionCount; ++i)
+    {
+        if (settings.frameLimit == frameLimits[i])
+        {
+            pendingFrameLimitIndex = i;
+            break;
+        }
+    }
 
     if (settings.fullscreen)
         pendingMode = WindowMode::Fullscreen;
@@ -74,6 +159,8 @@ void MainMenu::SetupButtons()
 {
     // Determine screen center for layout calculations
     Math::ivec2 winSize = Engine::GetWindow().GetSize();
+    lastLayoutWindowSize = winSize;
+
     double      centerX = static_cast<double>(winSize.x) * 0.5;
     double      centerY = static_cast<double>(winSize.y) * 0.5;
 
@@ -147,38 +234,37 @@ void MainMenu::SetupButtons()
         };
     }
 
-    // Grid layout for display options
-    double dispLeftX  = centerX - 250.0;
-    double dispRightX = centerX + 100.0;
-    double dispY      = centerY + 50.0;
-    double dispGap    = 60.0;
+    // Dropdown layout for display options
+    const Math::vec2 resolutionDropdownSize = DropdownSize({ res3840Texture, res2560Texture, res1920Texture, res1600Texture, res1280Texture });
+    const Math::vec2 modeDropdownSize       = DropdownSize({ windowedTexture, borderlessTexture, fullscreenTexture });
+    const Math::vec2 frameDropdownSize      = DropdownSize({ fps30Texture, fps60Texture, fps120Texture, fps144Texture, fpsUnlimitedTexture });
+    const double     resolutionGap          = resolutionDropdownSize.y + 4.0;
+    const double     modeGap                = modeDropdownSize.y + 4.0;
+    const double     frameGap               = frameDropdownSize.y + 4.0;
+    const double     dispY                  = centerY + 95.0;
+    const double     resolutionX            = centerX - 470.0;
+    const double     modeX                  = centerX - 120.0;
+    const double     frameX                 = centerX + 230.0;
 
-    if (res1600Texture)
-        res1600Rect = {
-            {                               dispLeftX,                               dispY },
-            { dispLeftX + res1600Texture->GetSize().x, dispY + res1600Texture->GetSize().y }
-        };
-    if (res1280Texture)
-        res1280Rect = {
-            {                               dispLeftX,                               dispY - dispGap },
-            { dispLeftX + res1280Texture->GetSize().x, dispY - dispGap + res1280Texture->GetSize().y }
-        };
+    resolutionDropdownRect = MakeRect({ resolutionX, dispY }, resolutionDropdownSize);
+    modeDropdownRect       = MakeRect({ modeX, dispY }, modeDropdownSize);
+    frameLimitDropdownRect = MakeRect({ frameX, dispY }, frameDropdownSize);
 
-    if (windowedTexture)
-        windowedRect = {
-            {                                dispRightX,                                dispY },
-            { dispRightX + windowedTexture->GetSize().x, dispY + windowedTexture->GetSize().y }
-        };
-    if (borderlessTexture)
-        borderlessRect = {
-            {                                  dispRightX,                                  dispY - dispGap },
-            { dispRightX + borderlessTexture->GetSize().x, dispY - dispGap + borderlessTexture->GetSize().y }
-        };
-    if (fullscreenTexture)
-        fullscreenRect = {
-            {                                  dispRightX,                                  dispY - dispGap * 2 },
-            { dispRightX + fullscreenTexture->GetSize().x, dispY - dispGap * 2 + fullscreenTexture->GetSize().y }
-        };
+    res3840Rect = MakeRect({ resolutionX, dispY - resolutionGap }, resolutionDropdownSize);
+    res2560Rect = MakeRect({ resolutionX, dispY - resolutionGap * 2.0 }, resolutionDropdownSize);
+    res1920Rect = MakeRect({ resolutionX, dispY - resolutionGap * 3.0 }, resolutionDropdownSize);
+    res1600Rect = MakeRect({ resolutionX, dispY - resolutionGap * 4.0 }, resolutionDropdownSize);
+    res1280Rect = MakeRect({ resolutionX, dispY - resolutionGap * 5.0 }, resolutionDropdownSize);
+
+    windowedRect   = MakeRect({ modeX, dispY - modeGap }, modeDropdownSize);
+    borderlessRect = MakeRect({ modeX, dispY - modeGap * 2.0 }, modeDropdownSize);
+    fullscreenRect = MakeRect({ modeX, dispY - modeGap * 3.0 }, modeDropdownSize);
+
+    fps30Rect        = MakeRect({ frameX, dispY - frameGap }, frameDropdownSize);
+    fps60Rect        = MakeRect({ frameX, dispY - frameGap * 2.0 }, frameDropdownSize);
+    fps120Rect       = MakeRect({ frameX, dispY - frameGap * 3.0 }, frameDropdownSize);
+    fps144Rect       = MakeRect({ frameX, dispY - frameGap * 4.0 }, frameDropdownSize);
+    fpsUnlimitedRect = MakeRect({ frameX, dispY - frameGap * 5.0 }, frameDropdownSize);
 
     if (applyTexture)
     {
@@ -250,6 +336,11 @@ void MainMenu::UpdateVolumeTextures()
 
 void MainMenu::Update([[maybe_unused]] double dt)
 {
+    if (Engine::GetWindow().GetSize() != lastLayoutWindowSize)
+    {
+        SetupButtons();
+    }
+
     // Route update logic based on current menu layer
     if (currentState == MenuState::Main)
         UpdateMainMenu(dt);
@@ -329,17 +420,26 @@ void MainMenu::UpdateSettingsMenu(double)
     {
         Engine::GetLogger().LogEvent("Switched to Display Tab");
         currentTab = SettingsTab::Display;
+        resolutionDropdownOpen = false;
+        modeDropdownOpen       = false;
+        frameLimitDropdownOpen = false;
     }
     if (CheckClick(tabControlsRect))
     {
         Engine::GetLogger().LogEvent("Switched to Controls Tab");
         currentTab = SettingsTab::Controls;
+        resolutionDropdownOpen = false;
+        modeDropdownOpen       = false;
+        frameLimitDropdownOpen = false;
         SetupButtons();
     }
     if (CheckClick(tabSoundRect))
     {
         Engine::GetLogger().LogEvent("Switched to Sound Tab");
         currentTab = SettingsTab::Sound;
+        resolutionDropdownOpen = false;
+        modeDropdownOpen       = false;
+        frameLimitDropdownOpen = false;
     }
 
     // Save settings and return to main menu when 'Back' is clicked
@@ -347,6 +447,9 @@ void MainMenu::UpdateSettingsMenu(double)
     {
         Engine::GetLogger().LogEvent("Back to Main Menu");
         currentState = MenuState::Main;
+        resolutionDropdownOpen = false;
+        modeDropdownOpen       = false;
+        frameLimitDropdownOpen = false;
         CS230::SettingsManager::Instance().SaveSettings();
         CS230::InputMapper::Instance().SaveBindings();
     }
@@ -372,33 +475,96 @@ void MainMenu::UpdateDisplayTab()
     Math::ivec2 winSize  = Engine::GetWindow().GetSize();
     Math::vec2  mousePos = input.GetMousePosition();
     mousePos.y           = static_cast<double>(winSize.y) - mousePos.y;
+    const bool  clicked  = input.MouseButtonJustPressed(CS230::Input::MouseButton::Left);
 
-    auto CheckClick = [&](const Math::rect& rect)
+    if (!clicked)
     {
-        return input.MouseButtonJustPressed(CS230::Input::MouseButton::Left) && mousePos.x >= rect.Left() && mousePos.x <= rect.Right() && mousePos.y >= rect.Bottom() && mousePos.y <= rect.Top();
+        return;
+    }
+
+    const Math::rect resolutionRects[ResolutionOptionCount] = { res3840Rect, res2560Rect, res1920Rect, res1600Rect, res1280Rect };
+    const Math::rect modeRects[WindowModeOptionCount]       = { windowedRect, borderlessRect, fullscreenRect };
+    const Math::rect frameRects[FrameLimitOptionCount]      = { fps30Rect, fps60Rect, fps120Rect, fps144Rect, fpsUnlimitedRect };
+
+    auto closeAllDropdowns = [&]()
+    {
+        resolutionDropdownOpen = false;
+        modeDropdownOpen       = false;
+        frameLimitDropdownOpen = false;
     };
 
-    // Resolution selection (Pending state)
-    if (CheckClick(res1600Rect))
-        pendingResIndex = 0;
-    if (CheckClick(res1280Rect))
-        pendingResIndex = 1;
+    auto handleOpenDropdown = [&](const Math::rect& buttonRect, const Math::rect* optionRects, int optionCount, int& selectedIndex, bool& isOpen) -> bool
+    {
+        if (!isOpen)
+        {
+            return false;
+        }
 
-    // Window mode selection (Pending state)
-    if (CheckClick(windowedRect))
-        pendingMode = WindowMode::Windowed;
-    if (CheckClick(borderlessRect))
-        pendingMode = WindowMode::Borderless;
-    if (CheckClick(fullscreenRect))
-        pendingMode = WindowMode::Fullscreen;
+        if (ContainsPoint(buttonRect, mousePos))
+        {
+            isOpen = false;
+            return true;
+        }
+
+        for (int i = 0; i < optionCount; ++i)
+        {
+            if (ContainsPoint(optionRects[i], mousePos))
+            {
+                selectedIndex = i;
+                isOpen        = false;
+                return true;
+            }
+        }
+
+        isOpen = false;
+        return false;
+    };
+
+    int pendingModeIndex = static_cast<int>(pendingMode);
+    if (handleOpenDropdown(resolutionDropdownRect, resolutionRects, ResolutionOptionCount, pendingResIndex, resolutionDropdownOpen))
+    {
+        return;
+    }
+    if (handleOpenDropdown(modeDropdownRect, modeRects, WindowModeOptionCount, pendingModeIndex, modeDropdownOpen))
+    {
+        pendingMode = static_cast<WindowMode>(pendingModeIndex);
+        return;
+    }
+    pendingMode = static_cast<WindowMode>(pendingModeIndex);
+    if (handleOpenDropdown(frameLimitDropdownRect, frameRects, FrameLimitOptionCount, pendingFrameLimitIndex, frameLimitDropdownOpen))
+    {
+        return;
+    }
+
+    if (ContainsPoint(resolutionDropdownRect, mousePos))
+    {
+        closeAllDropdowns();
+        resolutionDropdownOpen = true;
+        return;
+    }
+    if (ContainsPoint(modeDropdownRect, mousePos))
+    {
+        closeAllDropdowns();
+        modeDropdownOpen = true;
+        return;
+    }
+    if (ContainsPoint(frameLimitDropdownRect, mousePos))
+    {
+        closeAllDropdowns();
+        frameLimitDropdownOpen = true;
+        return;
+    }
 
     // Apply the selected settings to the actual engine system
-    if (CheckClick(applyRect))
+    if (ContainsPoint(applyRect, mousePos))
     {
         Engine::GetLogger().LogEvent("Applying Display Settings...");
         auto& settingsMgr = CS230::SettingsManager::Instance();
+        settingsMgr.SetWindowMode(false, pendingMode == WindowMode::Borderless);
         settingsMgr.SetResolution(resolutions[pendingResIndex].x, resolutions[pendingResIndex].y);
         settingsMgr.SetWindowMode(pendingMode == WindowMode::Fullscreen, pendingMode == WindowMode::Borderless);
+        settingsMgr.SetFrameLimit(frameLimits[pendingFrameLimitIndex]);
+        closeAllDropdowns();
         SetupButtons(); // Re-center UI elements for the new resolution
     }
 }
@@ -513,12 +679,18 @@ void MainMenu::Draw()
     Math::ivec2 winSize  = Engine::GetWindow().GetSize();
 
     // Global UI projection setup
+    CS200::RenderingAPI::SetViewport(winSize);
     renderer.BeginScene(CS200::build_ndc_matrix(winSize));
 
     if (currentState == MenuState::Main)
         DrawMainMenu();
     else
         DrawSettingsMenu();
+
+    if (showDebugRects)
+    {
+        DrawDebugUIRects();
+    }
 
     renderer.EndScene();
 }
@@ -536,7 +708,7 @@ void MainMenu::DrawMainMenu()
     auto DrawBtn = [&](std::shared_ptr<CS230::Texture> tex, Math::rect rect, bool hover)
     {
         if (tex)
-            tex->Draw(Math::TranslationMatrix(Math::vec2{ rect.point_1.x, rect.point_1.y }), hover ? CS200::YELLOW : CS200::WHITE);
+            tex->Draw(Math::TranslationMatrix(Math::vec2{ rect.Left(), rect.Bottom() }), hover ? CS200::YELLOW : CS200::WHITE);
     };
 
     DrawBtn(startTexture, startButtonRect, isStartHovered);
@@ -549,7 +721,7 @@ void MainMenu::DrawSettingsMenu()
     auto DrawTab = [&](std::shared_ptr<CS230::Texture> tex, Math::rect rect, bool isActive)
     {
         if (tex)
-            tex->Draw(Math::TranslationMatrix(Math::vec2{ rect.point_1.x, rect.point_1.y }), isActive ? CS200::GREEN : CS200::GREY);
+            tex->Draw(Math::TranslationMatrix(Math::vec2{ rect.Left(), rect.Bottom() }), isActive ? CS200::GREEN : CS200::GREY);
     };
 
     // Render tab headers
@@ -558,7 +730,7 @@ void MainMenu::DrawSettingsMenu()
     DrawTab(tabSoundTexture, tabSoundRect, currentTab == SettingsTab::Sound);
 
     if (backTexture)
-        backTexture->Draw(Math::TranslationMatrix(Math::vec2{ backRect.point_1.x, backRect.point_1.y }), CS200::WHITE);
+        backTexture->Draw(Math::TranslationMatrix(Math::vec2{ backRect.Left(), backRect.Bottom() }), CS200::WHITE);
 
     // Route rendering to the active settings tab content
     if (currentTab == SettingsTab::Display)
@@ -577,29 +749,147 @@ void MainMenu::DrawSettingsMenu()
 
 void MainMenu::DrawDisplayTab()
 {
-    auto DrawOption = [&](std::shared_ptr<CS230::Texture> tex, Math::rect rect, bool selected)
+    auto& renderer = Engine::GetRenderer2D();
+
+    const std::shared_ptr<CS230::Texture> resolutionTextures[ResolutionOptionCount] = { res3840Texture, res2560Texture, res1920Texture, res1600Texture, res1280Texture };
+    const Math::rect                      resolutionRects[ResolutionOptionCount]    = { res3840Rect, res2560Rect, res1920Rect, res1600Rect, res1280Rect };
+    const std::shared_ptr<CS230::Texture> modeTextures[WindowModeOptionCount]       = { windowedTexture, borderlessTexture, fullscreenTexture };
+    const Math::rect                      modeRects[WindowModeOptionCount]          = { windowedRect, borderlessRect, fullscreenRect };
+    const std::shared_ptr<CS230::Texture> frameTextures[FrameLimitOptionCount]      = { fps30Texture, fps60Texture, fps120Texture, fps144Texture, fpsUnlimitedTexture };
+    const Math::rect                      frameRects[FrameLimitOptionCount]         = { fps30Rect, fps60Rect, fps120Rect, fps144Rect, fpsUnlimitedRect };
+
+    auto DrawTextureInRect = [](const std::shared_ptr<CS230::Texture>& tex, const Math::rect& rect, CS200::RGBA color)
     {
         if (tex)
-            tex->Draw(Math::TranslationMatrix(Math::vec2{ rect.point_1.x, rect.point_1.y }), selected ? CS200::CYAN : CS200::GREY);
+        {
+            tex->Draw(Math::TranslationMatrix(TextPositionInRect(rect, *tex)), color);
+        }
     };
 
-    // Render Resolution options
-    if (labelResolution)
-        labelResolution->Draw(Math::TranslationMatrix(Math::vec2{ res1600Rect.Left(), res1600Rect.Top() + 20.0 }), CS200::WHITE);
+    auto DrawArrow = [&](const Math::rect& rect, bool open)
+    {
+        const double x = rect.Right() - 20.0;
+        const double y = rect.Bottom() + rect.Size().y * 0.5;
+        if (open)
+        {
+            renderer.DrawLine({ x - 6.0, y - 3.0 }, { x, y + 4.0 }, CS200::WHITE, 2.0);
+            renderer.DrawLine({ x + 6.0, y - 3.0 }, { x, y + 4.0 }, CS200::WHITE, 2.0);
+        }
+        else
+        {
+            renderer.DrawLine({ x - 6.0, y + 3.0 }, { x, y - 4.0 }, CS200::WHITE, 2.0);
+            renderer.DrawLine({ x + 6.0, y + 3.0 }, { x, y - 4.0 }, CS200::WHITE, 2.0);
+        }
+    };
 
-    DrawOption(res1600Texture, res1600Rect, pendingResIndex == 0);
-    DrawOption(res1280Texture, res1280Rect, pendingResIndex == 1);
+    auto DrawDropdown = [&](const std::shared_ptr<CS230::Texture>& label, const Math::rect& buttonRect, const std::shared_ptr<CS230::Texture>& selectedTexture,
+                            const std::shared_ptr<CS230::Texture>* optionTextures, const Math::rect* optionRects, int optionCount, int selectedIndex, bool isOpen)
+    {
+        if (label)
+        {
+            label->Draw(Math::TranslationMatrix(Math::vec2{ buttonRect.Left(), buttonRect.Top() + 18.0 }), CS200::WHITE);
+        }
 
-    // Render Window Mode options
-    if (labelMode)
-        labelMode->Draw(Math::TranslationMatrix(Math::vec2{ windowedRect.Left(), windowedRect.Top() + 20.0 }), CS200::WHITE);
+        renderer.DrawRectangle(RectTransform(buttonRect), 0x000000A8, isOpen ? CS200::CYAN : CS200::WHITE, 2.0);
+        DrawTextureInRect(selectedTexture, buttonRect, CS200::WHITE);
+        DrawArrow(buttonRect, isOpen);
 
-    DrawOption(windowedTexture, windowedRect, pendingMode == WindowMode::Windowed);
-    DrawOption(borderlessTexture, borderlessRect, pendingMode == WindowMode::Borderless);
-    DrawOption(fullscreenTexture, fullscreenRect, pendingMode == WindowMode::Fullscreen);
+        if (!isOpen)
+        {
+            return;
+        }
+
+        for (int i = 0; i < optionCount; ++i)
+        {
+            const bool selected = i == selectedIndex;
+            renderer.DrawRectangle(RectTransform(optionRects[i]), selected ? 0x003040D8 : 0x000000D8, selected ? CS200::CYAN : CS200::GREY, 1.0);
+            DrawTextureInRect(optionTextures[i], optionRects[i], selected ? CS200::CYAN : CS200::WHITE);
+        }
+    };
+
+    DrawDropdown(labelResolution, resolutionDropdownRect, resolutionTextures[pendingResIndex], resolutionTextures, resolutionRects, ResolutionOptionCount, pendingResIndex, resolutionDropdownOpen);
+    DrawDropdown(labelMode, modeDropdownRect, modeTextures[static_cast<int>(pendingMode)], modeTextures, modeRects, WindowModeOptionCount, static_cast<int>(pendingMode), modeDropdownOpen);
+    DrawDropdown(labelFrameLimit, frameLimitDropdownRect, frameTextures[pendingFrameLimitIndex], frameTextures, frameRects, FrameLimitOptionCount, pendingFrameLimitIndex,
+                 frameLimitDropdownOpen);
 
     if (applyTexture)
-        applyTexture->Draw(Math::TranslationMatrix(Math::vec2{ applyRect.point_1.x, applyRect.point_1.y }), CS200::WHITE);
+        applyTexture->Draw(Math::TranslationMatrix(Math::vec2{ applyRect.Left(), applyRect.Bottom() }), CS200::WHITE);
+}
+
+void MainMenu::DrawDebugRect(const Math::rect& rect)
+{
+    auto&      renderer = Engine::GetRenderer2D();
+    Math::vec2 size     = rect.Size();
+
+    if (size.x <= 0.0 || size.y <= 0.0)
+    {
+        return;
+    }
+
+    const Math::vec2 center = { rect.Left() + size.x * 0.5, rect.Bottom() + size.y * 0.5 };
+    const auto       transform = Math::TranslationMatrix(center) * Math::ScaleMatrix(size);
+    renderer.DrawRectangle(transform, CS200::CLEAR, 0xFF00FFFF, 2.0);
+}
+
+void MainMenu::DrawDebugUIRects()
+{
+    if (currentState == MenuState::Main)
+    {
+        DrawDebugRect(startButtonRect);
+        DrawDebugRect(settingsButtonRect);
+        DrawDebugRect(exitButtonRect);
+        return;
+    }
+
+    DrawDebugRect(tabDisplayRect);
+    DrawDebugRect(tabControlsRect);
+    DrawDebugRect(tabSoundRect);
+    DrawDebugRect(backRect);
+
+    if (currentTab == SettingsTab::Display)
+    {
+        DrawDebugRect(resolutionDropdownRect);
+        DrawDebugRect(modeDropdownRect);
+        DrawDebugRect(frameLimitDropdownRect);
+        if (resolutionDropdownOpen)
+        {
+            DrawDebugRect(res3840Rect);
+            DrawDebugRect(res2560Rect);
+            DrawDebugRect(res1920Rect);
+            DrawDebugRect(res1600Rect);
+            DrawDebugRect(res1280Rect);
+        }
+        if (modeDropdownOpen)
+        {
+            DrawDebugRect(windowedRect);
+            DrawDebugRect(borderlessRect);
+            DrawDebugRect(fullscreenRect);
+        }
+        if (frameLimitDropdownOpen)
+        {
+            DrawDebugRect(fps30Rect);
+            DrawDebugRect(fps60Rect);
+            DrawDebugRect(fps120Rect);
+            DrawDebugRect(fps144Rect);
+            DrawDebugRect(fpsUnlimitedRect);
+        }
+        DrawDebugRect(applyRect);
+    }
+    else if (currentTab == SettingsTab::Controls)
+    {
+        for (const auto& btn : keyBindButtons)
+        {
+            DrawDebugRect(btn.rect);
+        }
+    }
+    else if (currentTab == SettingsTab::Sound)
+    {
+        for (int i = 0; i < 10; ++i)
+        {
+            DrawDebugRect(bgmBarRects[i]);
+            DrawDebugRect(sfxBarRects[i]);
+        }
+    }
 }
 
 void MainMenu::DrawControlsTab()
@@ -700,13 +990,22 @@ void MainMenu::DrawImGui()
     if (currentState == MenuState::Settings)
     {
         ImGui::Separator();
-        ImGui::Text("Active Tab: %s", currentTab == SettingsTab::Display ? "Display" : "Controls");
+        const char* activeTabName = "Display";
+        if (currentTab == SettingsTab::Controls)
+            activeTabName = "Controls";
+        else if (currentTab == SettingsTab::Sound)
+            activeTabName = "Sound";
+
+        ImGui::Text("Active Tab: %s", activeTabName);
 
         if (currentTab == SettingsTab::Display)
         {
-            ImGui::Text("Selected Resolution: %s", pendingResIndex == 0 ? "1600x900" : "1280x720");
+            const char* resolutionNames[] = { "3840x2160", "2560x1440", "1920x1080", "1600x900", "1280x720" };
+            const char* frameLimitNames[] = { "30 FPS", "60 FPS", "120 FPS", "144 FPS", "Unlimited" };
+            ImGui::Text("Selected Resolution: %s", resolutionNames[pendingResIndex]);
             const char* modes[] = { "Windowed", "Borderless", "Fullscreen" };
             ImGui::Text("Selected Mode: %s", modes[static_cast<int>(pendingMode)]);
+            ImGui::Text("Selected Frame Limit: %s", frameLimitNames[pendingFrameLimitIndex]);
         }
         else if (currentTab == SettingsTab::Controls)
         {
@@ -725,32 +1024,7 @@ void MainMenu::DrawImGui()
     ImGui::Text("Mouse Pos (Screen): (%.1f, %.1f)", Engine::GetInput().GetMousePosition().x, Engine::GetInput().GetMousePosition().y);
 
     // Visual debugging of UI hitboxes
-    static bool showDebugRects = false;
     ImGui::Checkbox("Show UI Rects", &showDebugRects);
-
-    if (showDebugRects)
-    {
-        auto DrawDebugRect = [](const Math::rect& r, const char* label)
-        {
-            ImGui::GetForegroundDrawList()->AddRect(
-                ImVec2(static_cast<float>(r.Left()), static_cast<float>(Engine::GetWindow().GetSize().y - r.Top())),
-                ImVec2(static_cast<float>(r.Right()), static_cast<float>(Engine::GetWindow().GetSize().y - r.Bottom())), IM_COL32(255, 0, 255, 255));
-            ImGui::GetForegroundDrawList()->AddText(ImVec2(static_cast<float>(r.Left()), static_cast<float>(Engine::GetWindow().GetSize().y - r.Top() - 15.0)), IM_COL32(255, 0, 255, 255), label);
-        };
-
-        if (currentState == MenuState::Main)
-        {
-            DrawDebugRect(startButtonRect, "Start");
-            DrawDebugRect(settingsButtonRect, "Settings");
-            DrawDebugRect(exitButtonRect, "Exit");
-        }
-        else if (currentTab == SettingsTab::Display)
-        {
-            DrawDebugRect(res1600Rect, "1600x900");
-            DrawDebugRect(res1280Rect, "1280x720");
-            DrawDebugRect(applyRect, "Apply");
-        }
-    }
 
     ImGui::End();
 }
@@ -766,14 +1040,30 @@ void MainMenu::Unload()
     exitTexture.reset();
     tabDisplayTexture.reset();
     tabControlsTexture.reset();
+    tabSoundTexture.reset();
     backTexture.reset();
     waitingTexture.reset();
+    res3840Texture.reset();
+    res2560Texture.reset();
+    res1920Texture.reset();
     res1600Texture.reset();
     res1280Texture.reset();
     windowedTexture.reset();
     borderlessTexture.reset();
     fullscreenTexture.reset();
+    fps30Texture.reset();
+    fps60Texture.reset();
+    fps120Texture.reset();
+    fps144Texture.reset();
+    fpsUnlimitedTexture.reset();
     applyTexture.reset();
+    labelResolution.reset();
+    labelMode.reset();
+    labelFrameLimit.reset();
+    labelBGM.reset();
+    labelSFX.reset();
+    valBGMTexture.reset();
+    valSFXTexture.reset();
 
     keyBindButtons.clear();
 }

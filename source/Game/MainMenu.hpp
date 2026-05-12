@@ -58,6 +58,8 @@ private:
     void UpdateSettingsMenu(double dt);
     void DrawSettingsMenu();
     void SetupButtons();
+    void DrawDebugRect(const Math::rect& rect);
+    void DrawDebugUIRects();
 
     // Tab textures and their screen areas
     std::shared_ptr<CS230::Texture> tabDisplayTexture;
@@ -74,20 +76,40 @@ private:
     void DrawDisplayTab();
 
     // Display-specific textures (Resolutions, Modes)
+    std::shared_ptr<CS230::Texture> res3840Texture;
+    std::shared_ptr<CS230::Texture> res2560Texture;
+    std::shared_ptr<CS230::Texture> res1920Texture;
     std::shared_ptr<CS230::Texture> res1600Texture;
     std::shared_ptr<CS230::Texture> res1280Texture;
     std::shared_ptr<CS230::Texture> windowedTexture;
     std::shared_ptr<CS230::Texture> borderlessTexture;
     std::shared_ptr<CS230::Texture> fullscreenTexture;
+    std::shared_ptr<CS230::Texture> fps30Texture;
+    std::shared_ptr<CS230::Texture> fps60Texture;
+    std::shared_ptr<CS230::Texture> fps120Texture;
+    std::shared_ptr<CS230::Texture> fps144Texture;
+    std::shared_ptr<CS230::Texture> fpsUnlimitedTexture;
     std::shared_ptr<CS230::Texture> applyTexture;
     std::shared_ptr<CS230::Texture> labelResolution;
     std::shared_ptr<CS230::Texture> labelMode;
+    std::shared_ptr<CS230::Texture> labelFrameLimit;
 
+    Math::rect res3840Rect;
+    Math::rect res2560Rect;
+    Math::rect res1920Rect;
     Math::rect res1600Rect;
     Math::rect res1280Rect;
+    Math::rect resolutionDropdownRect;
+    Math::rect modeDropdownRect;
+    Math::rect frameLimitDropdownRect;
     Math::rect windowedRect;
     Math::rect borderlessRect;
     Math::rect fullscreenRect;
+    Math::rect fps30Rect;
+    Math::rect fps60Rect;
+    Math::rect fps120Rect;
+    Math::rect fps144Rect;
+    Math::rect fpsUnlimitedRect;
     Math::rect applyRect;
 
     enum class WindowMode
@@ -96,12 +118,24 @@ private:
         Borderless,
         Fullscreen
     };
-    int               pendingResIndex = 1;
-    WindowMode        pendingMode     = WindowMode::Windowed;
-    const Math::ivec2 resolutions[2]  = {
-        { 1600, 900 },
-        { 1280, 720 }
+    static constexpr int ResolutionOptionCount = 5;
+    static constexpr int FrameLimitOptionCount = 5;
+    static constexpr int WindowModeOptionCount = 3;
+
+    int               pendingResIndex        = 4;
+    int               pendingFrameLimitIndex = 1;
+    WindowMode        pendingMode            = WindowMode::Windowed;
+    bool              resolutionDropdownOpen = false;
+    bool              modeDropdownOpen       = false;
+    bool              frameLimitDropdownOpen = false;
+    const Math::ivec2 resolutions[ResolutionOptionCount] = {
+        { 3840, 2160 },
+        { 2560, 1440 },
+        { 1920, 1080 },
+        { 1600, 900  },
+        { 1280, 720  }
     };
+    const int frameLimits[FrameLimitOptionCount] = { 30, 60, 120, 144, 0 };
 
     void UpdateControlsTab();
     void DrawControlsTab();
@@ -141,4 +175,6 @@ private:
 
     MenuState   currentState = MenuState::Main;
     SettingsTab currentTab   = SettingsTab::Display;
+    bool        showDebugRects = false;
+    Math::ivec2 lastLayoutWindowSize{ 0, 0 };
 };

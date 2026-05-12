@@ -15,6 +15,7 @@ namespace CS230
         float       masterVolume = 1.0f;
         float       bgmVolume    = 1.0f;
         float       sfxVolume    = 1.0f;
+        int         frameLimit   = 60;
         bool        showFPS      = false;
         std::string language     = "English";
     };
@@ -36,6 +37,7 @@ namespace CS230
         [[nodiscard]] float               GetMasterVolume() const;
         [[nodiscard]] float               GetBGMVolume() const;
         [[nodiscard]] float               GetSFXVolume() const;
+        [[nodiscard]] int                 GetFrameLimit() const;
 
         // Setters
         void SetResolution(int width, int height);
@@ -43,6 +45,7 @@ namespace CS230
         void SetMasterVolume(float volume);
         void SetBGMVolume(float volume);
         void SetSFXVolume(float volume);
+        void SetFrameLimit(int frameLimit);
         void SetShowFPS(bool show);
 
         // Apply all settings to engine

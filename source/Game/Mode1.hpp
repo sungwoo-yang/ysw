@@ -36,6 +36,8 @@ public:
         return "Mode1";
     }
 
+    bool CanPause() const override;
+
 private:
     // Deferred initialization once the map is fully loaded
     void InitGame();

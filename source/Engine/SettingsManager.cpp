@@ -49,6 +49,11 @@ namespace CS230
         return currentSettings.sfxVolume;
     }
 
+    int SettingsManager::GetFrameLimit() const
+    {
+        return currentSettings.frameLimit;
+    }
+
     void SettingsManager::SetResolution(int width, int height)
     {
         currentSettings.resolutionX = width;
@@ -84,6 +89,12 @@ namespace CS230
         currentSettings.sfxVolume = std::clamp(volume, 0.0f, 1.0f);
     }
 
+    void SettingsManager::SetFrameLimit(int frameLimit)
+    {
+        currentSettings.frameLimit = std::max(0, frameLimit);
+        Engine::GetWindow().SetVSync(false);
+    }
+
     void SettingsManager::SetShowFPS(bool show)
     {
         currentSettings.showFPS = show;
@@ -100,6 +111,7 @@ namespace CS230
         {
             window.SetFullscreen(true);
         }
+        window.SetVSync(false);
         Engine::GetLogger().LogEvent("Settings Applied Successfully.");
     }
 
@@ -143,6 +155,8 @@ namespace CS230
                             currentSettings.bgmVolume = std::stof(value);
                         else if (key == "SFXVolume")
                             currentSettings.sfxVolume = std::stof(value);
+                        else if (key == "FrameLimit")
+                            currentSettings.frameLimit = std::max(0, std::stoi(value));
                         else if (key == "ShowFPS")
                             currentSettings.showFPS = (value == "1" || value == "true");
                     }
@@ -172,6 +186,7 @@ namespace CS230
         file << "MasterVolume=" << currentSettings.masterVolume << "\n";
         file << "BGMVolume=" << currentSettings.bgmVolume << "\n";
         file << "SFXVolume=" << currentSettings.sfxVolume << "\n";
+        file << "FrameLimit=" << currentSettings.frameLimit << "\n";
         file << "ShowFPS=" << (currentSettings.showFPS ? "1" : "0") << "\n";
 
         Engine::GetLogger().LogEvent(std::string("Settings Saved to ") + filepath.string());
