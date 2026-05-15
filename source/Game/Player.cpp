@@ -8,7 +8,6 @@
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
-#include "Engine/Texture.hpp"
 #include "Engine/TextureManager.hpp"
 
 #include "PushableMirror.hpp"
@@ -17,21 +16,20 @@
 #include <algorithm>
 #include <cmath>
 #include <imgui.h>
-#include <limits>
-#include <string>
-#include <vector>
 
 namespace
 {
-    template <typename T>
-    T Clamp(T v, T lo, T hi)
-    {
-        return (v < lo) ? lo : (v > hi) ? hi : v;
-    }
+    constexpr Math::irect PLAYER_COLLISION_BOX{
+        { -20, -40 },
+        {  20,  40 }
+    };
+    constexpr Math::vec2 PLAYER_COLLISION_SIZE{ 40.0, 80.0 };
+    constexpr Math::vec2 SHIELD_COOLDOWN_BAR_SIZE{ 68.0, 8.0 };
+    constexpr Math::vec2 SHIELD_COOLDOWN_BAR_OFFSET{ 0.0, 58.0 };
 
-    Math::vec2 LerpV(Math::vec2 a, Math::vec2 b, double t)
+    Math::TransformationMatrix RectangleTransform(Math::vec2 center, Math::vec2 size)
     {
-        return { a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t };
+        return Math::TranslationMatrix(center) * Math::ScaleMatrix(size);
     }
 }
 
@@ -39,19 +37,12 @@ Player::Player(Math::vec2 in_start_pos)
     : CS230::GameObject(in_start_pos), isJumping(true), velocityY(0.0), faceRight(true), shieldComponent(nullptr), startPosition(in_start_pos), previousPosition(in_start_pos),
       healthState(HealthState::Full), playerHp(5.0), maxPlayerHp(5.0), recoverDelayTimer(0.0), tookDamageThisFrame(false), invincibilityTimer(0.0)
 {
-    Engine::GetTextureManager().Load("Assets/images/Character.png");
-    AddGOComponent(new CS230::RectCollision(
-        {
-            { -20, -40 },
-            {  20,  40 }
-    },
-        this));
-
+    // Initialize core components
     shieldComponent = new Shield(this);
     AddGOComponent(shieldComponent);
-    
-    dashComponent.dashSpeed = 700.0;
-    dashComponent.dashDuration = 0.12;
+
+    // Add physical collision bounds
+    AddGOComponent(new CS230::RectCollision(PLAYER_COLLISION_BOX, this));
     dashComponent.dashCooldown = 1.0;
 }
 
@@ -60,28 +51,57 @@ void Player::Update(double dt)
     interactionTarget = nullptr;
     previousPosition  = GetPosition();
 
+    // Jumping State
     wasJumpingLastFrame = isJumping;
 
+    // Process invincibility timer
     if (invincibilityTimer > 0.0)
     {
         invincibilityTimer -= dt;
     }
 
+    // Process platforming assist timers
     if (jumpBufferTimer > 0.0)
         jumpBufferTimer -= dt;
     if (coyoteTimer > 0.0)
         coyoteTimer -= dt;
+    if (wallJumpControlLockTimer > 0.0)
+        wallJumpControlLockTimer -= dt;
 
     HandleInput(dt);
     dashComponent.UpdateTimers(dt);
 
+    // Apply gravity unless disabled by dashing mechanics
+    auto&      input         = Engine::GetInput();
+    const bool jumpHeld      = input.KeyDown(CS230::Input::Keys::W) || input.KeyDown(CS230::Input::Keys::Space);
+    const bool shouldCutJump = isJumping && velocityY > 0.0 && !jumpHeld && !dashComponent.IsDashing();
+
     bool applyGravity = true;
     if (dashComponent.IsDashing() && dashComponent.disableGravityOnDash)
-        applyGravity = false;
+        applyGravity = true;
 
     if (applyGravity)
-        velocityY -= gravity * dt;
+    {
+        const double gravityMultiplier = shouldCutJump ? jumpReleaseGravityMultiplier : 1.0;
+        velocityY -= gravity * gravityMultiplier * dt;
+    }
 
+    const bool pressingTowardWall = (wallDirection < 0 && input.KeyDown(CS230::Input::Keys::A)) || (wallDirection > 0 && input.KeyDown(CS230::Input::Keys::D));
+    const bool canWallSlide       = isJumping && isTouchingWall && wallDirection != 0 && pressingTowardWall && !dashComponent.IsDashing() && velocityY <= 0.0;
+    isWallSliding                 = canWallSlide;
+
+    if (canWallSlide)
+    {
+        wallContactTimer += dt;
+        const double maxFallSpeed = wallContactTimer < wallStickDuration ? wallStickFallSpeed : wallSlideSpeed;
+        velocityY                 = std::max(velocityY, -maxFallSpeed);
+    }
+    else
+    {
+        wallContactTimer = 0.0;
+    }
+
+    // Override horizontal velocity if dashing
     double finalVelX = GetVelocity().x;
     if (dashComponent.IsDashing())
         finalVelX = dashComponent.GetDashVelocityX();
@@ -89,6 +109,8 @@ void Player::Update(double dt)
 
     isJumping            = true;
     currentPlatformIndex = std::nullopt;
+    isTouchingWall       = false;
+    wallDirection        = 0;
 
     CS230::GameObject::Update(dt);
 
@@ -108,9 +130,14 @@ void Player::ResetState()
     dashComponent.dashTimer         = 0.0;
     dashComponent.dashCooldownTimer = 0.0;
 
-    currentSpeedMultiplier = 1.0;
-    interactionTarget      = nullptr;
-    isInteracting          = false;
+    currentSpeedMultiplier   = 1.0;
+    interactionTarget        = nullptr;
+    isInteracting            = false;
+    isTouchingWall           = false;
+    isWallSliding            = false;
+    wallDirection            = 0;
+    wallContactTimer         = 0.0;
+    wallJumpControlLockTimer = 0.0;
 
     playerHp            = maxPlayerHp;
     healthState         = HealthState::Full;
@@ -189,20 +216,24 @@ void Player::HandleInput(double dt)
         }
 
         double currentVelX = GetVelocity().x;
-        double targetVelX = move.x * targetMaxSpeed;
+        double targetVelX  = move.x * targetMaxSpeed;
 
-        bool isGrounded = !isJumping;
-        double accel = isGrounded ? groundAcceleration : airAcceleration;
-        double friction = isGrounded ? groundFriction : airFriction;
+        double     accel                = playerAcceleration;
+        double     friction             = playerFriction;
+        const bool canControlHorizontal = wallJumpControlLockTimer <= 0.0;
 
-        if (std::abs(move.x) > 0.1)
+        if (!canControlHorizontal)
         {
-            if ((move.x > 0 && currentVelX < 0) || (move.x < 0 && currentVelX > 0))
+            currentVelX = GetVelocity().x;
+        }
+        else if (std::abs(move.x) > 0.1)
+        {
+            const bool changingDirection = (move.x > 0.0 && currentVelX < 0.0) || (move.x < 0.0 && currentVelX > 0.0);
+            if (changingDirection)
             {
-                 accel *= 1.5;
+                currentVelX = 0.0;
             }
-
-            if (currentVelX < targetVelX)
+            else if (currentVelX < targetVelX)
             {
                 currentVelX = std::min(currentVelX + accel * dt, targetVelX);
             }
@@ -225,11 +256,33 @@ void Player::HandleInput(double dt)
 
         SetVelocity({ currentVelX, GetVelocity().y });
 
-        if (!isJumping && (input.KeyJustPressed(CS230::Input::Keys::W) || input.KeyJustPressed(CS230::Input::Keys::Space)))
+        // Jump processing
+        const bool jumpPressed = input.KeyJustPressed(CS230::Input::Keys::W) || input.KeyJustPressed(CS230::Input::Keys::Space);
+        if (jumpPressed)
         {
-            jumpBufferTimer = jumpStrength;
+            jumpBufferTimer = jumpBufferTime;
         }
-        
+
+        if (isJumping && isTouchingWall && wallDirection != 0 && jumpBufferTimer > 0.0)
+        {
+            const double jumpDirection = static_cast<double>(-wallDirection);
+            currentVelX                = jumpDirection * wallJumpHorizontalStrength;
+            velocityY                  = wallJumpVerticalStrength;
+            faceRight                  = jumpDirection > 0.0;
+
+            SetVelocity({ currentVelX, velocityY });
+
+            isTouchingWall           = false;
+            isWallSliding            = false;
+            wallDirection            = 0;
+            wallContactTimer         = 0.0;
+            wallJumpControlLockTimer = wallJumpControlLockDuration;
+            jumpBufferTimer          = 0.0;
+            coyoteTimer              = 0.0;
+
+            Engine::GetLogger().LogEvent("Event: Player Wall Jump");
+        }
+
         if (coyoteTimer > 0.0 && jumpBufferTimer > 0.0 && velocityY <= 0.0)
         {
             velocityY = jumpStrength;
@@ -239,14 +292,6 @@ void Player::HandleInput(double dt)
             coyoteTimer     = 0.0;
 
             Engine::GetLogger().LogEvent("Event: Player Jump (Buffered/Coyote)");
-        }
-
-        if (isJumping && velocityY > 0.0)
-        {
-            if (input.KeyJustReleased(CS230::Input::Keys::W) || input.KeyJustReleased(CS230::Input::Keys::Space))
-            {
-                velocityY *= jumpCutMultiplier;
-            }
         }
     }
 }
@@ -269,6 +314,12 @@ bool Player::CanCollideWith(GameObjectTypes other_object_type)
     return false;
 }
 
+void Player::RecordWallContact(int direction)
+{
+    isTouchingWall = true;
+    wallDirection  = direction;
+}
+
 void Player::ResolveCollision(GameObject* other_object)
 {
     auto  textManager = Engine::GetGameStateManager().GetGSComponent<WorldTextManager>();
@@ -281,6 +332,7 @@ void Player::ResolveCollision(GameObject* other_object)
             return;
 
         Math::rect other_box;
+
         if (other_object->Type() == GameObjectTypes::Floor)
         {
             CS230::SATCollision* floor_collider = other_object->GetGOComponent<CS230::SATCollision>();
@@ -298,29 +350,31 @@ void Player::ResolveCollision(GameObject* other_object)
 
         Math::rect my_box = my_collider->WorldBoundary();
 
-        double current_half_height = (my_box.Top() - my_box.Bottom()) / 2.0;
-        double current_half_width  = (my_box.Right() - my_box.Left()) / 2.0;
+        double prev_bottom = previousPosition.y - (PLAYER_COLLISION_SIZE.y / 2.0);
+        double prev_top    = previousPosition.y + (PLAYER_COLLISION_SIZE.y / 2.0);
+        double prev_left   = previousPosition.x - (PLAYER_COLLISION_SIZE.x / 2.0);
+        double prev_right  = previousPosition.x + (PLAYER_COLLISION_SIZE.x / 2.0);
 
         double platform_top    = other_box.Top();
         double platform_bottom = other_box.Bottom();
         double platform_left   = other_box.Left();
         double platform_right  = other_box.Right();
 
-        double prev_bottom = previousPosition.y - current_half_height;
-        double prev_top    = previousPosition.y + current_half_height;
-        double prev_left   = previousPosition.x - current_half_width;
-        double prev_right  = previousPosition.x + current_half_width;
+        bool was_above = prev_bottom >= platform_top;
+        bool was_below = prev_top <= platform_bottom;
+        bool was_left  = prev_right <= platform_left;
+        bool was_right = prev_left >= platform_right;
+
+        double overlap_bottom = my_box.Top() - other_box.Bottom();
+        double overlap_top    = other_box.Top() - my_box.Bottom();
+        double overlap_left   = my_box.Right() - other_box.Left();
+        double overlap_right  = other_box.Right() - my_box.Left();
 
         bool horizontal_overlap = my_box.Right() > other_box.Left() && my_box.Left() < other_box.Right();
         bool vertical_overlap   = my_box.Top() > other_box.Bottom() && my_box.Bottom() < other_box.Top();
 
         if (!horizontal_overlap || !vertical_overlap)
             return;
-
-        bool was_above = prev_bottom >= platform_top;
-        bool was_below = prev_top <= platform_bottom;
-        bool was_left  = prev_right <= platform_left;
-        bool was_right = prev_left >= platform_right;
 
         if (velocityY <= 0 && was_above && horizontal_overlap)
         {
@@ -329,25 +383,79 @@ void Player::ResolveCollision(GameObject* other_object)
                 AudioManager::Play("SFX_Landing");
                 wasJumpingLastFrame = false;
             }
-            SetPosition({ GetPosition().x, platform_top + current_half_height });
-            velocityY   = 0.0;
-            isJumping   = false;
-            coyoteTimer = coyoteTime;
+
+            SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
+            velocityY                = 0.0;
+            isJumping                = false;
+            coyoteTimer              = coyoteTime;
+            wallJumpControlLockTimer = 0.0;
         }
         else if (velocityY > 0 && was_below && horizontal_overlap)
         {
-            SetPosition({ GetPosition().x, platform_bottom - current_half_height });
+            SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
             velocityY = 0.0;
         }
         else if (GetVelocity().x > 0 && was_left && vertical_overlap)
         {
-            SetPosition({ platform_left - current_half_width, GetPosition().y });
+            SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
             SetVelocity({ 0.0, GetVelocity().y });
+            RecordWallContact(1);
         }
         else if (GetVelocity().x < 0 && was_right && vertical_overlap)
         {
-            SetPosition({ platform_right + current_half_width, GetPosition().y });
+            SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
             SetVelocity({ 0.0, GetVelocity().y });
+            RecordWallContact(-1);
+        }
+        else
+        {
+            double min_overlap = overlap_bottom;
+            int    axis        = 0;
+
+            if (overlap_top < min_overlap)
+            {
+                min_overlap = overlap_top;
+                axis        = 1;
+            }
+            if (overlap_left < min_overlap)
+            {
+                min_overlap = overlap_left;
+                axis        = 2;
+            }
+            if (overlap_right < min_overlap)
+            {
+                min_overlap = overlap_right;
+                axis        = 3;
+            }
+
+            switch (axis)
+            {
+                case 0:
+                    SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
+                    if (velocityY > 0)
+                        velocityY = 0.0;
+                    break;
+                case 1:
+                    SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
+                    if (velocityY < 0)
+                        velocityY = 0.0;
+                    isJumping                = false;
+                    coyoteTimer              = coyoteTime;
+                    wallJumpControlLockTimer = 0.0;
+                    break;
+                case 2:
+                    SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+                    if (GetVelocity().x > 0.0)
+                        SetVelocity({ 0.0, GetVelocity().y });
+                    RecordWallContact(1);
+                    break;
+                case 3:
+                    SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+                    if (GetVelocity().x < 0.0)
+                        SetVelocity({ 0.0, GetVelocity().y });
+                    RecordWallContact(-1);
+                    break;
+            }
         }
     }
     else if (other_object->Type() == GameObjectTypes::Sign || other_object->Type() == GameObjectTypes::Bonfire || other_object->Type() == GameObjectTypes::Door)
@@ -357,12 +465,14 @@ void Player::ResolveCollision(GameObject* other_object)
         if (input.KeyJustPressed(CS230::Input::Keys::F))
         {
             isInteracting = true;
+        }
+
+        if (isInteracting)
+        {
             other_object->Interact(this);
         }
         else
         {
-            isInteracting = false;
-
             if (textManager != nullptr)
             {
                 textManager->ShowTextBelow(other_object, "Press 'F'", 0.5, CS200::WHITE);
@@ -402,38 +512,75 @@ void Player::ResolveCollision(GameObject* other_object)
 
 void Player::Draw(const Math::TransformationMatrix& camera_matrix)
 {
-    CS200::IRenderer2D& renderer = Engine::GetRenderer2D();
+    CS200::IRenderer2D&        renderer  = Engine::GetRenderer2D();
+    Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix(PLAYER_COLLISION_SIZE);
+
+    CS200::RGBA playerColor = CS200::GREEN;
+
+    if (invincibilityTimer > 0.0)
+    {
+        if (static_cast<int>(invincibilityTimer * 10.0) % 2 == 0)
+        {
+            playerColor = (playerColor & 0xFFFFFF00) | 100;
+        }
+    }
+
+    switch (healthState)
+    {
+        case HealthState::Full: playerColor = CS200::GREEN; break;
+        case HealthState::Healthy: playerColor = CS200::CYAN; break;
+        case HealthState::Hurt: playerColor = CS200::YELLOW; break;
+        case HealthState::Critical: playerColor = 0xFFA500FF; break;
+        case HealthState::NearDeath: playerColor = CS200::RED; break;
+        case HealthState::Dead: playerColor = 0x8B0000FF; break;
+        default: playerColor = CS200::GREEN; break;
+    }
+
+    renderer.DrawRectangle(transform, playerColor, CS200::CLEAR, 0.0);
 
     if (shieldComponent)
     {
         shieldComponent->Draw(renderer, camera_matrix);
     }
 
-    auto texture = Engine::GetTextureManager().Load("Assets/images/Character.png");
-    if (texture)
-    {
-        Math::TransformationMatrix scale_matrix = Math::ScaleMatrix({ 160.0, 160.0 });
+    // auto texture = CS230::TextureManager().Load("Assets/Character.png");
 
-        if (!faceRight)
-        {
-            scale_matrix = scale_matrix * Math::ScaleMatrix({ -1.0, 1.0 });
-        }
-
-        Math::TransformationMatrix final_transform = GetMatrix() * scale_matrix;
-
-        float alpha = 1.0f;
-        if (invincibilityTimer > 0.0)
-        {
-            if (static_cast<int>(invincibilityTimer * 10.0) % 2 == 0)
-            {
-                alpha = 0.4f;
-            }
-        }
-
-        renderer.DrawQuad(final_transform, texture->GetHandle(), Math::vec2{ 0.0, 0.0 }, Math::vec2{ 1.0, 1.0 }, CS200::pack_color({ 1.0f, 1.0f, 1.0f, alpha }));
-    }
+    DrawShieldCooldown(renderer);
 
     CS230::GameObject::Draw(camera_matrix);
+}
+
+void Player::DrawShieldCooldown(CS200::IRenderer2D& renderer) const
+{
+    if (shieldComponent == nullptr)
+    {
+        return;
+    }
+
+    const bool isFrozen  = shieldComponent->IsFrozen();
+    const bool isCooling = shieldComponent->IsCoolingDown();
+    if (!isFrozen && !isCooling)
+    {
+        return;
+    }
+
+    const double readyRatio = isFrozen ? shieldComponent->GetFreezeRatio() : 1.0 - shieldComponent->GetCooldownRatio();
+    const double fillRatio  = std::clamp(readyRatio, 0.0, 1.0);
+
+    const Math::vec2 center = GetPosition() + SHIELD_COOLDOWN_BAR_OFFSET;
+    renderer.DrawRectangle(RectangleTransform(center, SHIELD_COOLDOWN_BAR_SIZE), 0x000000A0, 0xFFFFFFFF, 1.0);
+
+    if (fillRatio <= 0.0)
+    {
+        return;
+    }
+
+    const double     fillWidth = (SHIELD_COOLDOWN_BAR_SIZE.x - 2.0) * fillRatio;
+    const Math::vec2 fillSize{ fillWidth, SHIELD_COOLDOWN_BAR_SIZE.y - 2.0 };
+    const Math::vec2 fillCenter{ center.x - (SHIELD_COOLDOWN_BAR_SIZE.x * 0.5) + 1.0 + (fillWidth * 0.5), center.y };
+
+    const CS200::RGBA fillColor = isFrozen ? 0xFF4040E0 : 0x00FFFFFF;
+    renderer.DrawRectangle(RectangleTransform(fillCenter, fillSize), fillColor, CS200::CLEAR, 0.0);
 }
 
 void Player::ApplyLaserDamage(double damageAmount)
@@ -553,6 +700,66 @@ void Player::DrawImGui()
         ImGui::Checkbox("Face Right", &faceRight);
         ImGui::Text("Coyote Timer: %.2f", coyoteTimer);
         ImGui::Text("Jump Buffer: %.2f", jumpBufferTimer);
+
+        ImGui::Separator();
+        ImGui::Checkbox("Developer Mode", &developerMode);
+        if (developerMode)
+        {
+            ImGui::Text("Movement Tuning:");
+
+            float gravityValue = static_cast<float>(gravity);
+            if (ImGui::DragFloat("Gravity", &gravityValue, 10.0f, 100.0f, 5000.0f))
+            {
+                gravity = static_cast<double>(std::max(gravityValue, 0.0f));
+            }
+
+            float jumpStrengthValue = static_cast<float>(jumpStrength);
+            if (ImGui::DragFloat("Jump Strength", &jumpStrengthValue, 10.0f, 0.0f, 3000.0f))
+            {
+                jumpStrength = static_cast<double>(std::max(jumpStrengthValue, 0.0f));
+            }
+
+            float releaseGravityValue = static_cast<float>(jumpReleaseGravityMultiplier);
+            if (ImGui::DragFloat("Jump Release Gravity Mult", &releaseGravityValue, 0.05f, 1.0f, 8.0f))
+            {
+                jumpReleaseGravityMultiplier = static_cast<double>(std::max(releaseGravityValue, 1.0f));
+            }
+
+            float maxSpeedValue = static_cast<float>(maxRunSpeed);
+            if (ImGui::DragFloat("Player Max Speed", &maxSpeedValue, 10.0f, 0.0f, 3000.0f))
+            {
+                maxRunSpeed = static_cast<double>(std::max(maxSpeedValue, 0.0f));
+            }
+
+            float playerAccelValue = static_cast<float>(playerAcceleration);
+            if (ImGui::DragFloat("Player Acceleration", &playerAccelValue, 10.0f, 100.0f, 10000.0f))
+            {
+                playerAcceleration = static_cast<double>(std::max(playerAccelValue, 0.0f));
+            }
+
+            float playerFrictionValue = static_cast<float>(playerFriction);
+            if (ImGui::DragFloat("Player Friction", &playerFrictionValue, 10.0f, 0.0f, 10000.0f))
+            {
+                playerFriction = static_cast<double>(std::max(playerFrictionValue, 0.0f));
+            }
+
+            float wallJumpLockValue = static_cast<float>(wallJumpControlLockDuration);
+            if (ImGui::DragFloat("Wall Jump Input Lock", &wallJumpLockValue, 0.01f, 0.0f, 1.0f))
+            {
+                wallJumpControlLockDuration = static_cast<double>(std::max(wallJumpLockValue, 0.0f));
+            }
+
+            if (ImGui::Button("Reset Movement Tuning"))
+            {
+                gravity                      = 1500.0;
+                jumpStrength                 = 800.0;
+                jumpReleaseGravityMultiplier = 2.5;
+                maxRunSpeed                  = 500.0;
+                playerAcceleration           = 2200.0;
+                playerFriction               = 1800.0;
+                wallJumpControlLockDuration  = 0.12;
+            }
+        }
 
         ImGui::Separator();
         ImGui::Text("Dash State:");

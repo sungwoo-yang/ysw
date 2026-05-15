@@ -1,6 +1,5 @@
 #pragma once
 
-// #include "Engine/AnimationEditor.hpp"
 #include "Engine/Dash.hpp"
 #include "Engine/GameObject.hpp"
 #include "Engine/GameObjectTypes.hpp"
@@ -54,13 +53,11 @@ public:
     void ResetState();
     void SetSavePoint(Math::vec2 new_spawn_point);
 
-    // Handle laser damage and trigger invincibility frames
     void ApplyLaserDamage(double damageAmount);
 
     bool IsDead() const;
     double GetHP() const;
 
-    // Core movement and interaction states
     CS230::DashComponent  dashComponent;
     bool                  isJumping            = false;
     std::optional<size_t> currentPlatformIndex = std::nullopt;
@@ -71,48 +68,58 @@ public:
     bool               isInteracting     = false;
 
 private:
-    // Process player input for movement, jumping, and actions
     void HandleInput(double dt);
+    void DrawShieldCooldown(CS200::IRenderer2D& renderer) const;
 
-    // Update player health status and handle recovery over time
     void UpdateHealthState(double dt);
+    void RecordWallContact(int direction);
 
-    // System components
+    const double collisionHalfHeight = 40.0;
+
     Shield* shieldComponent = nullptr;
 
-    // Movement physics constants
-    const double gravity           = 1800.0;
-    const double jumpStrength      = 850.0; 
-    const double jumpCutMultiplier = 0.4;
+    double       gravity      = 1600.0;
+    double       jumpStrength = 800.0;
+    const double jumpBufferTime = 0.12;
+    double       jumpReleaseGravityMultiplier = 4.5;
 
-    const double maxRunSpeed        = 480.0;
-    const double groundAcceleration = 3500.0;
-    const double groundFriction     = 4500.0;
-    const double airAcceleration    = 400.0;
-    const double airFriction        = 100.0;
+    const double wallStickDuration           = 0.28;
+    const double wallStickFallSpeed          = 30.0;
+    const double wallSlideSpeed              = 150.0;
+    const double wallJumpHorizontalStrength  = 620.0;
+    const double wallJumpVerticalStrength    = 800.0;
+    double       wallJumpControlLockDuration = 0.15;
 
+    double       maxRunSpeed        = 550.0;
+    double       playerAcceleration = 3000.0;
+    double       playerFriction     = 2110.0;
+    
     double       currentSpeedMultiplier = 1.0;
     const double shieldSlowdownRate     = 4.0;
     const double minShieldSpeedMult     = 0.3;
 
-    // State tracking for collision resolution
     Math::vec2 startPosition;
     Math::vec2 previousPosition;
 
-    // Platforming assist timers (Game feel improvements)
     double       jumpBufferTimer = 0.0;
     double       coyoteTimer     = 0.0;
     const double coyoteTime      = 0.1;
 
-    // Health and damage system
+    bool   isTouchingWall           = false;
+    bool   isWallSliding            = false;
+    int    wallDirection            = 0;
+    double wallContactTimer         = 0.0;
+    double wallJumpControlLockTimer = 0.0;
+    bool   developerMode            = false;
+
     enum class HealthState
     {
-        Full,      // 5
-        Healthy,   // 4
-        Hurt,      // 3
-        Critical,  // 2
-        NearDeath, // 1
-        Dead       // 0
+        Full,      
+        Healthy,   
+        Hurt,      
+        Critical,  
+        NearDeath, 
+        Dead       
     };
     HealthState healthState = HealthState::Full;
     double      playerHp    = 5.0;
@@ -122,10 +129,8 @@ private:
     const double recoverDelayDuration = 5.0;
     bool         tookDamageThisFrame  = false;
 
-    // I-frames (Invincibility frames) after taking damage
     double       invincibilityTimer    = 0.0;
     const double invincibilityDuration = 1.0;
 
-    // Landing Sounds
     bool wasJumpingLastFrame = false;
 };

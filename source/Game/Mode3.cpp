@@ -12,15 +12,8 @@
 #include "CS200/NDC.hpp"
 
 #include "Engine/AudioManager.hpp"
-#include "Engine/Camera.hpp"
-#include "Engine/Engine.hpp"
-#include "Engine/Font.hpp"
-#include "Engine/GameObjectManager.hpp"
-#include "Engine/GameStateManager.hpp"
-#include "Engine/Input.hpp"
-#include "Engine/Logger.hpp"
-#include "Engine/MapManager.h"
 #include "Engine/BackgroundElement.hpp"
+#include "Engine/Camera.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/Font.hpp"
 #include "Engine/GameObjectManager.hpp"
@@ -237,11 +230,6 @@ void Mode3::Update(double dt)
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
     {
         player->SetPosition({ 1700, 300 });
-    }
-
-    if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))
-    {
-        Engine::GetGameStateManager().ChangeStateWithFade<MainMenu>();
     }
 
     miniMap->Update(dt);
