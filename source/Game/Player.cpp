@@ -332,19 +332,25 @@ void Player::ResolveCollision(GameObject* other_object)
             return;
 
         Math::rect other_box;
+        Polygon    floor_poly;
+        bool       has_floor_poly = false;
 
         if (other_object->Type() == GameObjectTypes::Floor)
         {
             CS230::SATCollision* floor_collider = other_object->GetGOComponent<CS230::SATCollision>();
             if (!floor_collider)
                 return;
-            other_box = floor_collider->WorldBoundary().FindBoundary();
+
+            floor_poly     = floor_collider->WorldBoundary();
+            has_floor_poly = true;
+            other_box      = floor_poly.FindBoundary();
         }
         else if (other_object->Type() == GameObjectTypes::Gate)
         {
             CS230::RectCollision* gate_collider = other_object->GetGOComponent<CS230::RectCollision>();
             if (!gate_collider)
                 return;
+
             other_box = gate_collider->WorldBoundary();
         }
 
@@ -354,6 +360,80 @@ void Player::ResolveCollision(GameObject* other_object)
         double prev_top    = previousPosition.y + (PLAYER_COLLISION_SIZE.y / 2.0);
         double prev_left   = previousPosition.x - (PLAYER_COLLISION_SIZE.x / 2.0);
         double prev_right  = previousPosition.x + (PLAYER_COLLISION_SIZE.x / 2.0);
+
+        // Slope collision: handle diagonal Floor polygons before falling back to AABB-style platform collision.
+        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && floor_poly.vertexCount >= 3)
+        {
+            constexpr double DIAGONAL_EPS            = 0.001;
+            constexpr double SLOPE_X_MARGIN          = 2.0;
+            constexpr double SLOPE_CONTACT_TOLERANCE = 6.0;
+            constexpr double MAX_SLOPE_STEP_UP       = 48.0;
+
+            const double foot_x         = GetPosition().x;
+            const double current_bottom = my_box.Bottom();
+
+            bool   found_slope = false;
+            double slope_y     = 0.0;
+
+            const auto& verts = floor_poly.vertices;
+
+            for (size_t i = 0; i < verts.size(); ++i)
+            {
+                Math::vec2 p1 = verts[i];
+                Math::vec2 p2 = verts[(i + 1) % verts.size()];
+
+                const double dx = p2.x - p1.x;
+                const double dy = p2.y - p1.y;
+
+                // We only care about diagonal edges.
+                if (std::abs(dx) < DIAGONAL_EPS || std::abs(dy) < DIAGONAL_EPS)
+                    continue;
+
+                const double min_x = std::min(p1.x, p2.x) - SLOPE_X_MARGIN;
+                const double max_x = std::max(p1.x, p2.x) + SLOPE_X_MARGIN;
+
+                if (foot_x < min_x || foot_x > max_x)
+                    continue;
+
+                double t = (foot_x - p1.x) / dx;
+                t        = std::clamp(t, 0.0, 1.0);
+
+                const double edge_y = p1.y + dy * t;
+
+                // If multiple diagonal edges exist, use the highest one as the walkable surface.
+                if (!found_slope || edge_y > slope_y)
+                {
+                    found_slope = true;
+                    slope_y     = edge_y;
+                }
+            }
+
+            if (found_slope)
+            {
+                const bool crossed_surface = prev_bottom >= slope_y && current_bottom <= slope_y + SLOPE_CONTACT_TOLERANCE;
+
+                const bool close_enough_to_snap = current_bottom <= slope_y + SLOPE_CONTACT_TOLERANCE && (slope_y - current_bottom) <= MAX_SLOPE_STEP_UP;
+
+                if (velocityY <= 0.0 && (crossed_surface || close_enough_to_snap))
+                {
+                    if (wasJumpingLastFrame)
+                    {
+                        AudioManager::Play("SFX_Landing");
+                        wasJumpingLastFrame = false;
+                    }
+
+                    SetPosition({ GetPosition().x, slope_y + (PLAYER_COLLISION_SIZE.y / 2.0) });
+                    velocityY = 0.0;
+                    SetVelocity({ GetVelocity().x, 0.0 });
+
+                    isJumping                = false;
+                    coyoteTimer              = coyoteTime;
+                    wallJumpControlLockTimer = 0.0;
+
+                    return;
+                }
+            }
+        }
 
         double platform_top    = other_box.Top();
         double platform_bottom = other_box.Bottom();
