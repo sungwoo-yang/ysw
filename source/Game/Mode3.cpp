@@ -54,7 +54,7 @@ void Mode3::Load()
 
     AddGSComponent(new CS230::GameObjectManager());
 
-    Math::vec2 spawnPosition = { 0.0, -2200.0 };
+    Math::vec2 spawnPosition = { 300.0, -3000.0 };
 
     if (pendingReturnPosition.has_value())
     {
@@ -91,7 +91,7 @@ void Mode3::Load()
 
     AddGSComponent(camera);
 
-    mapManager->AddMap(new CS230::Map("Assets/maps/tutorial11.svg"));
+    mapManager->AddMap(new CS230::Map("Assets/maps/main.svg"));
     mapManager->LoadMap();
     AddGSComponent(mapManager);
 
@@ -208,21 +208,6 @@ void Mode3::Update(double dt)
         Math::vec2 scaledWinSize = winSize / currentScale;
 
         Math::vec2 targetPos = player->GetPosition() - Math::vec2{ scaledWinSize.x * 0.5, scaledWinSize.y * 0.5 };
-
-        double minX = level_boundary.Left();
-        double maxX = level_boundary.Right() - scaledWinSize.x;
-
-        double minY = -2800.0;
-        double maxY = 1600.0;
-
-        if (targetPos.x < minX)
-            targetPos.x = minX;
-        if (targetPos.x > maxX)
-            targetPos.x = maxX;
-        if (targetPos.y < minY)
-            targetPos.y = minY;
-        if (targetPos.y > maxY)
-            targetPos.y = maxY;
 
         camera->Update(targetPos, dt);
     }

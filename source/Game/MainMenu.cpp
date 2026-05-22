@@ -16,6 +16,8 @@
 #include <imgui.h>
 #include <initializer_list>
 
+#include "Mode3.hpp"
+
 namespace
 {
     Math::rect MakeRect(Math::vec2 bottomLeft, Math::vec2 size)
@@ -376,7 +378,9 @@ void MainMenu::UpdateMainMenu([[maybe_unused]] double dt)
             Engine::GetLogger().LogEvent("Start Game Button Clicked");
             // Engine::GetGameStateManager().Clear();
             // Engine::GetGameStateManager().PushState<Mode1>();
-            Engine::GetGameStateManager().ChangeStateWithFade<Mode1>();
+            // Engine::GetGameStateManager().ChangeStateWithFade<Mode1>();
+            Engine::GetGameStateManager().Clear();
+            Engine::GetGameStateManager().PushState<Mode3>();
         }
         else if (isSettingsHovered)
         {
