@@ -410,9 +410,13 @@ void Player::ResolveCollision(GameObject* other_object)
 
             if (found_slope)
             {
+                constexpr double MAX_SLOPE_SNAP_DOWN = 0.5;
+
+                const double delta_to_slope = slope_y - current_bottom;
+
                 const bool crossed_surface = prev_bottom >= slope_y && current_bottom <= slope_y + SLOPE_CONTACT_TOLERANCE;
 
-                const bool close_enough_to_snap = current_bottom <= slope_y + SLOPE_CONTACT_TOLERANCE && (slope_y - current_bottom) <= MAX_SLOPE_STEP_UP;
+                const bool close_enough_to_snap = delta_to_slope >= -MAX_SLOPE_SNAP_DOWN && delta_to_slope <= MAX_SLOPE_STEP_UP;
 
                 if (velocityY <= 0.0 && (crossed_surface || close_enough_to_snap))
                 {
@@ -455,6 +459,76 @@ void Player::ResolveCollision(GameObject* other_object)
 
         if (!horizontal_overlap || !vertical_overlap)
             return;
+
+        // Slope seam handling:
+        // When two separate slope polygons touch each other,
+        // the next slope's vertical boundary can be detected as a wall before the player's center reaches the slope.
+        // If the object has a diagonal walkable edge in the moving direction, do not resolve this as a wall.
+        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && floor_poly.vertexCount >= 3)
+        {
+            constexpr double SEAM_DIAGONAL_EPS     = 0.001;
+            constexpr double SEAM_X_TOLERANCE      = 6.0;
+            constexpr double SEAM_SNAP_DOWN_LIMIT  = 4.0;
+            constexpr double MAX_SLOPE_SEAM_HEIGHT = 64.0;
+            constexpr double MIN_SEAM_SIDE_SPEED   = 1.0;
+
+            const bool moving_right = GetVelocity().x > MIN_SEAM_SIDE_SPEED;
+            const bool moving_left  = GetVelocity().x < -MIN_SEAM_SIDE_SPEED;
+
+            const bool side_hit_on_slope = (moving_right && was_left && vertical_overlap) || (moving_left && was_right && vertical_overlap);
+
+            if (side_hit_on_slope && velocityY <= 0.0)
+            {
+                const double current_bottom = my_box.Bottom();
+                const double front_x        = moving_right ? my_box.Right() : my_box.Left();
+
+                bool should_ignore_slope_seam_wall = false;
+
+                const auto& verts = floor_poly.vertices;
+
+                for (size_t i = 0; i < verts.size(); ++i)
+                {
+                    Math::vec2 p1 = verts[i];
+                    Math::vec2 p2 = verts[(i + 1) % verts.size()];
+
+                    const double dx = p2.x - p1.x;
+                    const double dy = p2.y - p1.y;
+
+                    // Only diagonal edges are walkable slope candidates.
+                    if (std::abs(dx) < SEAM_DIAGONAL_EPS || std::abs(dy) < SEAM_DIAGONAL_EPS)
+                        continue;
+
+                    const double min_x = std::min(p1.x, p2.x) - SEAM_X_TOLERANCE;
+                    const double max_x = std::max(p1.x, p2.x) + SEAM_X_TOLERANCE;
+
+                    if (front_x < min_x || front_x > max_x)
+                        continue;
+
+                    double t = (front_x - p1.x) / dx;
+                    t        = std::clamp(t, 0.0, 1.0);
+
+                    const double surface_y = p1.y + dy * t;
+                    const double gap       = surface_y - current_bottom;
+
+                    // If the next slope surface is near enough, treat this as a slope connection,
+                    // not a real wall. This value can be larger than normal stair height because
+                    // steep slopes create a large height difference between player center and front edge.
+                    if (gap >= -SEAM_SNAP_DOWN_LIMIT && gap <= MAX_SLOPE_SEAM_HEIGHT)
+                    {
+                        should_ignore_slope_seam_wall = true;
+                        break;
+                    }
+                }
+
+                if (should_ignore_slope_seam_wall)
+                {
+                    // Do not zero horizontal velocity.
+                    // The current/previous slope will keep controlling the player's y position,
+                    // and once the player center reaches this slope, normal slope collision will take over.
+                    return;
+                }
+            }
+        }
 
         if (velocityY <= 0 && was_above && horizontal_overlap)
         {
@@ -538,6 +612,7 @@ void Player::ResolveCollision(GameObject* other_object)
             }
         }
     }
+
     else if (other_object->Type() == GameObjectTypes::Sign || other_object->Type() == GameObjectTypes::Bonfire || other_object->Type() == GameObjectTypes::Door)
     {
         interactionTarget = other_object;
