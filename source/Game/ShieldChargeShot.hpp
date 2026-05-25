@@ -8,6 +8,7 @@
 
 class Player;
 class TargetStar;
+class LaserCutRope;
 
 namespace Boss
 {
@@ -35,7 +36,8 @@ namespace Boss
         Math::vec2 GetMouseWorldPosition() const;
         Math::vec2 ClipEndByBlockingObjects(Math::vec2 start, Math::vec2 end) const;
 
-        TargetStar* FindFirstHitTarget(Math::vec2 start, Math::vec2 end) const;
+        TargetStar*   FindFirstHitTarget(Math::vec2 start, Math::vec2 end) const;
+        LaserCutRope* FindFirstHitRope(Math::vec2 start, Math::vec2 end) const;
 
         static bool IsChargeShotBlocker(GameObjectTypes type);
         static bool SegmentIntersectsRect(Math::vec2 start, Math::vec2 end, const Math::rect& rect, double& out_t);

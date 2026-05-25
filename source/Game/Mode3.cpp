@@ -183,6 +183,11 @@ void Mode3::Update(double dt)
     GetGSComponent<CS230::GameObjectManager>()->UpdateAll(dt);
     GetGSComponent<CS230::GameObjectManager>()->CollisionTest();
 
+    if (shieldChargeShot != nullptr)
+    {
+        shieldChargeShot->Update(dt);
+    }
+
     if (player != nullptr && player->interactionTarget == nullptr)
         player->isInteracting = false;
 
@@ -277,6 +282,12 @@ void Mode3::Draw()
     renderer.BeginScene(view_projection_matrix);
 
     GetGSComponent<CS230::GameObjectManager>()->DrawAll(view_projection_matrix);
+
+    if (shieldChargeShot != nullptr)
+    {
+        shieldChargeShot->Draw(view_projection_matrix);
+    }
+
     renderer.EndScene();
 
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
@@ -352,6 +363,12 @@ void Mode3::Unload()
     OpenGL::DestroyShader(backgroundShader);
     GL::DeleteVertexArrays(1, &backgroundVAO);
     GL::DeleteBuffers(1, &backgroundVBO);
+
+    delete shieldChargeShot;
+    shieldChargeShot = nullptr;
+
+    delete shieldEnergy;
+    shieldEnergy = nullptr;
 
     ClearGSComponents();
     player           = nullptr;

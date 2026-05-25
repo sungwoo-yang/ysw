@@ -8,6 +8,7 @@
 #include "Engine/Window.hpp"
 
 #include "BossConfig.hpp"
+#include "LaserCutRope.hpp"
 #include "Player.hpp"
 #include "ShieldChargeShot.hpp"
 #include "ShieldEnergy.hpp"
@@ -197,6 +198,33 @@ namespace Boss
         const Math::vec2 rawBeamEnd = beamStart + direction * Config::ChargeShotLength;
         beamEnd                     = ClipEndByBlockingObjects(beamStart, rawBeamEnd);
 
+        LaserCutRope* hitRope = FindFirstHitRope(beamStart, beamEnd);
+
+        if (hitRope != nullptr)
+        {
+            hitRope->Cut();
+
+            const Math::vec2 toRope            = hitRope->GetPosition() - beamStart;
+            const double     projectedDistance = std::max(0.0, toRope.Dot(direction));
+
+            beamEnd = beamStart + direction * projectedDistance;
+        }
+        else
+        {
+            TargetStar* hitTarget = FindFirstHitTarget(beamStart, beamEnd);
+
+            if (hitTarget != nullptr)
+            {
+                hitTarget->ActivateInstantly();
+
+                const Math::vec2 toTarget          = hitTarget->GetPosition() - beamStart;
+                const double     projectedDistance = std::max(0.0, toTarget.Dot(direction));
+                const double     stopDistance      = std::max(0.0, projectedDistance - hitTarget->GetRadius());
+
+                beamEnd = beamStart + direction * stopDistance;
+            }
+        }
+
         TargetStar* hitTarget = FindFirstHitTarget(beamStart, beamEnd);
 
         if (hitTarget != nullptr)
@@ -321,6 +349,66 @@ namespace Boss
         }
 
         return bestTarget;
+    }
+
+    LaserCutRope* ShieldChargeShot::FindFirstHitRope(Math::vec2 start, Math::vec2 end) const
+    {
+        auto gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
+
+        if (gom == nullptr)
+        {
+            return nullptr;
+        }
+
+        LaserCutRope* bestRope              = nullptr;
+        double        bestDistanceFromStart = std::numeric_limits<double>::max();
+
+        for (auto obj : gom->GetObjects())
+        {
+            if (obj == nullptr || !obj->IsActive())
+            {
+                continue;
+            }
+
+            if (obj->Type() != GameObjectTypes::LaserCutRope)
+            {
+                continue;
+            }
+
+            auto rope = static_cast<LaserCutRope*>(obj);
+
+            if (rope->IsCut())
+            {
+                continue;
+            }
+
+            CS230::RectCollision* ropeCollider = rope->GetGOComponent<CS230::RectCollision>();
+
+            if (ropeCollider == nullptr)
+            {
+                continue;
+            }
+
+            Math::rect ropeRect = ropeCollider->WorldBoundary();
+
+            double t = 1.0;
+
+            if (!SegmentIntersectsRect(start, end, ropeRect, t))
+            {
+                continue;
+            }
+
+            const Math::vec2 hitPoint            = start + (end - start) * t;
+            const double     distanceFromStartSq = (hitPoint - start).LengthSquared();
+
+            if (distanceFromStartSq < bestDistanceFromStart)
+            {
+                bestDistanceFromStart = distanceFromStartSq;
+                bestRope              = rope;
+            }
+        }
+
+        return bestRope;
     }
 
     bool ShieldChargeShot::IsChargeShotBlocker(GameObjectTypes type)
