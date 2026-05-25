@@ -361,64 +361,130 @@ void Player::ResolveCollision(GameObject* other_object)
         double prev_left   = previousPosition.x - (PLAYER_COLLISION_SIZE.x / 2.0);
         double prev_right  = previousPosition.x + (PLAYER_COLLISION_SIZE.x / 2.0);
 
-        // Slope collision: handle diagonal Floor polygons before falling back to AABB-style platform collision.
-        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && floor_poly.vertexCount >= 3)
+        // Floor surface snap:
+        // Handles flat tops, slopes, and path-to-path / path-to-rect seams
+        // before falling back to AABB-style collision.
+        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && floor_poly.vertexCount >= 3 && velocityY <= 0.0)
         {
-            constexpr double DIAGONAL_EPS            = 0.001;
-            constexpr double SLOPE_X_MARGIN          = 2.0;
-            constexpr double SLOPE_CONTACT_TOLERANCE = 6.0;
-            constexpr double MAX_SLOPE_STEP_UP       = 48.0;
+            constexpr double SURFACE_EDGE_EPS          = 0.001;
+            constexpr double SURFACE_X_MARGIN          = 6.0;
+            constexpr double SURFACE_CONTACT_TOLERANCE = 8.0;
+            constexpr double MAX_SURFACE_SNAP_UP       = 8.0;
+            constexpr double MAX_SURFACE_SNAP_DOWN     = 2.0;
+            constexpr double MIN_SURFACE_SIDE_SPEED    = 1.0;
 
-            const double foot_x         = GetPosition().x;
             const double current_bottom = my_box.Bottom();
 
-            bool   found_slope = false;
-            double slope_y     = 0.0;   
+            const bool moving_right = GetVelocity().x > MIN_SURFACE_SIDE_SPEED;
+            const bool moving_left  = GetVelocity().x < -MIN_SURFACE_SIDE_SPEED;
 
-            const auto& verts = floor_poly.vertices;
+            bool   found_surface = false;
+            double surface_y     = 0.0;
 
-            for (size_t i = 0; i < verts.size(); ++i)
+            auto point_inside_polygon = [&](Math::vec2 point)
             {
-                Math::vec2 p1 = verts[i];
-                Math::vec2 p2 = verts[(i + 1) % verts.size()];
+                bool        inside = false;
+                const auto& verts  = floor_poly.vertices;
 
-                const double dx = p2.x - p1.x;
-                const double dy = p2.y - p1.y;
-
-                // We only care about diagonal edges.
-                if (std::abs(dx) < DIAGONAL_EPS || std::abs(dy) < DIAGONAL_EPS)
-                    continue;
-
-                const double min_x = std::min(p1.x, p2.x) - SLOPE_X_MARGIN;
-                const double max_x = std::max(p1.x, p2.x) + SLOPE_X_MARGIN;
-
-                if (foot_x < min_x || foot_x > max_x)
-                    continue;
-
-                double t = (foot_x - p1.x) / dx;
-                t        = std::clamp(t, 0.0, 1.0);
-
-                const double edge_y = p1.y + dy * t;
-
-                // If multiple diagonal edges exist, use the highest one as the walkable surface.
-                if (!found_slope || edge_y > slope_y)
+                for (size_t i = 0, j = verts.size() - 1; i < verts.size(); j = i++)
                 {
-                    found_slope = true;
-                    slope_y     = edge_y;
+                    const Math::vec2 vi = verts[i];
+                    const Math::vec2 vj = verts[j];
+
+                    const bool intersect = ((vi.y > point.y) != (vj.y > point.y)) && (point.x < (vj.x - vi.x) * (point.y - vi.y) / ((vj.y - vi.y) + 0.000001) + vi.x);
+
+                    if (intersect)
+                        inside = !inside;
                 }
+
+                return inside;
+            };
+
+            auto is_walkable_top_edge = [&](Math::vec2 p1, Math::vec2 p2)
+            {
+                constexpr double SAMPLE_OFFSET = 2.0;
+
+                const Math::vec2 mid{ (p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5 };
+
+                const bool inside_below = point_inside_polygon({ mid.x, mid.y - SAMPLE_OFFSET });
+                const bool inside_above = point_inside_polygon({ mid.x, mid.y + SAMPLE_OFFSET });
+
+                // Walkable surface means solid exists below the edge,
+                // and empty space exists above the edge.
+                return inside_below && !inside_above;
+            };
+
+            auto try_probe_x = [&](double probe_x)
+            {
+                const auto& verts = floor_poly.vertices;
+
+                for (size_t i = 0; i < verts.size(); ++i)
+                {
+                    Math::vec2 p1 = verts[i];
+                    Math::vec2 p2 = verts[(i + 1) % verts.size()];
+
+                    const double dx = p2.x - p1.x;
+                    const double dy = p2.y - p1.y;
+
+                    // Vertical edges are walls, not walkable floor surfaces.
+                    if (std::abs(dx) < SURFACE_EDGE_EPS)
+                        continue;
+
+                    if (!is_walkable_top_edge(p1, p2))
+                        continue;
+
+                    // Degenerate edge guard.
+                    if ((p2 - p1).LengthSquared() < SURFACE_EDGE_EPS)
+                        continue;
+
+                    const double min_x = std::min(p1.x, p2.x) - SURFACE_X_MARGIN;
+                    const double max_x = std::max(p1.x, p2.x) + SURFACE_X_MARGIN;
+
+                    if (probe_x < min_x || probe_x > max_x)
+                        continue;
+
+                    double t = (probe_x - p1.x) / dx;
+                    t        = std::clamp(t, 0.0, 1.0);
+
+                    const double candidate_y = p1.y + dy * t;
+                    const double delta       = candidate_y - current_bottom;
+
+                    // Do not pull the player far downward.
+                    // Do not climb a real wall.
+                    if (delta < -MAX_SURFACE_SNAP_DOWN || delta > MAX_SURFACE_SNAP_UP)
+                        continue;
+
+                    // Use the highest valid surface.
+                    if (!found_surface || candidate_y > surface_y)
+                    {
+                        found_surface = true;
+                        surface_y     = candidate_y;
+                    }
+                }
+            };
+
+            // Center probe: current floor/slope.
+            try_probe_x(GetPosition().x);
+
+            // Front-foot probe: next path/rect/slope before the player's center reaches it.
+            if (moving_right)
+            {
+                try_probe_x(my_box.Right());
+            }
+            else if (moving_left)
+            {
+                try_probe_x(my_box.Left());
             }
 
-            if (found_slope)
+            if (found_surface)
             {
-                constexpr double MAX_SLOPE_SNAP_DOWN = 0.5;
+                const double delta_to_surface = surface_y - current_bottom;
 
-                const double delta_to_slope = slope_y - current_bottom;
+                const bool crossed_surface = prev_bottom >= surface_y && current_bottom <= surface_y + SURFACE_CONTACT_TOLERANCE;
 
-                const bool crossed_surface = prev_bottom >= slope_y && current_bottom <= slope_y + SLOPE_CONTACT_TOLERANCE;
+                const bool close_enough_to_snap = delta_to_surface >= -MAX_SURFACE_SNAP_DOWN && delta_to_surface <= MAX_SURFACE_SNAP_UP;
 
-                const bool close_enough_to_snap = delta_to_slope >= -MAX_SLOPE_SNAP_DOWN && delta_to_slope <= MAX_SLOPE_STEP_UP;
-
-                if (velocityY <= 0.0 && (crossed_surface || close_enough_to_snap))
+                if (crossed_surface || close_enough_to_snap)
                 {
                     if (wasJumpingLastFrame)
                     {
@@ -426,7 +492,7 @@ void Player::ResolveCollision(GameObject* other_object)
                         wasJumpingLastFrame = false;
                     }
 
-                    SetPosition({ GetPosition().x, slope_y + (PLAYER_COLLISION_SIZE.y / 2.0) });
+                    SetPosition({ GetPosition().x, surface_y + (PLAYER_COLLISION_SIZE.y / 2.0) });
                     velocityY = 0.0;
                     SetVelocity({ GetVelocity().x, 0.0 });
 
@@ -445,7 +511,7 @@ void Player::ResolveCollision(GameObject* other_object)
         double platform_right  = other_box.Right();
 
         bool was_above = prev_bottom >= platform_top;
-        bool was_below = prev_top <= platform_bottom;
+        // bool was_below = prev_top <= platform_bottom;
         bool was_left  = prev_right <= platform_left;
         bool was_right = prev_left >= platform_right;
 
@@ -459,76 +525,6 @@ void Player::ResolveCollision(GameObject* other_object)
 
         if (!horizontal_overlap || !vertical_overlap)
             return;
-
-        // Slope seam handling:
-        // When two separate slope polygons touch each other,
-        // the next slope's vertical boundary can be detected as a wall before the player's center reaches the slope.
-        // If the object has a diagonal walkable edge in the moving direction, do not resolve this as a wall.
-        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && floor_poly.vertexCount >= 3)
-        {
-            constexpr double SEAM_DIAGONAL_EPS     = 0.001;
-            constexpr double SEAM_X_TOLERANCE      = 6.0;
-            constexpr double SEAM_SNAP_DOWN_LIMIT  = 4.0;
-            constexpr double MAX_SLOPE_SEAM_HEIGHT = 64.0;
-            constexpr double MIN_SEAM_SIDE_SPEED   = 1.0;
-
-            const bool moving_right = GetVelocity().x > MIN_SEAM_SIDE_SPEED;
-            const bool moving_left  = GetVelocity().x < -MIN_SEAM_SIDE_SPEED;
-
-            const bool side_hit_on_slope = (moving_right && was_left && vertical_overlap) || (moving_left && was_right && vertical_overlap);
-
-            if (side_hit_on_slope && velocityY <= 0.0)
-            {
-                const double current_bottom = my_box.Bottom();
-                const double front_x        = moving_right ? my_box.Right() : my_box.Left();
-
-                bool should_ignore_slope_seam_wall = false;
-
-                const auto& verts = floor_poly.vertices;
-
-                for (size_t i = 0; i < verts.size(); ++i)
-                {
-                    Math::vec2 p1 = verts[i];
-                    Math::vec2 p2 = verts[(i + 1) % verts.size()];
-
-                    const double dx = p2.x - p1.x;
-                    const double dy = p2.y - p1.y;
-
-                    // Only diagonal edges are walkable slope candidates.
-                    if (std::abs(dx) < SEAM_DIAGONAL_EPS || std::abs(dy) < SEAM_DIAGONAL_EPS)
-                        continue;
-
-                    const double min_x = std::min(p1.x, p2.x) - SEAM_X_TOLERANCE;
-                    const double max_x = std::max(p1.x, p2.x) + SEAM_X_TOLERANCE;
-
-                    if (front_x < min_x || front_x > max_x)
-                        continue;
-
-                    double t = (front_x - p1.x) / dx;
-                    t        = std::clamp(t, 0.0, 1.0);
-
-                    const double surface_y = p1.y + dy * t;
-                    const double gap       = surface_y - current_bottom;
-
-                    // If the next slope surface is near enough, treat this as a slope connection,
-                    // not a real wall. This value can be larger than normal stair height because
-                    // steep slopes create a large height difference between player center and front edge.
-                    if (gap >= -SEAM_SNAP_DOWN_LIMIT && gap <= MAX_SLOPE_SEAM_HEIGHT)
-                    {
-                        should_ignore_slope_seam_wall = true;
-                        break;
-                    }
-                }
-
-                if (should_ignore_slope_seam_wall)
-                {
-                    // Do not zero horizontal velocity.
-                    // The current/previous slope will keep controlling the player's y position,
-                    // and once the player center reaches this slope, normal slope collision will take over.
-                    return;
-                }
-            }
-        }
 
         if (velocityY <= 0 && was_above && horizontal_overlap)
         {
@@ -544,10 +540,14 @@ void Player::ResolveCollision(GameObject* other_object)
             coyoteTimer              = coyoteTime;
             wallJumpControlLockTimer = 0.0;
         }
-        else if (velocityY > 0 && was_below && horizontal_overlap)
+        else if (velocityY > 0 && horizontal_overlap && prev_top <= platform_top)
         {
             SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
             velocityY = 0.0;
+            SetVelocity({ GetVelocity().x, 0.0 });
+            isJumping = true;
+
+            return;
         }
         else if (GetVelocity().x > 0 && was_left && vertical_overlap)
         {
@@ -585,9 +585,26 @@ void Player::ResolveCollision(GameObject* other_object)
             switch (axis)
             {
                 case 0:
-                    SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
-                    if (velocityY > 0)
+                    // Only push the player below a platform when this was actually a ceiling hit.
+                    // Do not use this for side-wall penetration, because it causes downward teleporting.
+                    if (velocityY > 0.0 && prev_top <= platform_bottom)
+                    {
+                        SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
                         velocityY = 0.0;
+                        SetVelocity({ GetVelocity().x, 0.0 });
+                    }
+                    else if (GetVelocity().x > 0.0)
+                    {
+                        SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+                        SetVelocity({ 0.0, GetVelocity().y });
+                        RecordWallContact(1);
+                    }
+                    else if (GetVelocity().x < 0.0)
+                    {
+                        SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+                        SetVelocity({ 0.0, GetVelocity().y });
+                        RecordWallContact(-1);
+                    }
                     break;
                 case 1:
                     SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
