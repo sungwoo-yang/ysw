@@ -1,11 +1,16 @@
 #include "Mode3.hpp"
 
+#include "BossConfig.hpp"
 #include "Door.hpp"
 #include "DoorActionHandler.hpp"
+#include "LightOrb.hpp"
+#include "LightOrbManager.hpp"
 #include "MainMenu.hpp"
 #include "MiniMap.hpp"
 #include "ObjectFactory.hpp"
 #include "Player.hpp"
+#include "ShieldChargeShot.hpp"
+#include "ShieldEnergy.hpp"
 #include "WorldTextManager.hpp"
 
 #include "CS200/IRenderer2D.hpp"
@@ -127,6 +132,11 @@ void Mode3::InitGame()
     {
         gom->Add(player);
     }
+
+    shieldEnergy = new Boss::ShieldEnergy();
+    shieldEnergy->SetEnergy(shieldEnergy->GetMaxEnergy());
+
+    shieldChargeShot = new Boss::ShieldChargeShot(player, shieldEnergy);
 
     worldTextManager = new WorldTextManager();
     worldTextManager->SetCamera(camera);
@@ -298,6 +308,34 @@ void Mode3::DrawImGui()
         auto gom = GetGSComponent<CS230::GameObjectManager>();
         if (gom)
             gom->DrawAllImGui();
+    }
+    if (ImGui::CollapsingHeader("Light Gauge / Charge Shot", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (shieldEnergy != nullptr)
+        {
+            ImGui::Text("Light Gauge: %.1f / %.1f", shieldEnergy->GetEnergy(), shieldEnergy->GetMaxEnergy());
+            ImGui::ProgressBar(shieldEnergy->GetRatio(), ImVec2(220.0f, 18.0f));
+
+            if (ImGui::Button("Fill Gauge"))
+            {
+                shieldEnergy->SetEnergy(shieldEnergy->GetMaxEnergy());
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Reset Gauge"))
+            {
+                shieldEnergy->Reset();
+            }
+        }
+
+        if (shieldChargeShot != nullptr)
+        {
+            ImGui::Separator();
+            ImGui::Text("Charging: %s", shieldChargeShot->IsCharging() ? "true" : "false");
+            ImGui::Text("Ready: %s", shieldChargeShot->IsReadyToFire() ? "true" : "false");
+            ImGui::ProgressBar(shieldChargeShot->GetChargeRatio(), ImVec2(220.0f, 18.0f));
+        }
     }
     ImGui::End();
 #endif

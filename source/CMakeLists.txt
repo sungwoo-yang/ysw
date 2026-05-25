@@ -68,11 +68,13 @@ set(SOURCE_CODE
     Game/Constellation.hpp Game/Constellation.cpp
     Game/Door.hpp Game/Door.cpp
     Game/DoorActionHandler.hpp Game/DoorActionHandler.cpp
+    Game/FallingBlock.hpp Game/FallingBlock.cpp
     Game/Gate.hpp Game/Gate.cpp
     Game/Laser.hpp Game/Laser.cpp
     Game/LaserStar.hpp Game/LaserStar.cpp
     Game/LightOrb.hpp Game/LightOrb.cpp
     Game/LightOrbManager.hpp Game/LightOrbManager.cpp
+    Game/LaserCutRope.hpp Game/LaserCutRope.cpp
     Game/MainMenu.hpp Game/MainMenu.cpp
     Game/MiniMap.hpp Game/MiniMap.cpp
     Game/Mirror.hpp Game/Mirror.cpp

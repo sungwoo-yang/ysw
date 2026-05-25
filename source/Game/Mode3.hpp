@@ -16,6 +16,13 @@
 class Player;
 class WorldTextManager;
 
+namespace Boss
+{
+    class ShieldEnergy;
+    class LightOrbManager;
+    class ShieldChargeShot;
+}
+
 namespace CS230
 {
     class MapManager;
@@ -26,7 +33,7 @@ class Mode3 : public CS230::GameState
 public:
     static void SetReturnPosition(Math::vec2 position);
     static void ClearReturnPosition();
-    
+
     void Load() override;
     void Update(double dt) override;
     void Unload() override;
@@ -52,12 +59,16 @@ private:
 
     State currentState = State::Loading;
 
-    CS230::Camera*     camera           = nullptr;
-    Player*            player           = nullptr;
-    CS230::MapManager* mapManager       = nullptr;
-    WorldTextManager*  worldTextManager = nullptr;
-    MiniMap*           miniMap          = nullptr;
+    CS230::Camera*                     camera           = nullptr;
+    Player*                            player           = nullptr;
+    CS230::MapManager*                 mapManager       = nullptr;
+    WorldTextManager*                  worldTextManager = nullptr;
+    MiniMap*                           miniMap          = nullptr;
     std::map<std::string, std::string> signTexts;
+
+    Boss::ShieldEnergy*     shieldEnergy     = nullptr;
+    Boss::LightOrbManager*  lightOrbManager  = nullptr;
+    Boss::ShieldChargeShot* shieldChargeShot = nullptr;
 
     OpenGL::CompiledShader    backgroundShader;
     OpenGL::VertexArrayHandle backgroundVAO;
