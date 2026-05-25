@@ -373,7 +373,7 @@ void Player::ResolveCollision(GameObject* other_object)
             const double current_bottom = my_box.Bottom();
 
             bool   found_slope = false;
-            double slope_y     = 0.0;
+            double slope_y     = 0.0;   
 
             const auto& verts = floor_poly.vertices;
 
