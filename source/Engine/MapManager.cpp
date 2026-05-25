@@ -265,7 +265,7 @@ namespace CS230
 
             if (mapManager && mapManager->GetGameObjectFactory() != nullptr)
             {
-                newObj = mapManager->GetGameObjectFactory()(type, poly_center, fillColor, objID);
+                newObj = mapManager->GetGameObjectFactory()(type, poly_center, fillColor, objID, modified_poly);
             }
 
             if (newObj == nullptr)

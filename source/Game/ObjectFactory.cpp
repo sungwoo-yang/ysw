@@ -2,7 +2,9 @@
 
 #include "Bonfire.hpp"
 #include "Door.hpp"
+#include "FallingBlock.hpp"
 #include "Gate.hpp"
+#include "LaserCutRope.hpp"
 #include "LaserStar.hpp"
 #include "Mirror.hpp"
 #include "Player.hpp"
@@ -350,11 +352,26 @@ namespace ObjectFactory
 {
     CS230::MapManager::GameObjectFactory Create(Player* player, SignTextMap signTexts)
     {
-        return [player, signTexts](GameObjectTypes /*type*/, Math::vec2 pos, const std::string& rawColor, const std::string& id) -> CS230::GameObject*
+        return [player, signTexts](GameObjectTypes /*type*/, Math::vec2 pos, const std::string& rawColor, const std::string& id, const Polygon& polygon) -> CS230::GameObject*
         {
             if (player == nullptr)
             {
                 return nullptr;
+            }
+
+            Polygon    polygonCopy = polygon;
+            Math::rect bounds      = polygonCopy.FindBoundary();
+
+            Math::vec2 svgSize{ bounds.Right() - bounds.Left(), bounds.Top() - bounds.Bottom() };
+
+            if (svgSize.x <= 0.0)
+            {
+                svgSize.x = 10.0;
+            }
+
+            if (svgSize.y <= 0.0)
+            {
+                svgSize.y = 10.0;
             }
 
             const std::string color = NormalizeColor(rawColor);
@@ -378,6 +395,9 @@ namespace ObjectFactory
 
             #ffffff = TargetStar
             #00ff00 = LaserStar
+
+            #00cc00 = LaserCutRope
+            #cc00cc = FallingBlock
             */
 
             if (color == "#786721" || StartsWith(id, "DOOR_"))
@@ -411,6 +431,20 @@ namespace ObjectFactory
                 auto* gate = new Gate(pos, { 100.0, 100.0 });
                 gate->SetName(id);
                 return gate;
+            }
+
+            if (color == "#00cc00")
+            {
+                auto* rope = new LaserCutRope(pos, svgSize);
+                rope->SetName(id);
+                return rope;
+            }
+
+            if (color == "#cc00cc")
+            {
+                auto* block = new FallingBlock(pos, svgSize);
+                block->SetName(id);
+                return block;
             }
 
             if (color == "#aa00ff")

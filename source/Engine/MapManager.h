@@ -1,17 +1,17 @@
 #pragma once
 
 #include "Engine/Component.hpp"
+#include "Engine/GameObjectTypes.hpp"
 #include "Engine/Polygon.h"
 #include "Engine/Vec2.hpp"
-#include "Engine/GameObjectTypes.hpp"
 
 #include <fstream>
+#include <functional>
 #include <map>
 #include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <functional>
 
 #ifndef M_PI
 #    define M_PI 3.14159265358979323846
@@ -27,7 +27,7 @@ namespace CS230
     class MapManager : public Component
     {
     public:
-    using GameObjectFactory = std::function<CS230::GameObject*(GameObjectTypes, Math::vec2, const std::string&, const std::string&)>;
+        using GameObjectFactory = std::function<CS230::GameObject*(GameObjectTypes, Math::vec2, const std::string&, const std::string&, const Polygon&)>;
 
         MapManager() : currentMapIndex(0)
         {
@@ -40,8 +40,10 @@ namespace CS230
             objectFactory = factory;
         }
 
-        GameObjectFactory GetGameObjectFactory() const { return objectFactory; }
-
+        GameObjectFactory GetGameObjectFactory() const
+        {
+            return objectFactory;
+        }
 
         void AddMap(Map* new_map);
         void LoadMap();
@@ -64,7 +66,7 @@ namespace CS230
     private:
         std::vector<Map*>    maps;
         int                  currentMapIndex;
-        std::vector<Polygon> miniMapPolygons;   // Aggregated geometry for UI rendering
+        std::vector<Polygon> miniMapPolygons; // Aggregated geometry for UI rendering
 
         GameObjectFactory objectFactory = nullptr;
     };
@@ -118,9 +120,9 @@ namespace CS230
         std::string fillColor       = "#00000000";
 
         // Parsing state flags
-        bool        IsinG           = false;
-        bool        IsTranslate     = false;
-        bool        IsRotate        = false;
-        bool        IsScale         = false;
+        bool IsinG       = false;
+        bool IsTranslate = false;
+        bool IsRotate    = false;
+        bool IsScale     = false;
     };
 }

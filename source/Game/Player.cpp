@@ -369,7 +369,8 @@ void Player::ResolveCollision(GameObject* other_object)
             constexpr double SURFACE_EDGE_EPS          = 0.001;
             constexpr double SURFACE_X_MARGIN          = 6.0;
             constexpr double SURFACE_CONTACT_TOLERANCE = 8.0;
-            constexpr double MAX_SURFACE_SNAP_UP       = 8.0;
+            constexpr double MAX_SURFACE_STEP_UP       = 8.0;
+            constexpr double MAX_SURFACE_LANDING_DROP  = 80.0;
             constexpr double MAX_SURFACE_SNAP_DOWN     = 2.0;
             constexpr double MIN_SURFACE_SIDE_SPEED    = 1.0;
 
@@ -449,9 +450,7 @@ void Player::ResolveCollision(GameObject* other_object)
                     const double candidate_y = p1.y + dy * t;
                     const double delta       = candidate_y - current_bottom;
 
-                    // Do not pull the player far downward.
-                    // Do not climb a real wall.
-                    if (delta < -MAX_SURFACE_SNAP_DOWN || delta > MAX_SURFACE_SNAP_UP)
+                    if (delta < -MAX_SURFACE_SNAP_DOWN || delta > MAX_SURFACE_LANDING_DROP)
                         continue;
 
                     // Use the highest valid surface.
@@ -482,9 +481,9 @@ void Player::ResolveCollision(GameObject* other_object)
 
                 const bool crossed_surface = prev_bottom >= surface_y && current_bottom <= surface_y + SURFACE_CONTACT_TOLERANCE;
 
-                const bool close_enough_to_snap = delta_to_surface >= -MAX_SURFACE_SNAP_DOWN && delta_to_surface <= MAX_SURFACE_SNAP_UP;
+                const bool close_enough_to_step = delta_to_surface >= -MAX_SURFACE_SNAP_DOWN && delta_to_surface <= MAX_SURFACE_STEP_UP;
 
-                if (crossed_surface || close_enough_to_snap)
+                if (crossed_surface || close_enough_to_step)
                 {
                     if (wasJumpingLastFrame)
                     {
@@ -582,7 +581,7 @@ void Player::ResolveCollision(GameObject* other_object)
         {
             return;
         }
-        
+
         if (velocityY <= 0 && was_above && horizontal_overlap)
         {
             if (wasJumpingLastFrame)
@@ -643,20 +642,19 @@ void Player::ResolveCollision(GameObject* other_object)
             {
                 case 0:
                     // Only push the player below a platform when this was actually a ceiling hit.
-                    // Do not use this for side-wall penetration, because it causes downward teleporting.
                     if (velocityY > 0.0 && prev_top <= platform_bottom)
                     {
                         SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
                         velocityY = 0.0;
                         SetVelocity({ GetVelocity().x, 0.0 });
                     }
-                    else if (GetVelocity().x > 0.0)
+                    else if (was_left)
                     {
                         SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
                         SetVelocity({ 0.0, GetVelocity().y });
                         RecordWallContact(1);
                     }
-                    else if (GetVelocity().x < 0.0)
+                    else if (was_right)
                     {
                         SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
                         SetVelocity({ 0.0, GetVelocity().y });
@@ -665,7 +663,6 @@ void Player::ResolveCollision(GameObject* other_object)
                     break;
                 case 1:
                     // Only push the player onto the top when this was actually a landing.
-                    // Do not use this for corner/side penetration while jumping upward.
                     if (velocityY <= 0.0 && prev_bottom >= platform_top)
                     {
                         SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
@@ -677,13 +674,13 @@ void Player::ResolveCollision(GameObject* other_object)
                         coyoteTimer              = coyoteTime;
                         wallJumpControlLockTimer = 0.0;
                     }
-                    else if (GetVelocity().x > 0.0)
+                    else if (was_left)
                     {
                         SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
                         SetVelocity({ 0.0, GetVelocity().y });
                         RecordWallContact(1);
                     }
-                    else if (GetVelocity().x < 0.0)
+                    else if (was_right)
                     {
                         SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
                         SetVelocity({ 0.0, GetVelocity().y });

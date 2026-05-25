@@ -22,6 +22,8 @@ enum class GameObjectTypes
     Mirror,
     PushableMirror,
     Gate,
+    LaserCutRope,
+    FallingBlock,
     Count,
     Background,
     Pillar
