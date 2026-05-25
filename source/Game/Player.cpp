@@ -510,6 +510,56 @@ void Player::ResolveCollision(GameObject* other_object)
         double platform_left   = other_box.Left();
         double platform_right  = other_box.Right();
 
+        auto nearly_equal = [](double a, double b)
+        {
+            constexpr double EPS = 0.01;
+            return std::abs(a - b) < EPS;
+        };
+
+        auto is_axis_aligned_rect_floor = [&]()
+        {
+            if (other_object->Type() != GameObjectTypes::Floor || !has_floor_poly)
+                return false;
+
+            std::vector<Math::vec2> unique_vertices;
+
+            for (const Math::vec2& v : floor_poly.vertices)
+            {
+                bool already_exists = false;
+
+                for (const Math::vec2& u : unique_vertices)
+                {
+                    if (nearly_equal(v.x, u.x) && nearly_equal(v.y, u.y))
+                    {
+                        already_exists = true;
+                        break;
+                    }
+                }
+
+                if (!already_exists)
+                {
+                    unique_vertices.push_back(v);
+                }
+            }
+
+            if (unique_vertices.size() != 4)
+                return false;
+
+            for (const Math::vec2& v : unique_vertices)
+            {
+                const bool on_left_or_right = nearly_equal(v.x, platform_left) || nearly_equal(v.x, platform_right);
+
+                const bool on_bottom_or_top = nearly_equal(v.y, platform_bottom) || nearly_equal(v.y, platform_top);
+
+                if (!on_left_or_right || !on_bottom_or_top)
+                    return false;
+            }
+
+            return true;
+        };
+
+        const bool can_use_aabb_side_collision = other_object->Type() == GameObjectTypes::Gate || is_axis_aligned_rect_floor();
+
         bool was_above = prev_bottom >= platform_top;
         // bool was_below = prev_top <= platform_bottom;
         bool was_left  = prev_right <= platform_left;
@@ -526,6 +576,13 @@ void Player::ResolveCollision(GameObject* other_object)
         if (!horizontal_overlap || !vertical_overlap)
             return;
 
+        // Non-rect floor polygons, such as slopes or complex paths, should not use AABB fallback resolution.
+        // Otherwise, platform_left/right can push the player to the far edge of the whole polygon.
+        if (other_object->Type() == GameObjectTypes::Floor && !can_use_aabb_side_collision)
+        {
+            return;
+        }
+        
         if (velocityY <= 0 && was_above && horizontal_overlap)
         {
             if (wasJumpingLastFrame)
@@ -540,7 +597,7 @@ void Player::ResolveCollision(GameObject* other_object)
             coyoteTimer              = coyoteTime;
             wallJumpControlLockTimer = 0.0;
         }
-        else if (velocityY > 0 && horizontal_overlap && prev_top <= platform_top)
+        else if (velocityY > 0.0 && horizontal_overlap && prev_top <= platform_bottom && my_box.Top() >= platform_bottom)
         {
             SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
             velocityY = 0.0;
@@ -607,12 +664,31 @@ void Player::ResolveCollision(GameObject* other_object)
                     }
                     break;
                 case 1:
-                    SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
-                    if (velocityY < 0)
+                    // Only push the player onto the top when this was actually a landing.
+                    // Do not use this for corner/side penetration while jumping upward.
+                    if (velocityY <= 0.0 && prev_bottom >= platform_top)
+                    {
+                        SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
+
                         velocityY = 0.0;
-                    isJumping                = false;
-                    coyoteTimer              = coyoteTime;
-                    wallJumpControlLockTimer = 0.0;
+                        SetVelocity({ GetVelocity().x, 0.0 });
+
+                        isJumping                = false;
+                        coyoteTimer              = coyoteTime;
+                        wallJumpControlLockTimer = 0.0;
+                    }
+                    else if (GetVelocity().x > 0.0)
+                    {
+                        SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+                        SetVelocity({ 0.0, GetVelocity().y });
+                        RecordWallContact(1);
+                    }
+                    else if (GetVelocity().x < 0.0)
+                    {
+                        SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+                        SetVelocity({ 0.0, GetVelocity().y });
+                        RecordWallContact(-1);
+                    }
                     break;
                 case 2:
                     SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });

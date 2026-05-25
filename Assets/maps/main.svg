@@ -152,6 +152,10 @@
          style="display:inline;fill:#00ffff;stroke:#22002b;stroke-width:0.999999"
          d="m 881.29245,709.14701 h 206.93965 v 22.6787 H 881.29245 Z" />
       <path
+         id="rect1-5"
+         style="display:inline;fill:#00ffff;stroke:#22002b;stroke-width:0.999999"
+         d="m 120.125,695.84531 h 206.93965 v 22.6787 H 120.125 Z" />
+      <path
          id="rect3"
          style="display:inline;fill:#ff0000;stroke:#22002b;stroke-width:0.999999"
          d="m 2153.3325,-384.74459 h 133.6331 v 82.8517 h -133.6331 z" />
