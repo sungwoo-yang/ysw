@@ -720,6 +720,74 @@ void Player::ResolveCollision(GameObject* other_object)
         if (!horizontal_overlap || !vertical_overlap)
             return;
 
+        // Non-rect floor vertical wall collision:
+        // Handles the left/right wall edges of slope/path floors.
+        // Surface snap handles top edges, ceiling code handles bottom edges,
+        // and this block handles vertical side edges.
+        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && !can_use_aabb_side_collision)
+        {
+            constexpr double WALL_EDGE_EPS       = 0.001;
+            constexpr double WALL_Y_MARGIN       = 2.0;
+            constexpr double WALL_MIN_HEIGHT     = 8.0;
+            constexpr double MIN_SIDE_WALL_SPEED = 0.5;
+
+            const bool moving_right = GetVelocity().x > MIN_SIDE_WALL_SPEED;
+            const bool moving_left  = GetVelocity().x < -MIN_SIDE_WALL_SPEED;
+
+            const auto& verts = floor_poly.vertices;
+
+            for (size_t i = 0; i < verts.size(); ++i)
+            {
+                Math::vec2 p1 = verts[i];
+                Math::vec2 p2 = verts[(i + 1) % verts.size()];
+
+                const double dx = p2.x - p1.x;
+                const double dy = p2.y - p1.y;
+
+                // Only vertical edges are side walls.
+                if (std::abs(dx) >= WALL_EDGE_EPS)
+                {
+                    continue;
+                }
+
+                if (std::abs(dy) < WALL_MIN_HEIGHT)
+                {
+                    continue;
+                }
+
+                const double wall_x      = p1.x;
+                const double wall_bottom = std::min(p1.y, p2.y);
+                const double wall_top    = std::max(p1.y, p2.y);
+
+                const bool vertical_body_overlap = my_box.Top() > wall_bottom + WALL_Y_MARGIN && my_box.Bottom() < wall_top - WALL_Y_MARGIN;
+
+                if (!vertical_body_overlap)
+                {
+                    continue;
+                }
+
+                const bool crossed_from_left = moving_right && prev_right <= wall_x && my_box.Right() >= wall_x;
+
+                const bool crossed_from_right = moving_left && prev_left >= wall_x && my_box.Left() <= wall_x;
+
+                if (crossed_from_left)
+                {
+                    SetPosition({ wall_x - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+                    SetVelocity({ 0.0, GetVelocity().y });
+                    RecordWallContact(1);
+                    return;
+                }
+
+                if (crossed_from_right)
+                {
+                    SetPosition({ wall_x + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+                    SetVelocity({ 0.0, GetVelocity().y });
+                    RecordWallContact(-1);
+                    return;
+                }
+            }
+        }
+
         // Non-rect floor polygons, such as slopes or complex paths, should not use AABB fallback resolution.
         // Otherwise, platform_left/right can push the player to the far edge of the whole polygon.
         if (other_object->Type() == GameObjectTypes::Floor && !can_use_aabb_side_collision)

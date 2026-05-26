@@ -229,7 +229,7 @@ void Mode3::Update(double dt)
 
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
     {
-        player->SetPosition({ 1700, 300 });
+        player->SetPosition({ 1900, -1500 });
     }
 
     miniMap->Update(dt);
