@@ -310,6 +310,8 @@ bool Player::CanCollideWith(GameObjectTypes other_object_type)
         return true;
     if (other_object_type == GameObjectTypes::Gate)
         return true;
+    if (other_object_type == GameObjectTypes::FallingBlock)
+        return true;
 
     return false;
 }
@@ -325,7 +327,7 @@ void Player::ResolveCollision(GameObject* other_object)
     auto  textManager = Engine::GetGameStateManager().GetGSComponent<WorldTextManager>();
     auto& input       = Engine::GetInput();
 
-    if (other_object->Type() == GameObjectTypes::Floor || other_object->Type() == GameObjectTypes::Gate)
+    if (other_object->Type() == GameObjectTypes::Floor || other_object->Type() == GameObjectTypes::Gate || other_object->Type() == GameObjectTypes::FallingBlock)
     {
         CS230::RectCollision* my_collider = GetGOComponent<CS230::RectCollision>();
         if (!my_collider)
@@ -353,6 +355,14 @@ void Player::ResolveCollision(GameObject* other_object)
 
             other_box = gate_collider->WorldBoundary();
         }
+        else if (other_object->Type() == GameObjectTypes::FallingBlock)
+        {
+            CS230::RectCollision* block_collider = other_object->GetGOComponent<CS230::RectCollision>();
+            if (!block_collider)
+                return;
+
+            other_box = block_collider->WorldBoundary();
+        }
 
         Math::rect my_box = my_collider->WorldBoundary();
 
@@ -370,7 +380,7 @@ void Player::ResolveCollision(GameObject* other_object)
             constexpr double SURFACE_X_MARGIN          = 6.0;
             constexpr double SURFACE_CONTACT_TOLERANCE = 8.0;
             constexpr double MAX_SURFACE_STEP_UP       = 8.0;
-            constexpr double MAX_SURFACE_LANDING_DROP  = 80.0;
+            // constexpr double MAX_SURFACE_LANDING_DROP  = 80.0;
             constexpr double MAX_SURFACE_SNAP_DOWN     = 2.0;
             constexpr double MIN_SURFACE_SIDE_SPEED    = 1.0;
 
@@ -450,8 +460,16 @@ void Player::ResolveCollision(GameObject* other_object)
                     const double candidate_y = p1.y + dy * t;
                     const double delta       = candidate_y - current_bottom;
 
-                    if (delta < -MAX_SURFACE_SNAP_DOWN || delta > MAX_SURFACE_LANDING_DROP)
+                    const bool crossed_surface_candidate = prev_bottom >= candidate_y && current_bottom <= candidate_y + SURFACE_CONTACT_TOLERANCE;
+
+                    const bool step_candidate = delta >= -MAX_SURFACE_SNAP_DOWN && delta <= MAX_SURFACE_STEP_UP;
+
+                    // Landing and step-up are different.
+                    // Fast falling/dashing should still catch the floor if the player crossed the surface.
+                    if (!crossed_surface_candidate && !step_candidate)
+                    {
                         continue;
+                    }
 
                     // Use the highest valid surface.
                     if (!found_surface || candidate_y > surface_y)
@@ -462,10 +480,17 @@ void Player::ResolveCollision(GameObject* other_object)
                 }
             };
 
-            // Center probe: current floor/slope.
+            constexpr double FOOT_INSET = 2.0;
+
+            // Center probe.
             try_probe_x(GetPosition().x);
 
-            // Front-foot probe: next path/rect/slope before the player's center reaches it.
+            // Left/right foot probes.
+            // These help when jumping, dashing, or landing near a slope edge.
+            try_probe_x(my_box.Left() + FOOT_INSET);
+            try_probe_x(my_box.Right() - FOOT_INSET);
+
+            // Extra front probe for slope seams.
             if (moving_right)
             {
                 try_probe_x(my_box.Right());
@@ -501,6 +526,126 @@ void Player::ResolveCollision(GameObject* other_object)
 
                     return;
                 }
+            }
+        }
+
+        // Non-rect floor ceiling collision:
+        // Handles jumping into the underside of slope/path floors.
+        // This prevents the player from entering the polygon and later snapping to its top surface.
+        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && floor_poly.vertexCount >= 3 && velocityY > 0.0)
+        {
+            constexpr double CEILING_EDGE_EPS          = 0.001;
+            constexpr double CEILING_X_MARGIN          = 4.0;
+            constexpr double CEILING_CONTACT_TOLERANCE = 8.0;
+            constexpr double HEAD_INSET                = 2.0;
+
+            const double current_top = my_box.Top();
+
+            auto point_inside_polygon = [&](Math::vec2 point)
+            {
+                bool        inside = false;
+                const auto& verts  = floor_poly.vertices;
+
+                for (size_t i = 0, j = verts.size() - 1; i < verts.size(); j = i++)
+                {
+                    const Math::vec2 vi = verts[i];
+                    const Math::vec2 vj = verts[j];
+
+                    const bool intersect = ((vi.y > point.y) != (vj.y > point.y)) && (point.x < (vj.x - vi.x) * (point.y - vi.y) / ((vj.y - vi.y) + 0.000001) + vi.x);
+
+                    if (intersect)
+                    {
+                        inside = !inside;
+                    }
+                }
+
+                return inside;
+            };
+
+            auto is_blocking_bottom_edge = [&](Math::vec2 p1, Math::vec2 p2)
+            {
+                constexpr double SAMPLE_OFFSET = 2.0;
+
+                const Math::vec2 mid{ (p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5 };
+
+                const bool inside_below = point_inside_polygon({ mid.x, mid.y - SAMPLE_OFFSET });
+                const bool inside_above = point_inside_polygon({ mid.x, mid.y + SAMPLE_OFFSET });
+
+                // Ceiling / underside means solid exists above the edge,
+                // and empty space exists below the edge.
+                return !inside_below && inside_above;
+            };
+
+            bool   found_ceiling = false;
+            double ceiling_y     = 0.0;
+
+            auto try_head_probe_x = [&](double probe_x)
+            {
+                const auto& verts = floor_poly.vertices;
+
+                for (size_t i = 0; i < verts.size(); ++i)
+                {
+                    Math::vec2 p1 = verts[i];
+                    Math::vec2 p2 = verts[(i + 1) % verts.size()];
+
+                    const double dx = p2.x - p1.x;
+
+                    if (std::abs(dx) < CEILING_EDGE_EPS)
+                    {
+                        continue;
+                    }
+
+                    if ((p2 - p1).LengthSquared() < CEILING_EDGE_EPS)
+                    {
+                        continue;
+                    }
+
+                    if (!is_blocking_bottom_edge(p1, p2))
+                    {
+                        continue;
+                    }
+
+                    const double min_x = std::min(p1.x, p2.x) - CEILING_X_MARGIN;
+                    const double max_x = std::max(p1.x, p2.x) + CEILING_X_MARGIN;
+
+                    if (probe_x < min_x || probe_x > max_x)
+                    {
+                        continue;
+                    }
+
+                    double t = (probe_x - p1.x) / dx;
+                    t        = std::clamp(t, 0.0, 1.0);
+
+                    const double candidate_y = p1.y + (p2.y - p1.y) * t;
+
+                    const bool crossed_ceiling = prev_top <= candidate_y && current_top >= candidate_y - CEILING_CONTACT_TOLERANCE;
+
+                    if (!crossed_ceiling)
+                    {
+                        continue;
+                    }
+
+                    // Use the lowest valid ceiling, because that is the first underside hit.
+                    if (!found_ceiling || candidate_y < ceiling_y)
+                    {
+                        found_ceiling = true;
+                        ceiling_y     = candidate_y;
+                    }
+                }
+            };
+
+            try_head_probe_x(GetPosition().x);
+            try_head_probe_x(my_box.Left() + HEAD_INSET);
+            try_head_probe_x(my_box.Right() - HEAD_INSET);
+
+            if (found_ceiling)
+            {
+                SetPosition({ GetPosition().x, ceiling_y - (PLAYER_COLLISION_SIZE.y / 2.0) });
+                velocityY = 0.0;
+                SetVelocity({ GetVelocity().x, 0.0 });
+                isJumping = true;
+
+                return;
             }
         }
 
@@ -557,7 +702,7 @@ void Player::ResolveCollision(GameObject* other_object)
             return true;
         };
 
-        const bool can_use_aabb_side_collision = other_object->Type() == GameObjectTypes::Gate || is_axis_aligned_rect_floor();
+        const bool can_use_aabb_side_collision = other_object->Type() == GameObjectTypes::Gate || other_object->Type() == GameObjectTypes::FallingBlock || is_axis_aligned_rect_floor();
 
         bool was_above = prev_bottom >= platform_top;
         // bool was_below = prev_top <= platform_bottom;
