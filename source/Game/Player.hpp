@@ -83,7 +83,7 @@ private:
     bool ResolveFloorSurfaceSnap(const Polygon& floor_poly, const Math::rect& my_box, double prev_bottom);
     bool ResolveFloorCeilingCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_top);
     bool ResolveFloorVerticalWallCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_left, double prev_right);
-    bool ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_left, double prev_right);
+    bool ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_left, double prev_right, double prev_bottom, double prev_top);
     bool ResolveAABBFallback(const Math::rect& my_box, const Math::rect& other_box, double prev_bottom, double prev_top, double prev_left, double prev_right);
 
     const double collisionHalfHeight = 40.0;

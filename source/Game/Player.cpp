@@ -724,31 +724,41 @@ bool Player::ResolveFloorVerticalWallCollision(const Polygon& floor_poly, const 
     return false;
 }
 
-bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_left, double prev_right)
+bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_left, double prev_right, double prev_bottom, double prev_top)
 {
     if (floor_poly.vertexCount < 3)
     {
         return false;
     }
 
-    constexpr double DIAGONAL_EDGE_EPS   = 0.001;
-    constexpr double DIAGONAL_Y_MARGIN   = 3.0;
-    constexpr double BODY_INSET          = 4.0;
-    constexpr double MIN_SIDE_WALL_SPEED = 0.5;
+    constexpr double DIAGONAL_EDGE_EPS  = 0.001;
+    constexpr double SIDE_SAMPLE_OFFSET = 3.0;
+    constexpr double BODY_INSET         = 3.0;
+    constexpr double Y_MARGIN           = 4.0;
+    constexpr double CROSS_TOLERANCE    = 3.0;
+    constexpr double PUSH_OUT_SKIN      = 0.75;
+    constexpr int    PROBE_COUNT        = 13;
 
-    const bool moving_right = GetVelocity().x > MIN_SIDE_WALL_SPEED;
-    const bool moving_left  = GetVelocity().x < -MIN_SIDE_WALL_SPEED;
+    const double current_left   = my_box.Left();
+    const double current_right  = my_box.Right();
+    const double current_bottom = my_box.Bottom();
+    const double current_top    = my_box.Top();
 
-    if (!moving_right && !moving_left)
+    const double swept_bottom = std::min(prev_bottom, current_bottom) + BODY_INSET;
+    const double swept_top    = std::max(prev_top, current_top) - BODY_INSET;
+
+    if (swept_top <= swept_bottom)
     {
         return false;
     }
 
-    bool   found_wall = false;
-    double wall_x     = 0.0;
-    int    direction  = 0;
+    bool found_block_from_left  = false; // solid is on the right, player must stay left
+    bool found_block_from_right = false; // solid is on the left, player must stay right
 
-    auto try_probe_y = [&](double probe_y)
+    double left_block_x  = 999999.0;  // clamp player's right side <= this
+    double right_block_x = -999999.0; // clamp player's left side >= this
+
+    auto test_probe_y = [&](double probe_y)
     {
         const auto& verts = floor_poly.vertices;
 
@@ -760,13 +770,13 @@ bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const 
             const double dx = p2.x - p1.x;
             const double dy = p2.y - p1.y;
 
-            // Vertical walls are already handled by ResolveFloorVerticalWallCollision().
+            // Vertical walls are handled by ResolveFloorVerticalWallCollision().
             if (std::abs(dx) < DIAGONAL_EDGE_EPS)
             {
                 continue;
             }
 
-            // Horizontal/top/bottom edges are handled by surface snap or ceiling collision.
+            // Horizontal top/bottom edges are handled by surface snap or ceiling collision.
             if (std::abs(dy) < DIAGONAL_EDGE_EPS)
             {
                 continue;
@@ -777,22 +787,14 @@ bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const 
                 continue;
             }
 
-            const bool   top_edge    = IsWalkableTopEdge(floor_poly, p1, p2);
-            const bool   bottom_edge = IsBlockingBottomEdge(floor_poly, p1, p2);
-            const double angle       = GetEdgeAngleDegrees(p1, p2);
-
-            const bool steep_top_edge = top_edge && angle > MAX_WALKABLE_SLOPE_ANGLE_DEG;
-
-            const bool side_diagonal_edge = !top_edge && !bottom_edge;
-
-            // Only block diagonal edges that are not valid walkable slopes.
-            if (!steep_top_edge && !side_diagonal_edge)
+            // Bottom/underside edges are handled by ResolveFloorCeilingCollision().
+            if (IsBlockingBottomEdge(floor_poly, p1, p2))
             {
                 continue;
             }
 
-            const double min_y = std::min(p1.y, p2.y) - DIAGONAL_Y_MARGIN;
-            const double max_y = std::max(p1.y, p2.y) + DIAGONAL_Y_MARGIN;
+            const double min_y = std::min(p1.y, p2.y) - Y_MARGIN;
+            const double max_y = std::max(p1.y, p2.y) + Y_MARGIN;
 
             if (probe_y < min_y || probe_y > max_y)
             {
@@ -804,44 +806,114 @@ bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const 
 
             const double edge_x = p1.x + dx * t;
 
-            const bool crossed_from_left = moving_right && prev_right <= edge_x && my_box.Right() >= edge_x;
+            const bool solid_left  = PointInsidePolygon(floor_poly, { edge_x - SIDE_SAMPLE_OFFSET, probe_y });
+            const bool solid_right = PointInsidePolygon(floor_poly, { edge_x + SIDE_SAMPLE_OFFSET, probe_y });
 
-            const bool crossed_from_right = moving_left && prev_left >= edge_x && my_box.Left() <= edge_x;
-
-            if (crossed_from_left)
+            if (solid_left == solid_right)
             {
-                // When moving right, use the first wall crossed.
-                if (!found_wall || edge_x < wall_x)
-                {
-                    found_wall = true;
-                    wall_x     = edge_x;
-                    direction  = 1;
-                }
+                continue;
             }
 
-            if (crossed_from_right)
+            // solid_right means the player is outside on the left side.
+            // The player's right side must not pass edge_x.
+            const bool blocks_from_left = !solid_left && solid_right;
+
+            // solid_left means the player is outside on the right side.
+            // The player's left side must not pass edge_x.
+            const bool blocks_from_right = solid_left && !solid_right;
+
+            const bool crossed_from_left = blocks_from_left && prev_right <= edge_x + CROSS_TOLERANCE && current_right >= edge_x - CROSS_TOLERANCE;
+
+            const bool penetrating_from_left = blocks_from_left && current_left < edge_x && current_right >= edge_x - CROSS_TOLERANCE;
+
+            if (crossed_from_left || penetrating_from_left)
             {
-                // When moving left, use the first wall crossed.
-                if (!found_wall || edge_x > wall_x)
-                {
-                    found_wall = true;
-                    wall_x     = edge_x;
-                    direction  = -1;
-                }
+                found_block_from_left = true;
+                left_block_x          = std::min(left_block_x, edge_x);
+            }
+
+            const bool crossed_from_right = blocks_from_right && prev_left >= edge_x - CROSS_TOLERANCE && current_left <= edge_x + CROSS_TOLERANCE;
+
+            const bool penetrating_from_right = blocks_from_right && current_right > edge_x && current_left <= edge_x + CROSS_TOLERANCE;
+
+            if (crossed_from_right || penetrating_from_right)
+            {
+                found_block_from_right = true;
+                right_block_x          = std::max(right_block_x, edge_x);
             }
         }
     };
 
-    try_probe_y(GetPosition().y);
-    try_probe_y(my_box.Bottom() + BODY_INSET);
-    try_probe_y(my_box.Top() - BODY_INSET);
+    for (int i = 0; i < PROBE_COUNT; ++i)
+    {
+        const double t       = static_cast<double>(i) / static_cast<double>(PROBE_COUNT - 1);
+        const double probe_y = swept_bottom + (swept_top - swept_bottom) * t;
 
-    if (!found_wall)
+        test_probe_y(probe_y);
+    }
+
+    const double half_width = PLAYER_COLLISION_SIZE.x / 2.0;
+
+    bool   should_push = false;
+    double new_x       = GetPosition().x;
+    int    wall_dir    = 0;
+
+    if (found_block_from_left)
+    {
+        const double target_x = left_block_x - half_width - PUSH_OUT_SKIN;
+        const double push     = target_x - GetPosition().x;
+
+        if (push < 0.0)
+        {
+            should_push = true;
+            new_x       = target_x;
+            wall_dir    = 1; // wall is on player's right
+        }
+    }
+
+    if (found_block_from_right)
+    {
+        const double target_x = right_block_x + half_width + PUSH_OUT_SKIN;
+        const double push     = target_x - GetPosition().x;
+
+        if (push > 0.0)
+        {
+            if (!should_push || std::abs(push) < std::abs(new_x - GetPosition().x))
+            {
+                should_push = true;
+                new_x       = target_x;
+                wall_dir    = -1; // wall is on player's left
+            }
+        }
+    }
+
+    if (!should_push)
     {
         return false;
     }
 
-    HitWall(wall_x, direction);
+    SetPosition({ new_x, GetPosition().y });
+
+    Math::vec2 current_velocity = GetVelocity();
+
+    // Remove only the velocity going into the wall.
+    // Moving away from the wall must remain possible.
+    if (wall_dir > 0 && current_velocity.x > 0.0)
+    {
+        current_velocity.x = 0.0;
+    }
+    else if (wall_dir < 0 && current_velocity.x < 0.0)
+    {
+        current_velocity.x = 0.0;
+    }
+
+    SetVelocity(current_velocity);
+
+    if (wall_dir != 0)
+    {
+        RecordWallContact(wall_dir);
+    }
+
     return true;
 }
 
@@ -1093,7 +1165,7 @@ void Player::ResolveCollision(GameObject* other_object)
 
         if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && !can_use_aabb_fallback)
         {
-            if (ResolveFloorDiagonalWallCollision(floor_poly, my_box, prev_left, prev_right))
+            if (ResolveFloorDiagonalWallCollision(floor_poly, my_box, prev_left, prev_right, prev_bottom, prev_top))
             {
                 return;
             }
