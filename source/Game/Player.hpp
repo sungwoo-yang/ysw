@@ -3,6 +3,8 @@
 #include "Engine/Dash.hpp"
 #include "Engine/GameObject.hpp"
 #include "Engine/GameObjectTypes.hpp"
+#include "Engine/Polygon.h"
+#include "Engine/Rect.hpp"
 #include "Engine/Vec2.hpp"
 
 #include <memory>
@@ -55,7 +57,7 @@ public:
 
     void ApplyLaserDamage(double damageAmount);
 
-    bool IsDead() const;
+    bool   IsDead() const;
     double GetHP() const;
 
     CS230::DashComponent  dashComponent;
@@ -74,13 +76,23 @@ private:
     void UpdateHealthState(double dt);
     void RecordWallContact(int direction);
 
+    void LandOnSurface(double surface_y);
+    void HitCeiling(double ceiling_y);
+    void HitWall(double wall_x, int direction);
+
+    bool ResolveFloorSurfaceSnap(const Polygon& floor_poly, const Math::rect& my_box, double prev_bottom);
+    bool ResolveFloorCeilingCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_top);
+    bool ResolveFloorVerticalWallCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_left, double prev_right);
+    bool ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_left, double prev_right);
+    bool ResolveAABBFallback(const Math::rect& my_box, const Math::rect& other_box, double prev_bottom, double prev_top, double prev_left, double prev_right);
+
     const double collisionHalfHeight = 40.0;
 
     Shield* shieldComponent = nullptr;
 
-    double       gravity      = 1600.0;
-    double       jumpStrength = 800.0;
-    const double jumpBufferTime = 0.12;
+    double       gravity                      = 1600.0;
+    double       jumpStrength                 = 800.0;
+    const double jumpBufferTime               = 0.12;
     double       jumpReleaseGravityMultiplier = 4.5;
 
     const double wallStickDuration           = 0.28;
@@ -90,10 +102,10 @@ private:
     const double wallJumpVerticalStrength    = 800.0;
     double       wallJumpControlLockDuration = 0.15;
 
-    double       maxRunSpeed        = 550.0;
-    double       playerAcceleration = 3000.0;
-    double       playerFriction     = 2110.0;
-    
+    double maxRunSpeed        = 550.0;
+    double playerAcceleration = 3000.0;
+    double playerFriction     = 2110.0;
+
     double       currentSpeedMultiplier = 1.0;
     const double shieldSlowdownRate     = 4.0;
     const double minShieldSpeedMult     = 0.3;
@@ -114,12 +126,12 @@ private:
 
     enum class HealthState
     {
-        Full,      
-        Healthy,   
-        Hurt,      
-        Critical,  
-        NearDeath, 
-        Dead       
+        Full,
+        Healthy,
+        Hurt,
+        Critical,
+        NearDeath,
+        Dead
     };
     HealthState healthState = HealthState::Full;
     double      playerHp    = 5.0;

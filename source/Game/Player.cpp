@@ -8,6 +8,7 @@
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
+#include "Engine/Polygon.h"
 #include "Engine/TextureManager.hpp"
 
 #include "PushableMirror.hpp"
@@ -27,9 +28,90 @@ namespace
     constexpr Math::vec2 SHIELD_COOLDOWN_BAR_SIZE{ 68.0, 8.0 };
     constexpr Math::vec2 SHIELD_COOLDOWN_BAR_OFFSET{ 0.0, 58.0 };
 
+    constexpr double MAX_WALKABLE_SLOPE_ANGLE_DEG = 70.0;
+
     Math::TransformationMatrix RectangleTransform(Math::vec2 center, Math::vec2 size)
     {
         return Math::TranslationMatrix(center) * Math::ScaleMatrix(size);
+    }
+
+    bool PointInsidePolygon(const Polygon& polygon, Math::vec2 point)
+    {
+        bool        inside = false;
+        const auto& verts  = polygon.vertices;
+
+        if (verts.empty())
+        {
+            return false;
+        }
+
+        for (size_t i = 0, j = verts.size() - 1; i < verts.size(); j = i++)
+        {
+            const Math::vec2 vi = verts[i];
+            const Math::vec2 vj = verts[j];
+
+            const bool intersect = ((vi.y > point.y) != (vj.y > point.y)) && (point.x < (vj.x - vi.x) * (point.y - vi.y) / ((vj.y - vi.y) + 0.000001) + vi.x);
+
+            if (intersect)
+            {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    bool IsWalkableTopEdge(const Polygon& polygon, Math::vec2 p1, Math::vec2 p2)
+    {
+        constexpr double SAMPLE_OFFSET = 2.0;
+
+        const Math::vec2 mid{ (p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5 };
+
+        const bool inside_below = PointInsidePolygon(polygon, { mid.x, mid.y - SAMPLE_OFFSET });
+        const bool inside_above = PointInsidePolygon(polygon, { mid.x, mid.y + SAMPLE_OFFSET });
+
+        // Walkable surface means solid exists below the edge,
+        // and empty space exists above the edge.
+        return inside_below && !inside_above;
+    }
+
+    bool IsBlockingBottomEdge(const Polygon& polygon, Math::vec2 p1, Math::vec2 p2)
+    {
+        constexpr double SAMPLE_OFFSET = 2.0;
+
+        const Math::vec2 mid{ (p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5 };
+
+        const bool inside_below = PointInsidePolygon(polygon, { mid.x, mid.y - SAMPLE_OFFSET });
+        const bool inside_above = PointInsidePolygon(polygon, { mid.x, mid.y + SAMPLE_OFFSET });
+
+        // Ceiling / underside means solid exists above the edge,
+        // and empty space exists below the edge.
+        return !inside_below && inside_above;
+    }
+
+    double GetEdgeAngleDegrees(Math::vec2 p1, Math::vec2 p2)
+    {
+        const double dx = p2.x - p1.x;
+        const double dy = p2.y - p1.y;
+
+        if (std::abs(dx) < 0.000001 && std::abs(dy) < 0.000001)
+        {
+            return 0.0;
+        }
+
+        return std::atan2(std::abs(dy), std::abs(dx)) * 180.0 / PI;
+    }
+
+    bool IsWalkableSlopeEdge(const Polygon& polygon, Math::vec2 p1, Math::vec2 p2)
+    {
+        if (!IsWalkableTopEdge(polygon, p1, p2))
+        {
+            return false;
+        }
+
+        const double angle = GetEdgeAngleDegrees(p1, p2);
+
+        return angle <= MAX_WALKABLE_SLOPE_ANGLE_DEG;
     }
 }
 
@@ -322,6 +404,559 @@ void Player::RecordWallContact(int direction)
     wallDirection  = direction;
 }
 
+void Player::LandOnSurface(double surface_y)
+{
+    if (wasJumpingLastFrame)
+    {
+        AudioManager::Play("SFX_Landing");
+        wasJumpingLastFrame = false;
+    }
+
+    SetPosition({ GetPosition().x, surface_y + (PLAYER_COLLISION_SIZE.y / 2.0) });
+
+    velocityY = 0.0;
+    SetVelocity({ GetVelocity().x, 0.0 });
+
+    isJumping                = false;
+    coyoteTimer              = coyoteTime;
+    wallJumpControlLockTimer = 0.0;
+}
+
+void Player::HitCeiling(double ceiling_y)
+{
+    SetPosition({ GetPosition().x, ceiling_y - (PLAYER_COLLISION_SIZE.y / 2.0) });
+
+    velocityY = 0.0;
+    SetVelocity({ GetVelocity().x, 0.0 });
+
+    isJumping = true;
+}
+
+void Player::HitWall(double wall_x, int direction)
+{
+    if (direction > 0)
+    {
+        SetPosition({ wall_x - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+        RecordWallContact(1);
+    }
+    else
+    {
+        SetPosition({ wall_x + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
+        RecordWallContact(-1);
+    }
+
+    SetVelocity({ 0.0, GetVelocity().y });
+}
+
+bool Player::ResolveFloorSurfaceSnap(const Polygon& floor_poly, const Math::rect& my_box, double prev_bottom)
+{
+    if (floor_poly.vertexCount < 3 || velocityY > 0.0)
+    {
+        return false;
+    }
+
+    constexpr double SURFACE_EDGE_EPS          = 0.001;
+    constexpr double SURFACE_X_MARGIN          = 6.0;
+    constexpr double SURFACE_CONTACT_TOLERANCE = 8.0;
+    constexpr double MAX_SURFACE_STEP_UP       = 8.0;
+    constexpr double MAX_SURFACE_SNAP_DOWN     = 2.0;
+    constexpr double MIN_SURFACE_SIDE_SPEED    = 1.0;
+    constexpr double FOOT_INSET                = 2.0;
+
+    const double current_bottom = my_box.Bottom();
+
+    const bool moving_right = GetVelocity().x > MIN_SURFACE_SIDE_SPEED;
+    const bool moving_left  = GetVelocity().x < -MIN_SURFACE_SIDE_SPEED;
+
+    bool   found_surface = false;
+    double surface_y     = 0.0;
+
+    auto try_probe_x = [&](double probe_x)
+    {
+        const auto& verts = floor_poly.vertices;
+
+        for (size_t i = 0; i < verts.size(); ++i)
+        {
+            Math::vec2 p1 = verts[i];
+            Math::vec2 p2 = verts[(i + 1) % verts.size()];
+
+            const double dx = p2.x - p1.x;
+            const double dy = p2.y - p1.y;
+
+            // Vertical edges are walls, not walkable floor surfaces.
+            if (std::abs(dx) < SURFACE_EDGE_EPS)
+            {
+                continue;
+            }
+
+            if (!IsWalkableSlopeEdge(floor_poly, p1, p2))
+            {
+                continue;
+            }
+
+            // Degenerate edge guard.
+            if ((p2 - p1).LengthSquared() < SURFACE_EDGE_EPS)
+            {
+                continue;
+            }
+
+            const double min_x = std::min(p1.x, p2.x) - SURFACE_X_MARGIN;
+            const double max_x = std::max(p1.x, p2.x) + SURFACE_X_MARGIN;
+
+            if (probe_x < min_x || probe_x > max_x)
+            {
+                continue;
+            }
+
+            double t = (probe_x - p1.x) / dx;
+            t        = std::clamp(t, 0.0, 1.0);
+
+            const double candidate_y = p1.y + dy * t;
+            const double delta       = candidate_y - current_bottom;
+
+            const bool crossed_surface_candidate = prev_bottom >= candidate_y && current_bottom <= candidate_y + SURFACE_CONTACT_TOLERANCE;
+
+            const bool step_candidate = delta >= -MAX_SURFACE_SNAP_DOWN && delta <= MAX_SURFACE_STEP_UP;
+
+            // Landing and step-up are different.
+            // Fast falling/dashing should still catch the floor if the player crossed the surface.
+            if (!crossed_surface_candidate && !step_candidate)
+            {
+                continue;
+            }
+
+            // Use the highest valid surface.
+            if (!found_surface || candidate_y > surface_y)
+            {
+                found_surface = true;
+                surface_y     = candidate_y;
+            }
+        }
+    };
+
+    // Center probe.
+    try_probe_x(GetPosition().x);
+
+    // Left/right foot probes.
+    // These help when jumping, dashing, or landing near a slope edge.
+    try_probe_x(my_box.Left() + FOOT_INSET);
+    try_probe_x(my_box.Right() - FOOT_INSET);
+
+    // Extra front probe for slope seams.
+    if (moving_right)
+    {
+        try_probe_x(my_box.Right());
+    }
+    else if (moving_left)
+    {
+        try_probe_x(my_box.Left());
+    }
+
+    if (!found_surface)
+    {
+        return false;
+    }
+
+    const double delta_to_surface = surface_y - current_bottom;
+
+    const bool crossed_surface = prev_bottom >= surface_y && current_bottom <= surface_y + SURFACE_CONTACT_TOLERANCE;
+
+    const bool close_enough_to_step = delta_to_surface >= -MAX_SURFACE_SNAP_DOWN && delta_to_surface <= MAX_SURFACE_STEP_UP;
+
+    if (!crossed_surface && !close_enough_to_step)
+    {
+        return false;
+    }
+
+    LandOnSurface(surface_y);
+    return true;
+}
+
+bool Player::ResolveFloorCeilingCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_top)
+{
+    if (floor_poly.vertexCount < 3 || velocityY <= 0.0)
+    {
+        return false;
+    }
+
+    constexpr double CEILING_EDGE_EPS          = 0.001;
+    constexpr double CEILING_X_MARGIN          = 4.0;
+    constexpr double CEILING_CONTACT_TOLERANCE = 8.0;
+    constexpr double HEAD_INSET                = 2.0;
+
+    const double current_top = my_box.Top();
+
+    bool   found_ceiling = false;
+    double ceiling_y     = 0.0;
+
+    auto try_head_probe_x = [&](double probe_x)
+    {
+        const auto& verts = floor_poly.vertices;
+
+        for (size_t i = 0; i < verts.size(); ++i)
+        {
+            Math::vec2 p1 = verts[i];
+            Math::vec2 p2 = verts[(i + 1) % verts.size()];
+
+            const double dx = p2.x - p1.x;
+
+            if (std::abs(dx) < CEILING_EDGE_EPS)
+            {
+                continue;
+            }
+
+            if ((p2 - p1).LengthSquared() < CEILING_EDGE_EPS)
+            {
+                continue;
+            }
+
+            if (!IsBlockingBottomEdge(floor_poly, p1, p2))
+            {
+                continue;
+            }
+
+            const double min_x = std::min(p1.x, p2.x) - CEILING_X_MARGIN;
+            const double max_x = std::max(p1.x, p2.x) + CEILING_X_MARGIN;
+
+            if (probe_x < min_x || probe_x > max_x)
+            {
+                continue;
+            }
+
+            double t = (probe_x - p1.x) / dx;
+            t        = std::clamp(t, 0.0, 1.0);
+
+            const double candidate_y = p1.y + (p2.y - p1.y) * t;
+
+            const bool crossed_ceiling = prev_top <= candidate_y && current_top >= candidate_y - CEILING_CONTACT_TOLERANCE;
+
+            if (!crossed_ceiling)
+            {
+                continue;
+            }
+
+            // Use the lowest valid ceiling, because that is the first underside hit.
+            if (!found_ceiling || candidate_y < ceiling_y)
+            {
+                found_ceiling = true;
+                ceiling_y     = candidate_y;
+            }
+        }
+    };
+
+    try_head_probe_x(GetPosition().x);
+    try_head_probe_x(my_box.Left() + HEAD_INSET);
+    try_head_probe_x(my_box.Right() - HEAD_INSET);
+
+    if (!found_ceiling)
+    {
+        return false;
+    }
+
+    HitCeiling(ceiling_y);
+    return true;
+}
+
+bool Player::ResolveFloorVerticalWallCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_left, double prev_right)
+{
+    if (floor_poly.vertexCount < 3)
+    {
+        return false;
+    }
+
+    constexpr double WALL_EDGE_EPS       = 0.001;
+    constexpr double WALL_Y_MARGIN       = 2.0;
+    constexpr double WALL_MIN_HEIGHT     = 8.0;
+    constexpr double MIN_SIDE_WALL_SPEED = 0.5;
+
+    const bool moving_right = GetVelocity().x > MIN_SIDE_WALL_SPEED;
+    const bool moving_left  = GetVelocity().x < -MIN_SIDE_WALL_SPEED;
+
+    const auto& verts = floor_poly.vertices;
+
+    for (size_t i = 0; i < verts.size(); ++i)
+    {
+        Math::vec2 p1 = verts[i];
+        Math::vec2 p2 = verts[(i + 1) % verts.size()];
+
+        const double dx = p2.x - p1.x;
+        const double dy = p2.y - p1.y;
+
+        // Only vertical edges are side walls.
+        if (std::abs(dx) >= WALL_EDGE_EPS)
+        {
+            continue;
+        }
+
+        if (std::abs(dy) < WALL_MIN_HEIGHT)
+        {
+            continue;
+        }
+
+        const double wall_x      = p1.x;
+        const double wall_bottom = std::min(p1.y, p2.y);
+        const double wall_top    = std::max(p1.y, p2.y);
+
+        const bool vertical_body_overlap = my_box.Top() > wall_bottom + WALL_Y_MARGIN && my_box.Bottom() < wall_top - WALL_Y_MARGIN;
+
+        if (!vertical_body_overlap)
+        {
+            continue;
+        }
+
+        const bool crossed_from_left = moving_right && prev_right <= wall_x && my_box.Right() >= wall_x;
+
+        const bool crossed_from_right = moving_left && prev_left >= wall_x && my_box.Left() <= wall_x;
+
+        if (crossed_from_left)
+        {
+            HitWall(wall_x, 1);
+            return true;
+        }
+
+        if (crossed_from_right)
+        {
+            HitWall(wall_x, -1);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const Math::rect& my_box, double prev_left, double prev_right)
+{
+    if (floor_poly.vertexCount < 3)
+    {
+        return false;
+    }
+
+    constexpr double DIAGONAL_EDGE_EPS   = 0.001;
+    constexpr double DIAGONAL_Y_MARGIN   = 3.0;
+    constexpr double BODY_INSET          = 4.0;
+    constexpr double MIN_SIDE_WALL_SPEED = 0.5;
+
+    const bool moving_right = GetVelocity().x > MIN_SIDE_WALL_SPEED;
+    const bool moving_left  = GetVelocity().x < -MIN_SIDE_WALL_SPEED;
+
+    if (!moving_right && !moving_left)
+    {
+        return false;
+    }
+
+    bool   found_wall = false;
+    double wall_x     = 0.0;
+    int    direction  = 0;
+
+    auto try_probe_y = [&](double probe_y)
+    {
+        const auto& verts = floor_poly.vertices;
+
+        for (size_t i = 0; i < verts.size(); ++i)
+        {
+            Math::vec2 p1 = verts[i];
+            Math::vec2 p2 = verts[(i + 1) % verts.size()];
+
+            const double dx = p2.x - p1.x;
+            const double dy = p2.y - p1.y;
+
+            // Vertical walls are already handled by ResolveFloorVerticalWallCollision().
+            if (std::abs(dx) < DIAGONAL_EDGE_EPS)
+            {
+                continue;
+            }
+
+            // Horizontal/top/bottom edges are handled by surface snap or ceiling collision.
+            if (std::abs(dy) < DIAGONAL_EDGE_EPS)
+            {
+                continue;
+            }
+
+            if ((p2 - p1).LengthSquared() < DIAGONAL_EDGE_EPS)
+            {
+                continue;
+            }
+
+            const bool   top_edge    = IsWalkableTopEdge(floor_poly, p1, p2);
+            const bool   bottom_edge = IsBlockingBottomEdge(floor_poly, p1, p2);
+            const double angle       = GetEdgeAngleDegrees(p1, p2);
+
+            const bool steep_top_edge = top_edge && angle > MAX_WALKABLE_SLOPE_ANGLE_DEG;
+
+            const bool side_diagonal_edge = !top_edge && !bottom_edge;
+
+            // Only block diagonal edges that are not valid walkable slopes.
+            if (!steep_top_edge && !side_diagonal_edge)
+            {
+                continue;
+            }
+
+            const double min_y = std::min(p1.y, p2.y) - DIAGONAL_Y_MARGIN;
+            const double max_y = std::max(p1.y, p2.y) + DIAGONAL_Y_MARGIN;
+
+            if (probe_y < min_y || probe_y > max_y)
+            {
+                continue;
+            }
+
+            double t = (probe_y - p1.y) / dy;
+            t        = std::clamp(t, 0.0, 1.0);
+
+            const double edge_x = p1.x + dx * t;
+
+            const bool crossed_from_left = moving_right && prev_right <= edge_x && my_box.Right() >= edge_x;
+
+            const bool crossed_from_right = moving_left && prev_left >= edge_x && my_box.Left() <= edge_x;
+
+            if (crossed_from_left)
+            {
+                // When moving right, use the first wall crossed.
+                if (!found_wall || edge_x < wall_x)
+                {
+                    found_wall = true;
+                    wall_x     = edge_x;
+                    direction  = 1;
+                }
+            }
+
+            if (crossed_from_right)
+            {
+                // When moving left, use the first wall crossed.
+                if (!found_wall || edge_x > wall_x)
+                {
+                    found_wall = true;
+                    wall_x     = edge_x;
+                    direction  = -1;
+                }
+            }
+        }
+    };
+
+    try_probe_y(GetPosition().y);
+    try_probe_y(my_box.Bottom() + BODY_INSET);
+    try_probe_y(my_box.Top() - BODY_INSET);
+
+    if (!found_wall)
+    {
+        return false;
+    }
+
+    HitWall(wall_x, direction);
+    return true;
+}
+
+bool Player::ResolveAABBFallback(const Math::rect& my_box, const Math::rect& other_box, double prev_bottom, double prev_top, double prev_left, double prev_right)
+{
+    const double platform_top    = other_box.Top();
+    const double platform_bottom = other_box.Bottom();
+    const double platform_left   = other_box.Left();
+    const double platform_right  = other_box.Right();
+
+    const bool horizontal_overlap = my_box.Right() > other_box.Left() && my_box.Left() < other_box.Right();
+
+    const bool vertical_overlap = my_box.Top() > other_box.Bottom() && my_box.Bottom() < other_box.Top();
+
+    if (!horizontal_overlap || !vertical_overlap)
+    {
+        return false;
+    }
+
+    const bool was_above = prev_bottom >= platform_top;
+    const bool was_left  = prev_right <= platform_left;
+    const bool was_right = prev_left >= platform_right;
+
+    if (velocityY <= 0.0 && was_above && horizontal_overlap)
+    {
+        LandOnSurface(platform_top);
+        return true;
+    }
+
+    if (velocityY > 0.0 && horizontal_overlap && prev_top <= platform_bottom && my_box.Top() >= platform_bottom)
+    {
+        HitCeiling(platform_bottom);
+        return true;
+    }
+
+    if (GetVelocity().x > 0.0 && was_left && vertical_overlap)
+    {
+        HitWall(platform_left, 1);
+        return true;
+    }
+
+    if (GetVelocity().x < 0.0 && was_right && vertical_overlap)
+    {
+        HitWall(platform_right, -1);
+        return true;
+    }
+
+    const double overlap_bottom = my_box.Top() - other_box.Bottom();
+    const double overlap_top    = other_box.Top() - my_box.Bottom();
+    const double overlap_left   = my_box.Right() - other_box.Left();
+    const double overlap_right  = other_box.Right() - my_box.Left();
+
+    double min_overlap = overlap_bottom;
+    int    axis        = 0;
+
+    if (overlap_top < min_overlap)
+    {
+        min_overlap = overlap_top;
+        axis        = 1;
+    }
+
+    if (overlap_left < min_overlap)
+    {
+        min_overlap = overlap_left;
+        axis        = 2;
+    }
+
+    if (overlap_right < min_overlap)
+    {
+        min_overlap = overlap_right;
+        axis        = 3;
+    }
+
+    switch (axis)
+    {
+        case 0:
+            // Push below only when this was actually a ceiling hit.
+            if (velocityY > 0.0 && prev_top <= platform_bottom)
+            {
+                HitCeiling(platform_bottom);
+            }
+            else if (was_left)
+            {
+                HitWall(platform_left, 1);
+            }
+            else if (was_right)
+            {
+                HitWall(platform_right, -1);
+            }
+            break;
+
+        case 1:
+            // Push onto the top only when this was actually a landing.
+            if (velocityY <= 0.0 && prev_bottom >= platform_top)
+            {
+                LandOnSurface(platform_top);
+            }
+            else if (was_left)
+            {
+                HitWall(platform_left, 1);
+            }
+            else if (was_right)
+            {
+                HitWall(platform_right, -1);
+            }
+            break;
+
+        case 2: HitWall(platform_left, 1); break;
+
+        case 3: HitWall(platform_right, -1); break;
+    }
+
+    return true;
+}
+
 void Player::ResolveCollision(GameObject* other_object)
 {
     auto  textManager = Engine::GetGameStateManager().GetGSComponent<WorldTextManager>();
@@ -371,280 +1006,18 @@ void Player::ResolveCollision(GameObject* other_object)
         double prev_left   = previousPosition.x - (PLAYER_COLLISION_SIZE.x / 2.0);
         double prev_right  = previousPosition.x + (PLAYER_COLLISION_SIZE.x / 2.0);
 
-        // Floor surface snap:
-        // Handles flat tops, slopes, and path-to-path / path-to-rect seams
-        // before falling back to AABB-style collision.
-        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && floor_poly.vertexCount >= 3 && velocityY <= 0.0)
+        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly)
         {
-            constexpr double SURFACE_EDGE_EPS          = 0.001;
-            constexpr double SURFACE_X_MARGIN          = 6.0;
-            constexpr double SURFACE_CONTACT_TOLERANCE = 8.0;
-            constexpr double MAX_SURFACE_STEP_UP       = 8.0;
-            // constexpr double MAX_SURFACE_LANDING_DROP  = 80.0;
-            constexpr double MAX_SURFACE_SNAP_DOWN     = 2.0;
-            constexpr double MIN_SURFACE_SIDE_SPEED    = 1.0;
-
-            const double current_bottom = my_box.Bottom();
-
-            const bool moving_right = GetVelocity().x > MIN_SURFACE_SIDE_SPEED;
-            const bool moving_left  = GetVelocity().x < -MIN_SURFACE_SIDE_SPEED;
-
-            bool   found_surface = false;
-            double surface_y     = 0.0;
-
-            auto point_inside_polygon = [&](Math::vec2 point)
+            if (ResolveFloorSurfaceSnap(floor_poly, my_box, prev_bottom))
             {
-                bool        inside = false;
-                const auto& verts  = floor_poly.vertices;
-
-                for (size_t i = 0, j = verts.size() - 1; i < verts.size(); j = i++)
-                {
-                    const Math::vec2 vi = verts[i];
-                    const Math::vec2 vj = verts[j];
-
-                    const bool intersect = ((vi.y > point.y) != (vj.y > point.y)) && (point.x < (vj.x - vi.x) * (point.y - vi.y) / ((vj.y - vi.y) + 0.000001) + vi.x);
-
-                    if (intersect)
-                        inside = !inside;
-                }
-
-                return inside;
-            };
-
-            auto is_walkable_top_edge = [&](Math::vec2 p1, Math::vec2 p2)
-            {
-                constexpr double SAMPLE_OFFSET = 2.0;
-
-                const Math::vec2 mid{ (p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5 };
-
-                const bool inside_below = point_inside_polygon({ mid.x, mid.y - SAMPLE_OFFSET });
-                const bool inside_above = point_inside_polygon({ mid.x, mid.y + SAMPLE_OFFSET });
-
-                // Walkable surface means solid exists below the edge,
-                // and empty space exists above the edge.
-                return inside_below && !inside_above;
-            };
-
-            auto try_probe_x = [&](double probe_x)
-            {
-                const auto& verts = floor_poly.vertices;
-
-                for (size_t i = 0; i < verts.size(); ++i)
-                {
-                    Math::vec2 p1 = verts[i];
-                    Math::vec2 p2 = verts[(i + 1) % verts.size()];
-
-                    const double dx = p2.x - p1.x;
-                    const double dy = p2.y - p1.y;
-
-                    // Vertical edges are walls, not walkable floor surfaces.
-                    if (std::abs(dx) < SURFACE_EDGE_EPS)
-                        continue;
-
-                    if (!is_walkable_top_edge(p1, p2))
-                        continue;
-
-                    // Degenerate edge guard.
-                    if ((p2 - p1).LengthSquared() < SURFACE_EDGE_EPS)
-                        continue;
-
-                    const double min_x = std::min(p1.x, p2.x) - SURFACE_X_MARGIN;
-                    const double max_x = std::max(p1.x, p2.x) + SURFACE_X_MARGIN;
-
-                    if (probe_x < min_x || probe_x > max_x)
-                        continue;
-
-                    double t = (probe_x - p1.x) / dx;
-                    t        = std::clamp(t, 0.0, 1.0);
-
-                    const double candidate_y = p1.y + dy * t;
-                    const double delta       = candidate_y - current_bottom;
-
-                    const bool crossed_surface_candidate = prev_bottom >= candidate_y && current_bottom <= candidate_y + SURFACE_CONTACT_TOLERANCE;
-
-                    const bool step_candidate = delta >= -MAX_SURFACE_SNAP_DOWN && delta <= MAX_SURFACE_STEP_UP;
-
-                    // Landing and step-up are different.
-                    // Fast falling/dashing should still catch the floor if the player crossed the surface.
-                    if (!crossed_surface_candidate && !step_candidate)
-                    {
-                        continue;
-                    }
-
-                    // Use the highest valid surface.
-                    if (!found_surface || candidate_y > surface_y)
-                    {
-                        found_surface = true;
-                        surface_y     = candidate_y;
-                    }
-                }
-            };
-
-            constexpr double FOOT_INSET = 2.0;
-
-            // Center probe.
-            try_probe_x(GetPosition().x);
-
-            // Left/right foot probes.
-            // These help when jumping, dashing, or landing near a slope edge.
-            try_probe_x(my_box.Left() + FOOT_INSET);
-            try_probe_x(my_box.Right() - FOOT_INSET);
-
-            // Extra front probe for slope seams.
-            if (moving_right)
-            {
-                try_probe_x(my_box.Right());
-            }
-            else if (moving_left)
-            {
-                try_probe_x(my_box.Left());
-            }
-
-            if (found_surface)
-            {
-                const double delta_to_surface = surface_y - current_bottom;
-
-                const bool crossed_surface = prev_bottom >= surface_y && current_bottom <= surface_y + SURFACE_CONTACT_TOLERANCE;
-
-                const bool close_enough_to_step = delta_to_surface >= -MAX_SURFACE_SNAP_DOWN && delta_to_surface <= MAX_SURFACE_STEP_UP;
-
-                if (crossed_surface || close_enough_to_step)
-                {
-                    if (wasJumpingLastFrame)
-                    {
-                        AudioManager::Play("SFX_Landing");
-                        wasJumpingLastFrame = false;
-                    }
-
-                    SetPosition({ GetPosition().x, surface_y + (PLAYER_COLLISION_SIZE.y / 2.0) });
-                    velocityY = 0.0;
-                    SetVelocity({ GetVelocity().x, 0.0 });
-
-                    isJumping                = false;
-                    coyoteTimer              = coyoteTime;
-                    wallJumpControlLockTimer = 0.0;
-
-                    return;
-                }
+                return;
             }
         }
 
-        // Non-rect floor ceiling collision:
-        // Handles jumping into the underside of slope/path floors.
-        // This prevents the player from entering the polygon and later snapping to its top surface.
-        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && floor_poly.vertexCount >= 3 && velocityY > 0.0)
+        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly)
         {
-            constexpr double CEILING_EDGE_EPS          = 0.001;
-            constexpr double CEILING_X_MARGIN          = 4.0;
-            constexpr double CEILING_CONTACT_TOLERANCE = 8.0;
-            constexpr double HEAD_INSET                = 2.0;
-
-            const double current_top = my_box.Top();
-
-            auto point_inside_polygon = [&](Math::vec2 point)
+            if (ResolveFloorCeilingCollision(floor_poly, my_box, prev_top))
             {
-                bool        inside = false;
-                const auto& verts  = floor_poly.vertices;
-
-                for (size_t i = 0, j = verts.size() - 1; i < verts.size(); j = i++)
-                {
-                    const Math::vec2 vi = verts[i];
-                    const Math::vec2 vj = verts[j];
-
-                    const bool intersect = ((vi.y > point.y) != (vj.y > point.y)) && (point.x < (vj.x - vi.x) * (point.y - vi.y) / ((vj.y - vi.y) + 0.000001) + vi.x);
-
-                    if (intersect)
-                    {
-                        inside = !inside;
-                    }
-                }
-
-                return inside;
-            };
-
-            auto is_blocking_bottom_edge = [&](Math::vec2 p1, Math::vec2 p2)
-            {
-                constexpr double SAMPLE_OFFSET = 2.0;
-
-                const Math::vec2 mid{ (p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5 };
-
-                const bool inside_below = point_inside_polygon({ mid.x, mid.y - SAMPLE_OFFSET });
-                const bool inside_above = point_inside_polygon({ mid.x, mid.y + SAMPLE_OFFSET });
-
-                // Ceiling / underside means solid exists above the edge,
-                // and empty space exists below the edge.
-                return !inside_below && inside_above;
-            };
-
-            bool   found_ceiling = false;
-            double ceiling_y     = 0.0;
-
-            auto try_head_probe_x = [&](double probe_x)
-            {
-                const auto& verts = floor_poly.vertices;
-
-                for (size_t i = 0; i < verts.size(); ++i)
-                {
-                    Math::vec2 p1 = verts[i];
-                    Math::vec2 p2 = verts[(i + 1) % verts.size()];
-
-                    const double dx = p2.x - p1.x;
-
-                    if (std::abs(dx) < CEILING_EDGE_EPS)
-                    {
-                        continue;
-                    }
-
-                    if ((p2 - p1).LengthSquared() < CEILING_EDGE_EPS)
-                    {
-                        continue;
-                    }
-
-                    if (!is_blocking_bottom_edge(p1, p2))
-                    {
-                        continue;
-                    }
-
-                    const double min_x = std::min(p1.x, p2.x) - CEILING_X_MARGIN;
-                    const double max_x = std::max(p1.x, p2.x) + CEILING_X_MARGIN;
-
-                    if (probe_x < min_x || probe_x > max_x)
-                    {
-                        continue;
-                    }
-
-                    double t = (probe_x - p1.x) / dx;
-                    t        = std::clamp(t, 0.0, 1.0);
-
-                    const double candidate_y = p1.y + (p2.y - p1.y) * t;
-
-                    const bool crossed_ceiling = prev_top <= candidate_y && current_top >= candidate_y - CEILING_CONTACT_TOLERANCE;
-
-                    if (!crossed_ceiling)
-                    {
-                        continue;
-                    }
-
-                    // Use the lowest valid ceiling, because that is the first underside hit.
-                    if (!found_ceiling || candidate_y < ceiling_y)
-                    {
-                        found_ceiling = true;
-                        ceiling_y     = candidate_y;
-                    }
-                }
-            };
-
-            try_head_probe_x(GetPosition().x);
-            try_head_probe_x(my_box.Left() + HEAD_INSET);
-            try_head_probe_x(my_box.Right() - HEAD_INSET);
-
-            if (found_ceiling)
-            {
-                SetPosition({ GetPosition().x, ceiling_y - (PLAYER_COLLISION_SIZE.y / 2.0) });
-                velocityY = 0.0;
-                SetVelocity({ GetVelocity().x, 0.0 });
-                isJumping = true;
-
                 return;
             }
         }
@@ -702,17 +1075,7 @@ void Player::ResolveCollision(GameObject* other_object)
             return true;
         };
 
-        const bool can_use_aabb_side_collision = other_object->Type() == GameObjectTypes::Gate || other_object->Type() == GameObjectTypes::FallingBlock || is_axis_aligned_rect_floor();
-
-        bool was_above = prev_bottom >= platform_top;
-        // bool was_below = prev_top <= platform_bottom;
-        bool was_left  = prev_right <= platform_left;
-        bool was_right = prev_left >= platform_right;
-
-        double overlap_bottom = my_box.Top() - other_box.Bottom();
-        double overlap_top    = other_box.Top() - my_box.Bottom();
-        double overlap_left   = my_box.Right() - other_box.Left();
-        double overlap_right  = other_box.Right() - my_box.Left();
+        const bool can_use_aabb_fallback = other_object->Type() == GameObjectTypes::Gate || other_object->Type() == GameObjectTypes::FallingBlock || is_axis_aligned_rect_floor();
 
         bool horizontal_overlap = my_box.Right() > other_box.Left() && my_box.Left() < other_box.Right();
         bool vertical_overlap   = my_box.Top() > other_box.Bottom() && my_box.Bottom() < other_box.Top();
@@ -720,200 +1083,30 @@ void Player::ResolveCollision(GameObject* other_object)
         if (!horizontal_overlap || !vertical_overlap)
             return;
 
-        // Non-rect floor vertical wall collision:
-        // Handles the left/right wall edges of slope/path floors.
-        // Surface snap handles top edges, ceiling code handles bottom edges,
-        // and this block handles vertical side edges.
-        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && !can_use_aabb_side_collision)
+        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && !can_use_aabb_fallback)
         {
-            constexpr double WALL_EDGE_EPS       = 0.001;
-            constexpr double WALL_Y_MARGIN       = 2.0;
-            constexpr double WALL_MIN_HEIGHT     = 8.0;
-            constexpr double MIN_SIDE_WALL_SPEED = 0.5;
-
-            const bool moving_right = GetVelocity().x > MIN_SIDE_WALL_SPEED;
-            const bool moving_left  = GetVelocity().x < -MIN_SIDE_WALL_SPEED;
-
-            const auto& verts = floor_poly.vertices;
-
-            for (size_t i = 0; i < verts.size(); ++i)
+            if (ResolveFloorVerticalWallCollision(floor_poly, my_box, prev_left, prev_right))
             {
-                Math::vec2 p1 = verts[i];
-                Math::vec2 p2 = verts[(i + 1) % verts.size()];
-
-                const double dx = p2.x - p1.x;
-                const double dy = p2.y - p1.y;
-
-                // Only vertical edges are side walls.
-                if (std::abs(dx) >= WALL_EDGE_EPS)
-                {
-                    continue;
-                }
-
-                if (std::abs(dy) < WALL_MIN_HEIGHT)
-                {
-                    continue;
-                }
-
-                const double wall_x      = p1.x;
-                const double wall_bottom = std::min(p1.y, p2.y);
-                const double wall_top    = std::max(p1.y, p2.y);
-
-                const bool vertical_body_overlap = my_box.Top() > wall_bottom + WALL_Y_MARGIN && my_box.Bottom() < wall_top - WALL_Y_MARGIN;
-
-                if (!vertical_body_overlap)
-                {
-                    continue;
-                }
-
-                const bool crossed_from_left = moving_right && prev_right <= wall_x && my_box.Right() >= wall_x;
-
-                const bool crossed_from_right = moving_left && prev_left >= wall_x && my_box.Left() <= wall_x;
-
-                if (crossed_from_left)
-                {
-                    SetPosition({ wall_x - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
-                    SetVelocity({ 0.0, GetVelocity().y });
-                    RecordWallContact(1);
-                    return;
-                }
-
-                if (crossed_from_right)
-                {
-                    SetPosition({ wall_x + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
-                    SetVelocity({ 0.0, GetVelocity().y });
-                    RecordWallContact(-1);
-                    return;
-                }
+                return;
             }
         }
 
-        // Non-rect floor polygons, such as slopes or complex paths, should not use AABB fallback resolution.
-        // Otherwise, platform_left/right can push the player to the far edge of the whole polygon.
-        if (other_object->Type() == GameObjectTypes::Floor && !can_use_aabb_side_collision)
+        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && !can_use_aabb_fallback)
+        {
+            if (ResolveFloorDiagonalWallCollision(floor_poly, my_box, prev_left, prev_right))
+            {
+                return;
+            }
+        }
+
+        if (other_object->Type() == GameObjectTypes::Floor && !can_use_aabb_fallback)
         {
             return;
         }
 
-        if (velocityY <= 0 && was_above && horizontal_overlap)
-        {
-            if (wasJumpingLastFrame)
-            {
-                AudioManager::Play("SFX_Landing");
-                wasJumpingLastFrame = false;
-            }
+        ResolveAABBFallback(my_box, other_box, prev_bottom, prev_top, prev_left, prev_right);
 
-            SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
-            velocityY                = 0.0;
-            isJumping                = false;
-            coyoteTimer              = coyoteTime;
-            wallJumpControlLockTimer = 0.0;
-        }
-        else if (velocityY > 0.0 && horizontal_overlap && prev_top <= platform_bottom && my_box.Top() >= platform_bottom)
-        {
-            SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
-            velocityY = 0.0;
-            SetVelocity({ GetVelocity().x, 0.0 });
-            isJumping = true;
-
-            return;
-        }
-        else if (GetVelocity().x > 0 && was_left && vertical_overlap)
-        {
-            SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
-            SetVelocity({ 0.0, GetVelocity().y });
-            RecordWallContact(1);
-        }
-        else if (GetVelocity().x < 0 && was_right && vertical_overlap)
-        {
-            SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
-            SetVelocity({ 0.0, GetVelocity().y });
-            RecordWallContact(-1);
-        }
-        else
-        {
-            double min_overlap = overlap_bottom;
-            int    axis        = 0;
-
-            if (overlap_top < min_overlap)
-            {
-                min_overlap = overlap_top;
-                axis        = 1;
-            }
-            if (overlap_left < min_overlap)
-            {
-                min_overlap = overlap_left;
-                axis        = 2;
-            }
-            if (overlap_right < min_overlap)
-            {
-                min_overlap = overlap_right;
-                axis        = 3;
-            }
-
-            switch (axis)
-            {
-                case 0:
-                    // Only push the player below a platform when this was actually a ceiling hit.
-                    if (velocityY > 0.0 && prev_top <= platform_bottom)
-                    {
-                        SetPosition({ GetPosition().x, platform_bottom - (PLAYER_COLLISION_SIZE.y / 2.0) });
-                        velocityY = 0.0;
-                        SetVelocity({ GetVelocity().x, 0.0 });
-                    }
-                    else if (was_left)
-                    {
-                        SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
-                        SetVelocity({ 0.0, GetVelocity().y });
-                        RecordWallContact(1);
-                    }
-                    else if (was_right)
-                    {
-                        SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
-                        SetVelocity({ 0.0, GetVelocity().y });
-                        RecordWallContact(-1);
-                    }
-                    break;
-                case 1:
-                    // Only push the player onto the top when this was actually a landing.
-                    if (velocityY <= 0.0 && prev_bottom >= platform_top)
-                    {
-                        SetPosition({ GetPosition().x, platform_top + (PLAYER_COLLISION_SIZE.y / 2.0) });
-
-                        velocityY = 0.0;
-                        SetVelocity({ GetVelocity().x, 0.0 });
-
-                        isJumping                = false;
-                        coyoteTimer              = coyoteTime;
-                        wallJumpControlLockTimer = 0.0;
-                    }
-                    else if (was_left)
-                    {
-                        SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
-                        SetVelocity({ 0.0, GetVelocity().y });
-                        RecordWallContact(1);
-                    }
-                    else if (was_right)
-                    {
-                        SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
-                        SetVelocity({ 0.0, GetVelocity().y });
-                        RecordWallContact(-1);
-                    }
-                    break;
-                case 2:
-                    SetPosition({ platform_left - (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
-                    if (GetVelocity().x > 0.0)
-                        SetVelocity({ 0.0, GetVelocity().y });
-                    RecordWallContact(1);
-                    break;
-                case 3:
-                    SetPosition({ platform_right + (PLAYER_COLLISION_SIZE.x / 2.0), GetPosition().y });
-                    if (GetVelocity().x < 0.0)
-                        SetVelocity({ 0.0, GetVelocity().y });
-                    RecordWallContact(-1);
-                    break;
-            }
-        }
+        return;
     }
 
     else if (other_object->Type() == GameObjectTypes::Sign || other_object->Type() == GameObjectTypes::Bonfire || other_object->Type() == GameObjectTypes::Door)
