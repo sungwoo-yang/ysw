@@ -819,7 +819,7 @@ bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const 
     constexpr double MIN_SIDE_NORMAL_X         = 0.20;
     constexpr double WALL_SLIDE_NORMAL_Y_MAX   = 0.35;
     constexpr double CEILING_LIKE_NORMAL_Y     = -0.35;
-    constexpr double DIAGONAL_SEAM_FOOT_MARGIN = 28.0;
+    // constexpr double DIAGONAL_SEAM_FOOT_MARGIN = 28.0;
     constexpr int    PROBE_COUNT               = 21;
 
     const double current_left   = my_box.Left();
@@ -887,23 +887,30 @@ bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const 
             constexpr double DIAGONAL_SEAM_MAX_EDGE_HEIGHT = 128.0;
             constexpr double DIAGONAL_SEAM_MAX_EDGE_ANGLE  = 80.0;
 
-            const bool can_be_artificial_slope_seam = std::abs(dy) <= DIAGONAL_SEAM_MAX_EDGE_HEIGHT || edge_angle <= DIAGONAL_SEAM_MAX_EDGE_ANGLE;
+            // External path seams can be tall or near-vertical.
+            // So do not rely only on edge height/angle.
+            constexpr double EXTERNAL_SEAM_STEP_UP_MAX   = 42.0;
+            constexpr double EXTERNAL_SEAM_STEP_DOWN_MAX = 8.0;
 
-            // For path-to-path slope seams, the wall edge may not be connected
-            // to a walkable slope inside this same polygon.
-            // So use the top endpoint of the edge as a step/seam hint.
-            const double edge_top_y = std::max(p1.y, p2.y);
+            const bool can_be_internal_slope_seam = std::abs(dy) <= DIAGONAL_SEAM_MAX_EDGE_HEIGHT || edge_angle <= DIAGONAL_SEAM_MAX_EDGE_ANGLE;
 
-            const bool foot_near_edge_top = std::abs(current_bottom - edge_top_y) <= DIAGONAL_SEAM_FOOT_MARGIN;
+            const double edge_top_y       = std::max(p1.y, p2.y);
+            const double foot_to_edge_top = edge_top_y - current_bottom;
+
+            const bool foot_can_step_over_edge_top = foot_to_edge_top <= EXTERNAL_SEAM_STEP_UP_MAX && foot_to_edge_top >= -EXTERNAL_SEAM_STEP_DOWN_MAX;
 
             const bool moving_on_floor_or_slope = velocityY <= 0.0;
 
-            if (can_be_artificial_slope_seam && moving_on_floor_or_slope && foot_near_edge_top)
+            // This handles path-to-path or rect-to-path seams.
+            // The edge may be long or near-vertical, but if the player's foot is near
+            // the edge top, it should behave like a small step/seam rather than a wall.
+            if (moving_on_floor_or_slope && foot_can_step_over_edge_top)
             {
                 continue;
             }
 
-            if (connected_to_walkable_slope && can_be_artificial_slope_seam && foot_near_edge_top)
+            // This handles normal same-polygon slope seams.
+            if (connected_to_walkable_slope && can_be_internal_slope_seam && foot_can_step_over_edge_top)
             {
                 continue;
             }
@@ -1077,7 +1084,7 @@ bool Player::ResolveFloorVertexSideCollision(const Polygon& floor_poly, const Ma
     constexpr double BODY_INSET       = 3.0;
     constexpr double CROSS_TOLERANCE  = 5.0;
     constexpr double PUSH_OUT_SKIN    = 0.75;
-    constexpr double FOOT_SKIP_MARGIN = 28.0;
+    // constexpr double FOOT_SKIP_MARGIN = 28.0;
     constexpr double MIN_SIDE_SPEED   = 0.1;
 
     const double current_left   = my_box.Left();
@@ -1122,9 +1129,14 @@ bool Player::ResolveFloorVertexSideCollision(const Polygon& floor_poly, const Ma
         // A real wall base is usually a local bottom vertex, so do not skip that.
         const bool vertex_is_local_top = vertex.y >= prev_vertex.y - 0.001 && vertex.y >= next_vertex.y - 0.001;
 
-        const bool foot_near_vertex = std::abs(vertex.y - current_bottom) <= FOOT_SKIP_MARGIN;
+        constexpr double EXTERNAL_VERTEX_STEP_UP_MAX   = 42.0;
+        constexpr double EXTERNAL_VERTEX_STEP_DOWN_MAX = 8.0;
 
-        if ((connected_to_walkable_surface || vertex_is_local_top) && foot_near_vertex && velocityY <= 0.0)
+        const double foot_to_vertex = vertex.y - current_bottom;
+
+        const bool foot_can_step_over_vertex = foot_to_vertex <= EXTERNAL_VERTEX_STEP_UP_MAX && foot_to_vertex >= -EXTERNAL_VERTEX_STEP_DOWN_MAX;
+
+        if ((connected_to_walkable_surface || vertex_is_local_top || foot_can_step_over_vertex) && foot_can_step_over_vertex && velocityY <= 0.0)
         {
             continue;
         }
