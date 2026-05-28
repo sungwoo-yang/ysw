@@ -699,11 +699,11 @@ bool Player::ResolveFloorVerticalWallCollision(const Polygon& floor_poly, const 
         return false;
     }
 
-    constexpr double WALL_EDGE_EPS         = 0.001;
-    constexpr double WALL_Y_MARGIN         = 2.0;
-    constexpr double WALL_MIN_HEIGHT       = 8.0;
-    constexpr double MIN_SIDE_WALL_SPEED   = 0.5;
-    constexpr double SLOPE_SEAM_MAX_HEIGHT = 32.0;
+    constexpr double WALL_EDGE_EPS          = 0.001;
+    constexpr double WALL_Y_MARGIN          = 2.0;
+    constexpr double WALL_MIN_HEIGHT        = 8.0;
+    constexpr double MIN_SIDE_WALL_SPEED    = 0.5;
+    constexpr double SLOPE_SEAM_FOOT_MARGIN = 28.0;
 
     const bool moving_right = GetVelocity().x > MIN_SIDE_WALL_SPEED;
     const bool moving_left  = GetVelocity().x < -MIN_SIDE_WALL_SPEED;
@@ -729,17 +729,16 @@ bool Player::ResolveFloorVerticalWallCollision(const Polygon& floor_poly, const 
             continue;
         }
 
-        if (std::abs(dy) <= SLOPE_SEAM_MAX_HEIGHT)
+        const Math::vec2 prev = verts[(i + verts.size() - 1) % verts.size()];
+        const Math::vec2 next = verts[(i + 2) % verts.size()];
+
+        const bool connected_to_walkable_slope = IsWalkableSlopeEdge(floor_poly, prev, p1) || IsWalkableSlopeEdge(floor_poly, p2, next);
+
+        const bool foot_near_wall_endpoint = std::abs(my_box.Bottom() - p1.y) <= SLOPE_SEAM_FOOT_MARGIN || std::abs(my_box.Bottom() - p2.y) <= SLOPE_SEAM_FOOT_MARGIN;
+
+        if (connected_to_walkable_slope && foot_near_wall_endpoint)
         {
-            const Math::vec2 prev = verts[(i + verts.size() - 1) % verts.size()];
-            const Math::vec2 next = verts[(i + 2) % verts.size()];
-
-            const bool connected_to_walkable_slope = IsWalkableSlopeEdge(floor_poly, prev, p1) || IsWalkableSlopeEdge(floor_poly, p2, next);
-
-            if (connected_to_walkable_slope)
-            {
-                continue;
-            }
+            continue;
         }
 
         const double wall_x      = p1.x;
@@ -780,15 +779,16 @@ bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const 
         return false;
     }
 
-    constexpr double DIAGONAL_EDGE_EPS       = 0.001;
-    constexpr double BODY_INSET              = 2.0;
-    constexpr double Y_MARGIN                = 8.0;
-    constexpr double CROSS_TOLERANCE         = 5.0;
-    constexpr double PUSH_OUT_SKIN           = 0.75;
-    constexpr double MIN_SIDE_NORMAL_X       = 0.20;
-    constexpr double WALL_SLIDE_NORMAL_Y_MAX = 0.35;
-    constexpr double CEILING_LIKE_NORMAL_Y   = -0.35;
-    constexpr int    PROBE_COUNT             = 21;
+    constexpr double DIAGONAL_EDGE_EPS         = 0.001;
+    constexpr double BODY_INSET                = 2.0;
+    constexpr double Y_MARGIN                  = 8.0;
+    constexpr double CROSS_TOLERANCE           = 5.0;
+    constexpr double PUSH_OUT_SKIN             = 0.75;
+    constexpr double MIN_SIDE_NORMAL_X         = 0.20;
+    constexpr double WALL_SLIDE_NORMAL_Y_MAX   = 0.35;
+    constexpr double CEILING_LIKE_NORMAL_Y     = -0.35;
+    constexpr double DIAGONAL_SEAM_FOOT_MARGIN = 28.0;
+    constexpr int    PROBE_COUNT               = 21;
 
     const double current_left   = my_box.Left();
     const double current_right  = my_box.Right();
@@ -840,6 +840,18 @@ bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const 
             }
 
             if (IsWalkableSlopeEdge(floor_poly, p1, p2))
+            {
+                continue;
+            }
+
+            const Math::vec2 prev = verts[(i + verts.size() - 1) % verts.size()];
+            const Math::vec2 next = verts[(i + 2) % verts.size()];
+
+            const bool connected_to_walkable_slope = IsWalkableSlopeEdge(floor_poly, prev, p1) || IsWalkableSlopeEdge(floor_poly, p2, next);
+
+            const bool foot_near_edge_endpoint = std::abs(current_bottom - p1.y) <= DIAGONAL_SEAM_FOOT_MARGIN || std::abs(current_bottom - p2.y) <= DIAGONAL_SEAM_FOOT_MARGIN;
+
+            if (connected_to_walkable_slope && foot_near_edge_endpoint)
             {
                 continue;
             }
@@ -991,7 +1003,7 @@ bool Player::ResolveFloorVertexSideCollision(const Polygon& floor_poly, const Ma
     constexpr double BODY_INSET       = 3.0;
     constexpr double CROSS_TOLERANCE  = 5.0;
     constexpr double PUSH_OUT_SKIN    = 0.75;
-    constexpr double FOOT_SKIP_MARGIN = 10.0;
+    constexpr double FOOT_SKIP_MARGIN = 28.0;
     constexpr double MIN_SIDE_SPEED   = 0.1;
 
     const double current_left   = my_box.Left();
