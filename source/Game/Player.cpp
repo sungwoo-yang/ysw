@@ -29,6 +29,9 @@ namespace
     constexpr Math::vec2 SHIELD_COOLDOWN_BAR_OFFSET{ 0.0, 58.0 };
 
     constexpr double MAX_WALKABLE_SLOPE_ANGLE_DEG = 70.0;
+    constexpr double EDGE_NORMAL_SAMPLE_OFFSET    = 3.0;
+    constexpr double TOP_EDGE_NORMAL_Y_MIN        = 0.25;
+    constexpr double BOTTOM_EDGE_NORMAL_Y_MAX     = -0.25;
 
     Math::TransformationMatrix RectangleTransform(Math::vec2 center, Math::vec2 size)
     {
@@ -61,32 +64,58 @@ namespace
         return inside;
     }
 
-    bool IsWalkableTopEdge(const Polygon& polygon, Math::vec2 p1, Math::vec2 p2)
+    Math::vec2 GetEdgeOutwardNormal(const Polygon& polygon, Math::vec2 p1, Math::vec2 p2)
     {
-        constexpr double SAMPLE_OFFSET = 2.0;
+        constexpr double EDGE_EPS = 0.000001;
+
+        const Math::vec2 edge = p2 - p1;
+
+        Math::vec2 normal{ -edge.y, edge.x };
+
+        const double normal_length_sq = normal.LengthSquared();
+
+        if (normal_length_sq < EDGE_EPS)
+        {
+            return { 0.0, 0.0 };
+        }
+
+        normal = normal * (1.0 / std::sqrt(normal_length_sq));
 
         const Math::vec2 mid{ (p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5 };
 
-        const bool inside_below = PointInsidePolygon(polygon, { mid.x, mid.y - SAMPLE_OFFSET });
-        const bool inside_above = PointInsidePolygon(polygon, { mid.x, mid.y + SAMPLE_OFFSET });
+        const bool plus_inside  = PointInsidePolygon(polygon, mid + normal * EDGE_NORMAL_SAMPLE_OFFSET);
+        const bool minus_inside = PointInsidePolygon(polygon, mid - normal * EDGE_NORMAL_SAMPLE_OFFSET);
 
-        // Walkable surface means solid exists below the edge,
-        // and empty space exists above the edge.
-        return inside_below && !inside_above;
+        // If +normal side is inside and -normal side is outside,
+        // then normal points inward, so flip it.
+        if (plus_inside && !minus_inside)
+        {
+            normal = normal * -1.0;
+        }
+        else if (plus_inside == minus_inside)
+        {
+            // Unreliable edge classification.
+            // This can happen near complex concave regions or tiny edges.
+            return { 0.0, 0.0 };
+        }
+
+        return normal;
+    }
+
+    bool IsWalkableTopEdge(const Polygon& polygon, Math::vec2 p1, Math::vec2 p2)
+    {
+        const Math::vec2 outward = GetEdgeOutwardNormal(polygon, p1, p2);
+
+        // A top/walkable edge has its outside direction mostly upward.
+        return outward.y > TOP_EDGE_NORMAL_Y_MIN;
     }
 
     bool IsBlockingBottomEdge(const Polygon& polygon, Math::vec2 p1, Math::vec2 p2)
     {
-        constexpr double SAMPLE_OFFSET = 2.0;
+        const Math::vec2 outward = GetEdgeOutwardNormal(polygon, p1, p2);
 
-        const Math::vec2 mid{ (p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5 };
-
-        const bool inside_below = PointInsidePolygon(polygon, { mid.x, mid.y - SAMPLE_OFFSET });
-        const bool inside_above = PointInsidePolygon(polygon, { mid.x, mid.y + SAMPLE_OFFSET });
-
-        // Ceiling / underside means solid exists above the edge,
-        // and empty space exists below the edge.
-        return !inside_below && inside_above;
+        // A bottom/ceiling edge has its outside direction mostly downward.
+        return outward.y < BOTTOM_EDGE_NORMAL_Y_MAX;
     }
 
     double GetEdgeAngleDegrees(Math::vec2 p1, Math::vec2 p2)
@@ -787,6 +816,12 @@ bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const 
                 continue;
             }
 
+            // Valid walkable slope edges are handled by ResolveFloorSurfaceSnap().
+            if (IsWalkableSlopeEdge(floor_poly, p1, p2))
+            {
+                continue;
+            }
+
             // Bottom/underside edges are handled by ResolveFloorCeilingCollision().
             if (IsBlockingBottomEdge(floor_poly, p1, p2))
             {
@@ -1166,6 +1201,19 @@ void Player::ResolveCollision(GameObject* other_object)
         if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly && !can_use_aabb_fallback)
         {
             if (ResolveFloorDiagonalWallCollision(floor_poly, my_box, prev_left, prev_right, prev_bottom, prev_top))
+            {
+                return;
+            }
+        }
+
+        if (other_object->Type() == GameObjectTypes::Floor && has_floor_poly)
+        {
+            if (ResolveFloorSurfaceSnap(floor_poly, my_box, prev_bottom))
+            {
+                return;
+            }
+
+            if (ResolveFloorCeilingCollision(floor_poly, my_box, prev_top))
             {
                 return;
             }
