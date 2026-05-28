@@ -882,18 +882,28 @@ bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const 
 
             const bool connected_to_walkable_slope = IsWalkableSlopeEdge(floor_poly, prev, p1) || IsWalkableSlopeEdge(floor_poly, p2, next);
 
-            const bool foot_near_edge_endpoint = std::abs(current_bottom - p1.y) <= DIAGONAL_SEAM_FOOT_MARGIN || std::abs(current_bottom - p2.y) <= DIAGONAL_SEAM_FOOT_MARGIN;
-
             const double edge_angle = GetEdgeAngleDegrees(p1, p2);
 
-            // Only short or non-near-vertical edges can be treated as artificial slope seams.
-            // Long near-vertical edges like path39's left wall must remain real walls.
-            constexpr double DIAGONAL_SEAM_MAX_EDGE_HEIGHT = 64.0;
+            constexpr double DIAGONAL_SEAM_MAX_EDGE_HEIGHT = 128.0;
             constexpr double DIAGONAL_SEAM_MAX_EDGE_ANGLE  = 80.0;
 
             const bool can_be_artificial_slope_seam = std::abs(dy) <= DIAGONAL_SEAM_MAX_EDGE_HEIGHT || edge_angle <= DIAGONAL_SEAM_MAX_EDGE_ANGLE;
 
-            if (connected_to_walkable_slope && foot_near_edge_endpoint && can_be_artificial_slope_seam)
+            // For path-to-path slope seams, the wall edge may not be connected
+            // to a walkable slope inside this same polygon.
+            // So use the top endpoint of the edge as a step/seam hint.
+            const double edge_top_y = std::max(p1.y, p2.y);
+
+            const bool foot_near_edge_top = std::abs(current_bottom - edge_top_y) <= DIAGONAL_SEAM_FOOT_MARGIN;
+
+            const bool moving_on_floor_or_slope = velocityY <= 0.0;
+
+            if (can_be_artificial_slope_seam && moving_on_floor_or_slope && foot_near_edge_top)
+            {
+                continue;
+            }
+
+            if (connected_to_walkable_slope && can_be_artificial_slope_seam && foot_near_edge_top)
             {
                 continue;
             }
@@ -1108,7 +1118,13 @@ bool Player::ResolveFloorVertexSideCollision(const Polygon& floor_poly, const Ma
 
         const bool connected_to_walkable_surface = IsWalkableSlopeEdge(floor_poly, prev_vertex, vertex) || IsWalkableSlopeEdge(floor_poly, vertex, next_vertex);
 
-        if (connected_to_walkable_surface && std::abs(vertex.y - current_bottom) <= FOOT_SKIP_MARGIN)
+        // A path-to-path seam often appears as a local top vertex.
+        // A real wall base is usually a local bottom vertex, so do not skip that.
+        const bool vertex_is_local_top = vertex.y >= prev_vertex.y - 0.001 && vertex.y >= next_vertex.y - 0.001;
+
+        const bool foot_near_vertex = std::abs(vertex.y - current_bottom) <= FOOT_SKIP_MARGIN;
+
+        if ((connected_to_walkable_surface || vertex_is_local_top) && foot_near_vertex && velocityY <= 0.0)
         {
             continue;
         }
