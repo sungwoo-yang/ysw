@@ -884,12 +884,29 @@ bool Player::ResolveFloorDiagonalWallCollision(const Polygon& floor_poly, const 
 
             const bool foot_near_edge_endpoint = std::abs(current_bottom - p1.y) <= DIAGONAL_SEAM_FOOT_MARGIN || std::abs(current_bottom - p2.y) <= DIAGONAL_SEAM_FOOT_MARGIN;
 
-            if (connected_to_walkable_slope && foot_near_edge_endpoint)
+            const double edge_angle = GetEdgeAngleDegrees(p1, p2);
+
+            // Only short or non-near-vertical edges can be treated as artificial slope seams.
+            // Long near-vertical edges like path39's left wall must remain real walls.
+            constexpr double DIAGONAL_SEAM_MAX_EDGE_HEIGHT = 64.0;
+            constexpr double DIAGONAL_SEAM_MAX_EDGE_ANGLE  = 80.0;
+
+            const bool can_be_artificial_slope_seam = std::abs(dy) <= DIAGONAL_SEAM_MAX_EDGE_HEIGHT || edge_angle <= DIAGONAL_SEAM_MAX_EDGE_ANGLE;
+
+            if (connected_to_walkable_slope && foot_near_edge_endpoint && can_be_artificial_slope_seam)
             {
                 continue;
             }
 
             const Math::vec2 outward = GetEdgeOutwardNormal(floor_poly, p1, p2);
+
+            // Strong downward-facing edges are underside/ceiling-like.
+            // Do not resolve them as side walls, because that can push the player
+            // across a thin/tapered polygon such as path39's pointed lower region.
+            if (outward.y < CEILING_LIKE_NORMAL_Y)
+            {
+                continue;
+            }
 
             if (std::abs(outward.x) < MIN_SIDE_NORMAL_X)
             {
