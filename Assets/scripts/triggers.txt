@@ -1,0 +1,1 @@
+TRIGGER trigger_0 2883.31 143 120 1 script_0

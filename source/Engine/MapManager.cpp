@@ -45,6 +45,38 @@ namespace CS230
         return maps[static_cast<size_t>(currentMapIndex)];
     }
 
+    const std::vector<Math::rect>& MapManager::GetAllRooms() const
+    {
+        static const std::vector<Math::rect> empty;
+        if (maps.empty())
+            return empty;
+        return maps[static_cast<size_t>(currentMapIndex)]->GetRoomBounds();
+    }
+
+    std::optional<Math::rect> MapManager::GetCurrentRoom(Math::vec2 playerPos) const
+    {
+        for (const auto& r : GetAllRooms())
+        {
+            if (playerPos.x >= r.Left()  && playerPos.x <= r.Right() &&
+                playerPos.y >= r.Bottom() && playerPos.y <= r.Top())
+                return r;
+        }
+        return std::nullopt;
+    }
+
+    int MapManager::GetCurrentRoomIndex(Math::vec2 playerPos) const
+    {
+        const auto& rooms = GetAllRooms();
+        for (int i = 0; i < static_cast<int>(rooms.size()); ++i)
+        {
+            const auto& r = rooms[i];
+            if (playerPos.x >= r.Left()  && playerPos.x <= r.Right() &&
+                playerPos.y >= r.Bottom() && playerPos.y <= r.Top())
+                return i;
+        }
+        return -1;
+    }
+
     void MapManager::Update([[maybe_unused]] double dt)
     {
         Map* currentMap = GetCurrentMap();
@@ -88,7 +120,8 @@ namespace CS230
         map_file.open(file_path);
         if (!map_file.is_open())
         {
-            Engine::GetLogger().LogError(file_path + " SVG");
+            Engine::GetLogger().LogError(file_path + " not found — marking as loaded (empty)");
+            level_loaded = true;   // prevent infinite loading-screen
             return;
         }
         Engine::GetLogger().LogEvent(file_path + " SVG.");
@@ -176,6 +209,47 @@ namespace CS230
                 IsTranslate = true;
                 translate.x = static_cast<double>(std::stof(match[1].str()));
                 translate.y = static_cast<double>(std::stof(match[2].str()));
+            }
+            return;
+        }
+
+        // --- RoomBounds: <rect style="fill:#ffffff;" x=".." y=".." width=".." height=".."/> ---
+        static const std::regex rRect    (R"(<rect[^>]*>)",              std::regex::icase);
+        static const std::regex rFillCSS (R"(fill:\s*(#[0-9a-fA-F]{6}))",std::regex::icase);
+        static const std::regex rRectX   (R"xxx(\bx\s*=\s*"([^"]+)")xxx");
+        static const std::regex rRectY   (R"xxx(\by\s*=\s*"([^"]+)")xxx");
+        static const std::regex rRectW   (R"xxx(\bwidth\s*=\s*"([^"]+)")xxx");
+        static const std::regex rRectH   (R"xxx(\bheight\s*=\s*"([^"]+)")xxx");
+
+        if (std::regex_search(currentTag, match, rRect))
+        {
+            std::string fill;
+            if (std::regex_search(currentTag, match, rFillCSS))
+                fill = match[1].str();
+
+            if (fill == "#ffffff" || fill == "#FFFFFF")
+            {
+                try
+                {
+                    double rx = 0, ry = 0, rw = 0, rh = 0;
+                    if (std::regex_search(currentTag, match, rRectX)) rx = std::stod(match[1].str());
+                    if (std::regex_search(currentTag, match, rRectY)) ry = std::stod(match[1].str());
+                    if (std::regex_search(currentTag, match, rRectW)) rw = std::stod(match[1].str());
+                    if (std::regex_search(currentTag, match, rRectH)) rh = std::stod(match[1].str());
+
+                    // SVG y-flip: gameMaxY = -ry, gameMinY = -(ry + rh)
+                    Math::rect newRoom{
+                        { rx,       -(ry + rh) },
+                        { rx + rw,  -ry        }
+                    };
+                    roomBounds.push_back(newRoom);
+                    Engine::GetLogger().LogEvent("RoomBounds[" + std::to_string(roomBounds.size()-1) + "] parsed: "
+                        + std::to_string(static_cast<int>(newRoom.Left()))   + ","
+                        + std::to_string(static_cast<int>(newRoom.Bottom())) + " → "
+                        + std::to_string(static_cast<int>(newRoom.Right()))  + ","
+                        + std::to_string(static_cast<int>(newRoom.Top())));
+                }
+                catch (...) {}
             }
             return;
         }

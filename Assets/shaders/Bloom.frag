@@ -38,7 +38,7 @@ void main()
 
     glow /= totalWeight;
 
-    float glowStrength = 2.5;
+    float glowStrength = 0.8;
     vec3 finalColor = baseColor.rgb + (glow * glowStrength);
 
     FragColor = vec4(finalColor, baseColor.a);

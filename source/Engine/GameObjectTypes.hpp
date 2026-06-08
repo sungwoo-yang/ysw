@@ -24,6 +24,12 @@ enum class GameObjectTypes
     Gate,
     LaserCutRope,
     FallingBlock,
+    LaserTurret,
+    Water,
+    BreakableWall,
+    Staircase,
+    Spike,
+    Elevator,
     Count,
     Background,
     Pillar

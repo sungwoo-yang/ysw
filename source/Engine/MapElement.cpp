@@ -26,25 +26,43 @@ namespace CS230
     void MapElement::Draw(const Math::TransformationMatrix& camera_matrix)
     {
         if (in_type == GameObjectTypes::Background)
-        {
             return;
-        }
 
         CS200::IRenderer2D& renderer = Engine::GetRenderer2D();
 
-        const Math::TransformationMatrix& model_matrix = GetMatrix();
-
-        // Polygons require at least a valid line segment (2 points) to be drawn
         if (local_polygon.vertexCount < 2)
             return;
 
-        // Render the polygon wireframe by connecting adjacent vertices
-        for (size_t i = 0; i < static_cast<size_t>(local_polygon.vertexCount); ++i)
+        if (in_type == GameObjectTypes::Floor)
         {
-            Math::vec2 p1 = local_polygon.vertices[i];
-            Math::vec2 p2 = local_polygon.vertices[(i + 1) % static_cast<size_t>(local_polygon.vertexCount)];
+            // Compute AABB of local polygon vertices
+            const auto& verts = local_polygon.vertices;
+            double minX = verts[0].x, maxX = minX;
+            double minY = verts[0].y, maxY = minY;
+            for (const auto& v : verts)
+            {
+                if (v.x < minX) minX = v.x;
+                if (v.x > maxX) maxX = v.x;
+                if (v.y < minY) minY = v.y;
+                if (v.y > maxY) maxY = v.y;
+            }
+            const Math::vec2 localCenter = { (minX + maxX) * 0.5, (minY + maxY) * 0.5 };
+            const Math::vec2 size        = { maxX - minX, maxY - minY };
+            const Math::vec2 worldCenter = { GetPosition().x + localCenter.x,
+                                             GetPosition().y + localCenter.y };
 
-            renderer.DrawLine(model_matrix, p1, p2, CS200::WHITE, 1.0);
+            const auto fillMat = Math::TranslationMatrix(worldCenter) * Math::ScaleMatrix(size);
+            renderer.DrawRectangle(fillMat, 0x000000FF, 0x444444FF, 1.0);
+        }
+        else
+        {
+            const Math::TransformationMatrix& model_matrix = GetMatrix();
+            for (size_t i = 0; i < static_cast<size_t>(local_polygon.vertexCount); ++i)
+            {
+                Math::vec2 p1 = local_polygon.vertices[i];
+                Math::vec2 p2 = local_polygon.vertices[(i + 1) % static_cast<size_t>(local_polygon.vertexCount)];
+                renderer.DrawLine(model_matrix, p1, p2, CS200::WHITE, 1.0);
+            }
         }
 
         CS230::GameObject::Draw(camera_matrix);

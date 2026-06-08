@@ -6,6 +6,8 @@
 #include "Engine/Polygon.h"
 #include "Engine/Rect.hpp"
 #include "Engine/Vec2.hpp"
+#include "Game/OriAnim.hpp"
+#include "Game/TutorialScript.hpp"
 
 #include <memory>
 #include <optional>
@@ -52,15 +54,26 @@ public:
     bool CanCollideWith(GameObjectTypes other_object_type) override;
     void ResolveCollision(CS230::GameObject* other_object) override;
 
-    void ResetState();
-    void SetSavePoint(Math::vec2 new_spawn_point);
+    void       ResetState();
+    void       SetSavePoint(Math::vec2 new_spawn_point);
+    Math::vec2 GetSavePoint() const { return startPosition; }
 
     void ApplyLaserDamage(double damageAmount);
+    void ApplyBashImpulse(Math::vec2 impulse);
+    void ApplyWaterRush(Math::vec2 dir, Math::vec2 wallPos);
+    bool IsInWaterRush() const { return waterRushTimer > 0.0; }
 
     bool   IsDead() const;
     double GetHP() const;
 
     CS230::DashComponent  dashComponent;
+    OriAnimation          oriAnim;
+    bool                  dashEnabled      = false;
+    bool                  wallClimbEnabled = false;
+    bool                  bashEnabled      = true;
+    bool                  inputLocked      = false;
+    double                bashLockTimer    = 0.0;
+    double                waterDepth       = 0.0;    // px submerged below water surface
     bool                  isJumping            = false;
     std::optional<size_t> currentPlatformIndex = std::nullopt;
     double                velocityY            = 0.0;
@@ -69,8 +82,17 @@ public:
     CS230::GameObject* interactionTarget = nullptr;
     bool               isInteracting     = false;
 
+    // Auto-move (cutscene controlled movement)
+    bool       autoMoveActive  = false;
+    Math::vec2 autoMoveTarget  = {};
+
+    void SetAutoMove(Math::vec2 target);
+    void SetAutoMove(const std::vector<WaypointStep>& wps);
+    void ClearAutoMove();
+
 private:
     void HandleInput(double dt);
+    void HandleAutoMove(double dt);
     void DrawShieldCooldown(CS200::IRenderer2D& renderer) const;
 
     void UpdateHealthState(double dt);
@@ -91,21 +113,27 @@ private:
 
     Shield* shieldComponent = nullptr;
 
-    double       gravity                      = 1600.0;
-    double       jumpStrength                 = 800.0;
+    double       gravity                      = 2200.0;
+    double       jumpStrength                 = 1100.0;
     const double jumpBufferTime               = 0.12;
-    double       jumpReleaseGravityMultiplier = 4.5;
+    double       jumpReleaseGravityMultiplier = 5.5;
 
     const double wallStickDuration           = 0.28;
     const double wallStickFallSpeed          = 30.0;
     const double wallSlideSpeed              = 150.0;
-    const double wallJumpHorizontalStrength  = 620.0;
-    const double wallJumpVerticalStrength    = 800.0;
+    const double wallJumpHorizontalStrength  = 750.0;
+    const double wallJumpVerticalStrength    = 1100.0;
     double       wallJumpControlLockDuration = 0.15;
+    double       autoMoveStuckTimer = 0.0;
+    Math::vec2   autoMovePrevPos    = {};
 
-    double maxRunSpeed        = 550.0;
-    double playerAcceleration = 3000.0;
-    double playerFriction     = 2110.0;
+    std::vector<WaypointStep> autoWaypoints;
+    int    autoWaypointIdx = 0;
+    bool   jumpLaunched    = false;
+
+    double maxRunSpeed        = 800.0;
+    double playerAcceleration = 5000.0;
+    double playerFriction     = 4000.0;
 
     double       currentSpeedMultiplier = 1.0;
     const double shieldSlowdownRate     = 4.0;
@@ -145,5 +173,32 @@ private:
     double       invincibilityTimer    = 0.0;
     const double invincibilityDuration = 1.0;
 
+    // ---- Death dissolve effect ----
+    struct DeathParticle {
+        Math::vec2 pos;
+        Math::vec2 vel;
+        double     lifetime;
+        double     maxLifetime;
+        double     size;       // long-axis length
+        uint32_t   rgb;        // 0xRRGGBB
+        double     initAngle;
+        double     angularVel;
+    };
+
+    void InitDeathParticles();
+    void DrawDeathEffect() const;
+
+    bool                       deathEffectActive = false;
+    std::vector<DeathParticle> deathParticles;
+
+public:
+    void UpdateDeathEffect(double dt);
+    bool IsDeathEffectDone() const { return !deathEffectActive && healthState == HealthState::Dead; }
+
+private:
     bool wasJumpingLastFrame = false;
+
+    double     waterRushTimer  = 0.0;
+    Math::vec2 waterRushDir    = { 0.0, 0.0 };
+    Math::vec2 waterRushOrigin = { 0.0, 0.0 };
 };

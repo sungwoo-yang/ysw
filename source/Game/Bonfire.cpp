@@ -5,6 +5,7 @@
 #include "Engine/Engine.hpp"
 #include "Engine/GameStateManager.hpp"
 #include "Game/Player.hpp"
+#include "Game/SaveManager.hpp"
 #include "Game/WorldTextManager.hpp"
 
 Bonfire::Bonfire(Math::vec2 in_start_pos, Math::vec2 in_size) : CS230::GameObject(in_start_pos), bonfireSize(in_size)
@@ -36,9 +37,9 @@ void Bonfire::Interact(CS230::GameObject* interactor)
         Player* player = dynamic_cast<Player*>(interactor);
         if (player != nullptr)
         {
-            // Offset save point slightly above to prevent spawning inside floor
             player->SetSavePoint(GetPosition() + Math::vec2({ 0, 50 }));
             Engine::GetLogger().LogEvent("Event: Bonfire interacted, save point updated!");
+            SaveManager::RequestSave();  // Mode3 will collect + write the file
         }
     }
 

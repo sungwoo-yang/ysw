@@ -3,11 +3,13 @@
 #include "Engine/Component.hpp"
 #include "Engine/GameObjectTypes.hpp"
 #include "Engine/Polygon.h"
+#include "Engine/Rect.hpp"
 #include "Engine/Vec2.hpp"
 
 #include <fstream>
 #include <functional>
 #include <map>
+#include <optional>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -63,6 +65,15 @@ namespace CS230
             miniMapPolygons.push_back(poly);
         }
 
+        // Returns the room that contains playerPos, or nullopt if none
+        std::optional<Math::rect> GetCurrentRoom(Math::vec2 playerPos) const;
+
+        // All room bounds in the map
+        const std::vector<Math::rect>& GetAllRooms() const;
+
+        // Index of the room active last frame (for neighbour checks)
+        int GetCurrentRoomIndex(Math::vec2 playerPos) const;
+
     private:
         std::vector<Map*>    maps;
         int                  currentMapIndex;
@@ -88,6 +99,11 @@ namespace CS230
         bool IsLevelLoaded() const
         {
             return level_loaded;
+        }
+
+        const std::vector<Math::rect>& GetRoomBounds() const
+        {
+            return roomBounds;
         }
 
     private:
@@ -124,5 +140,8 @@ namespace CS230
         bool IsTranslate = false;
         bool IsRotate    = false;
         bool IsScale     = false;
+
+        // All room boundaries parsed from <rect fill="#ffffff"> in SVG
+        std::vector<Math::rect> roomBounds;
     };
 }

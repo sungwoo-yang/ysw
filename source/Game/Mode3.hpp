@@ -3,6 +3,9 @@
 #include "Engine/GameState.hpp"
 #include "Engine/Rect.hpp"
 #include "Engine/Texture.hpp"
+#include "Game/LaserTurret.hpp"
+#include "Game/OriPostProcessor.hpp"
+#include "Game/SaveData.hpp"
 #include "MiniMap.hpp"
 #include "OpenGL/Buffer.hpp"
 #include "OpenGL/Shader.hpp"
@@ -12,9 +15,15 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 class Player;
 class WorldTextManager;
+class TutorialOverlay;
+class CutscenePlayer;
+class ScriptManager;
+class InGameScriptEditor;
+class LevelStreamer;
 
 namespace Boss
 {
@@ -40,6 +49,9 @@ public:
     void Draw() override;
     void DrawImGui() override;
 
+    void SaveGame();    // collect all persistent state and write to disk
+    void ApplySave(const SaveData& data); // restore state after a load
+
     gsl::czstring GetName() const override
     {
         return "Mode3";
@@ -62,7 +74,12 @@ private:
     CS230::Camera*                     camera           = nullptr;
     Player*                            player           = nullptr;
     CS230::MapManager*                 mapManager       = nullptr;
-    WorldTextManager*                  worldTextManager = nullptr;
+    WorldTextManager*                  worldTextManager  = nullptr;
+    TutorialOverlay*                   tutorialOverlay   = nullptr;
+    CutscenePlayer*                    cutscenePlayer    = nullptr;
+    ScriptManager*                     scriptManager     = nullptr;
+    InGameScriptEditor*                scriptEditorIG    = nullptr;
+    LevelStreamer*                     levelStreamer      = nullptr;
     MiniMap*                           miniMap          = nullptr;
     std::map<std::string, std::string> signTexts;
 
@@ -79,4 +96,24 @@ private:
         {  -500,  2000 },
         { 10000, -2000 }
     };
+
+    std::optional<Math::rect> cameraBounds;
+    std::optional<Math::rect> worldBounds; // global union of all rooms (minimap)
+
+    OriPostProcessor postProcessor;
+
+    // Death / respawn
+    Math::vec2 spawnPos          = { -10.0, 0.0 };
+    double     deathTimer        = -1.0;   // -1 = alive
+    bool       respawnDone       = false;
+
+    // Bash system
+    LaserTurret* bashTarget       = nullptr;
+    bool         bashReady        = false;
+    double       timeScale        = 1.0;
+    double       timeScaleTarget  = 1.0;
+    double       bashWindowTimer  = 0.0;   // 0 → BASH_WINDOW: slow-mo window
+    static constexpr double BASH_WINDOW = 1.0;
+
+    static bool s_startInEditor;
 };

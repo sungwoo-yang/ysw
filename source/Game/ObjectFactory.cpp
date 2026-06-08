@@ -1,8 +1,14 @@
 #include "ObjectFactory.hpp"
 
 #include "Bonfire.hpp"
+#include "BreakableWall.hpp"
+#include "Spike.hpp"
+#include "Ramp.hpp"
+#include "Elevator.hpp"
+#include "Staircase.hpp"
 #include "Door.hpp"
 #include "FallingBlock.hpp"
+#include "LaserTurret.hpp"
 #include "Gate.hpp"
 #include "LaserCutRope.hpp"
 #include "LaserStar.hpp"
@@ -11,10 +17,16 @@
 #include "PushableMirror.hpp"
 #include "Sign.hpp"
 #include "TargetStar.hpp"
+#include "WaterZone.hpp"
 
 #include "Engine/BackgroundElement.hpp"
 #include "Engine/Engine.hpp"
+#include "Engine/GameObjectManager.hpp"
+#include "Engine/GameStateManager.hpp"
 #include "Engine/Logger.hpp"
+#include "Engine/MapElement.h"
+#include "Engine/MapManager.h"
+#include "Engine/Polygon.h"
 
 #include <algorithm>
 #include <cctype>
@@ -398,6 +410,10 @@ namespace ObjectFactory
 
             #00cc00 = LaserCutRope
             #cc00cc = FallingBlock
+            #884400 = BreakableWall  (dash to break)
+            #AA6600 = Staircase     id: STAIR_(steps)_(R|L)  e.g. STAIR_6_R
+            #cc2222 = Spike         id: SPIKE_U/D/L/R  (default Up)
+            #4488cc = Elevator      id: ELEV_<dist>_<period>  e.g. ELEV_400_4
             */
 
             if (color == "#786721" || StartsWith(id, "DOOR_"))
@@ -421,7 +437,11 @@ namespace ObjectFactory
 
             if (color == "#ff0000")
             {
-                auto* bonfire = new Bonfire(pos, { 100.0, 100.0 });
+                const Math::vec2 bbCenter{
+                    (bounds.Left() + bounds.Right()) * 0.5,
+                    (bounds.Bottom() + bounds.Top()) * 0.5
+                };
+                auto* bonfire = new Bonfire(pos + bbCenter, { 100.0, 100.0 });
                 bonfire->SetName(id);
                 return bonfire;
             }
@@ -471,6 +491,149 @@ namespace ObjectFactory
             if (color == "#00ff00")
             {
                 return CreateLaserStar(pos, player, id);
+            }
+
+            // LaserTurret: #ff6600, id format LTRT_(dir)_(interval)  e.g. LTRT_S_2
+            if (color == "#ff6600")
+            {
+                auto   parts    = SplitID(id, '_');
+                Math::vec2 dir  = { 0.0, -1.0 }; // default South
+                double interval = 2.0;
+                if (parts.size() >= 3 && parts[0] == "LTRT")
+                {
+                    dir = DirectionFromIDToken(parts[1]);
+                    try { interval = std::stod(parts[2]); } catch (...) {}
+                }
+                auto* turret = new LaserTurret(pos, dir, interval, player);
+                turret->SetName(id);
+                return turret;
+            }
+
+            if (color == "#884400")
+            {
+                const Math::vec2 bbCenter{
+                    (bounds.Left() + bounds.Right()) * 0.5,
+                    (bounds.Bottom() + bounds.Top()) * 0.5
+                };
+                auto* wall = new BreakableWall(pos + bbCenter, svgSize, id);
+                wall->SetName(id);
+                return wall;
+            }
+
+            if (color == "#aa6600")
+            {
+                const Math::vec2 bbCenter{
+                    (bounds.Left() + bounds.Right()) * 0.5,
+                    (bounds.Bottom() + bounds.Top()) * 0.5
+                };
+                const Math::vec2 center = pos + bbCenter;
+
+                // Detect RAMP vs STAIR from ID prefix
+                const auto   parts  = SplitID(id, '_');
+                const bool   isRamp = (!parts.empty() && parts[0] == "RAMP");
+
+                // Shared direction parse: last token R or L
+                Ramp::Dir rampDir = Ramp::Dir::UpRight;
+                if (!parts.empty() && parts.back() == "L")
+                    rampDir = Ramp::Dir::UpLeft;
+
+                // Inject triangular floor collision (same for both Ramp and Staircase)
+                auto* gom    = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
+                auto* mapMgr = Engine::GetGameStateManager().GetGSComponent<CS230::MapManager>();
+                if (gom && mapMgr)
+                {
+                    const double hw = svgSize.x * 0.5;
+                    const double hh = svgSize.y * 0.5;
+
+                    Polygon rampLocal;
+                    if (rampDir == Ramp::Dir::UpRight)
+                        rampLocal.vertices = { { -hw, -hh }, { hw, -hh }, { hw, hh } };
+                    else
+                        rampLocal.vertices = { { -hw, -hh }, { hw, -hh }, { -hw, hh } };
+                    rampLocal.vertexCount = 3;
+
+                    Polygon rampWorld = rampLocal;
+                    for (auto& v : rampWorld.vertices) v += center;
+                    mapMgr->AddPolygon(rampWorld);
+
+                    auto* rampElem = new CS230::MapElement(center, rampLocal, GameObjectTypes::Floor);
+                    gom->Add(rampElem);
+                }
+
+                if (isRamp)
+                {
+                    auto* ramp = new Ramp(center, svgSize, rampDir);
+                    ramp->SetName(id);
+                    return ramp;
+                }
+
+                // Original staircase path
+                int stepCount = 5;
+                {
+                    if (parts.size() >= 2 && parts[0] == "STAIR")
+                        try { stepCount = std::stoi(parts[1]); } catch (...) {}
+                }
+                stepCount = std::max(2, std::min(20, stepCount));
+
+                const Staircase::Dir stairDir = (rampDir == Ramp::Dir::UpLeft)
+                    ? Staircase::Dir::UpLeft : Staircase::Dir::UpRight;
+
+                auto* stair = new Staircase(center, svgSize, stepCount, stairDir);
+                stair->SetName(id);
+                return stair;
+            }
+
+            if (color == "#cc2222")
+            {
+                const Math::vec2 bbCenter{
+                    (bounds.Left() + bounds.Right()) * 0.5,
+                    (bounds.Bottom() + bounds.Top()) * 0.5
+                };
+
+                Spike::Dir dir = Spike::Dir::Up;
+                if (id.find("_D") != std::string::npos) dir = Spike::Dir::Down;
+                else if (id.find("_L") != std::string::npos) dir = Spike::Dir::Left;
+                else if (id.find("_R") != std::string::npos) dir = Spike::Dir::Right;
+
+                auto* spike = new Spike(pos + bbCenter, svgSize, dir);
+                spike->SetName(id);
+                return spike;
+            }
+
+            if (color == "#0044cc")
+            {
+                // parsePathData duplicates the first vertex when it reads the SVG "Z" close command,
+                // so FindCenter() (vertex average) is offset. Use the bounding-box centre instead.
+                const Math::vec2 bbOffset{
+                    (bounds.Left() + bounds.Right())   * 0.5,
+                    (bounds.Bottom() + bounds.Top()) * 0.5
+                };
+                auto* water = new WaterZone(pos + bbOffset, svgSize);
+                water->SetName(id);
+                return water;
+            }
+
+            if (color == "#4488cc")
+            {
+                // ELEV_<dist>_<period>  e.g. ELEV_400_4
+                // dist   = vertical travel distance in game-world units (positive = upward)
+                // period = full cycle duration in seconds (up and back)
+                double travelDist = 400.0;
+                double period     = 4.0;
+
+                const auto parts = SplitID(id, '_');
+                if (parts.size() >= 2)
+                    try { travelDist = std::stod(parts[1]); } catch (...) {}
+                if (parts.size() >= 3)
+                    try { period     = std::stod(parts[2]); } catch (...) {}
+
+                const Math::vec2 bbCenter{
+                    (bounds.Left() + bounds.Right()) * 0.5,
+                    (bounds.Bottom() + bounds.Top()) * 0.5
+                };
+                auto* elev = new Elevator(pos + bbCenter, svgSize, travelDist, period);
+                elev->SetName(id);
+                return elev;
             }
 
             return nullptr;

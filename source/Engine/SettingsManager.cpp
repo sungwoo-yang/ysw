@@ -1,4 +1,5 @@
 #include "SettingsManager.hpp"
+#include "AudioManager.hpp"
 #include "Engine.hpp"
 #include "Logger.hpp"
 #include <algorithm>
@@ -112,6 +113,14 @@ namespace CS230
             window.SetFullscreen(true);
         }
         window.SetVSync(false);
+
+        // Apply audio volumes (scale 0-1 → SDL 0-26)
+        // Clamp effective volume so old settings.cfg (volume=1.0) doesn't blast at startup
+        const float bgm = std::min(currentSettings.bgmVolume, 0.5f);
+        const float sfx = std::min(currentSettings.sfxVolume, 0.5f);
+        AudioManager::SetBGMVolume(static_cast<int>(bgm * 14.0f));
+        AudioManager::SetSFXVolume(static_cast<int>(sfx *  8.0f));
+
         Engine::GetLogger().LogEvent("Settings Applied Successfully.");
     }
 
@@ -122,6 +131,7 @@ namespace CS230
         if (!file.is_open())
         {
             Engine::GetLogger().LogEvent("Config file not found. Using defaults.");
+            ApplyAllSettings();  // apply hardcoded defaults (bgm=0.5, sfx=0.5)
             return;
         }
 

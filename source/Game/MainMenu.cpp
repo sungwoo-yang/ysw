@@ -17,6 +17,7 @@
 #include <initializer_list>
 
 #include "Mode3.hpp"
+#include "SaveManager.hpp"
 
 namespace
 {
@@ -87,8 +88,16 @@ void MainMenu::Load()
 
     // Render static strings into textures for efficient drawing
     titleTexture    = titleFont.PrintToTexture("Ollim", CS200::CYAN);
-    startTexture    = menuFont.PrintToTexture("Start Game", CS200::WHITE);
+    startTexture    = menuFont.PrintToTexture("Game Start", CS200::WHITE);
     settingsTexture = menuFont.PrintToTexture("Settings", CS200::WHITE);
+
+    // Slot card textures
+    for (int i = 0; i < SaveSlotCount; ++i)
+    {
+        slotNameTextures[i]   = menuFont.PrintToTexture("Slot " + std::to_string(i + 1), CS200::WHITE);
+        const bool has        = SaveManager::HasSave(i);
+        slotStatusTextures[i] = menuFont.PrintToTexture(has ? "Saved" : "Empty", has ? CS200::GREEN : CS200::GREY);
+    }
     exitTexture     = menuFont.PrintToTexture("Exit", CS200::WHITE);
 
     tabDisplayTexture  = menuFont.PrintToTexture("Display", CS200::WHITE);
@@ -169,7 +178,7 @@ void MainMenu::SetupButtons()
     double mainStartY = centerY - 50.0;
     double gap        = 70.0;
 
-    // Define hitboxes for the main menu stack
+    // Main menu: Game Start / Settings / Exit
     if (startTexture)
     {
         Math::ivec2 size = startTexture->GetSize();
@@ -193,6 +202,25 @@ void MainMenu::SetupButtons()
             { centerX - size.x / 2.0,          mainStartY - gap * 2.0 },
             { centerX + size.x / 2.0, mainStartY - gap * 2.0 + size.y }
         };
+    }
+
+    // Save select: 3 slot cards, centered horizontally
+    {
+        const double cardW   = 220.0;
+        const double cardH   = 100.0;
+        const double cardGap = 50.0;
+        const double totalW  = SaveSlotCount * cardW + (SaveSlotCount - 1) * cardGap;
+        const double startX  = centerX - totalW * 0.5;
+        const double cardY   = centerY - cardH * 0.5;
+
+        for (int i = 0; i < SaveSlotCount; ++i)
+        {
+            double x    = startX + i * (cardW + cardGap);
+            slotRects[i] = {
+                { x,          cardY },
+                { x + cardW, cardY + cardH }
+            };
+        }
     }
 
     // Define positions for top settings tabs
@@ -346,6 +374,8 @@ void MainMenu::Update([[maybe_unused]] double dt)
     // Route update logic based on current menu layer
     if (currentState == MenuState::Main)
         UpdateMainMenu(dt);
+    else if (currentState == MenuState::SaveSelect)
+        UpdateSaveSelectMenu(dt);
     else
         UpdateSettingsMenu(dt);
 }
@@ -375,12 +405,8 @@ void MainMenu::UpdateMainMenu([[maybe_unused]] double dt)
     {
         if (isStartHovered)
         {
-            Engine::GetLogger().LogEvent("Start Game Button Clicked");
-            // Engine::GetGameStateManager().Clear();
-            // Engine::GetGameStateManager().PushState<Mode1>();
-            // Engine::GetGameStateManager().ChangeStateWithFade<Mode1>();
-            Engine::GetGameStateManager().Clear();
-            Engine::GetGameStateManager().PushState<Mode3>();
+            Engine::GetLogger().LogEvent("Game Start Clicked — entering save select");
+            currentState = MenuState::SaveSelect;
         }
         else if (isSettingsHovered)
         {
@@ -393,6 +419,52 @@ void MainMenu::UpdateMainMenu([[maybe_unused]] double dt)
         {
             Engine::GetLogger().LogEvent("Exit Button Clicked");
             Engine::Instance().Stop();
+        }
+    }
+}
+
+void MainMenu::UpdateSaveSelectMenu([[maybe_unused]] double dt)
+{
+    auto&       input    = Engine::GetInput();
+    Math::ivec2 winSize  = Engine::GetWindow().GetSize();
+    Math::vec2  mousePos = input.GetMousePosition();
+    mousePos.y = static_cast<double>(winSize.y) - mousePos.y;
+
+    auto CheckHover = [&](const Math::rect& rect)
+    {
+        return mousePos.x >= rect.Left() && mousePos.x <= rect.Right() && mousePos.y >= rect.Bottom() && mousePos.y <= rect.Top();
+    };
+
+    for (int i = 0; i < SaveSlotCount; ++i)
+        isSlotHovered[i] = CheckHover(slotRects[i]);
+
+    const bool backHovered = CheckHover(backRect);
+
+    if (input.MouseButtonJustPressed(CS230::Input::MouseButton::Left))
+    {
+        for (int i = 0; i < SaveSlotCount; ++i)
+        {
+            if (!isSlotHovered[i]) continue;
+
+            SaveManager::SetActiveSlot(i);
+            if (!SaveManager::HasSave(i))
+            {
+                // Empty slot → new game (no delete needed, just no save file)
+                Engine::GetLogger().LogEvent("New Game in Slot " + std::to_string(i + 1));
+            }
+            else
+            {
+                Engine::GetLogger().LogEvent("Continue Slot " + std::to_string(i + 1));
+            }
+            Engine::GetGameStateManager().Clear();
+            Engine::GetGameStateManager().PushState<Mode3>();
+            return;
+        }
+
+        if (backHovered)
+        {
+            Engine::GetLogger().LogEvent("Back to Main from SaveSelect");
+            currentState = MenuState::Main;
         }
     }
 }
@@ -671,8 +743,8 @@ void MainMenu::UpdateSoundTab()
         CS230::SettingsManager::Instance().SetBGMVolume(bgmFloat);
         CS230::SettingsManager::Instance().SetSFXVolume(sfxFloat);
 
-        AudioManager::SetBGMVolume(static_cast<int>(bgmFloat * 128.0f));
-        AudioManager::SetSFXVolume(static_cast<int>(sfxFloat * 128.0f));
+        AudioManager::SetBGMVolume(static_cast<int>(bgmFloat * 14.0f));
+        AudioManager::SetSFXVolume(static_cast<int>(sfxFloat *  8.0f));
     }
 }
 
@@ -688,6 +760,8 @@ void MainMenu::Draw()
 
     if (currentState == MenuState::Main)
         DrawMainMenu();
+    else if (currentState == MenuState::SaveSelect)
+        DrawSaveSelectMenu();
     else
         DrawSettingsMenu();
 
@@ -715,9 +789,59 @@ void MainMenu::DrawMainMenu()
             tex->Draw(Math::TranslationMatrix(Math::vec2{ rect.Left(), rect.Bottom() }), hover ? CS200::YELLOW : CS200::WHITE);
     };
 
-    DrawBtn(startTexture, startButtonRect, isStartHovered);
+    DrawBtn(startTexture,    startButtonRect,    isStartHovered);
     DrawBtn(settingsTexture, settingsButtonRect, isSettingsHovered);
-    DrawBtn(exitTexture, exitButtonRect, isExitHovered);
+    DrawBtn(exitTexture,     exitButtonRect,     isExitHovered);
+}
+
+void MainMenu::DrawSaveSelectMenu()
+{
+    auto& renderer = Engine::GetRenderer2D();
+
+    // Title
+    if (titleTexture)
+    {
+        Math::vec2 pos = { static_cast<double>(Engine::GetWindow().GetSize().x) * 0.5 - titleTexture->GetSize().x * 1.5,
+                           static_cast<double>(Engine::GetWindow().GetSize().y) * 0.5 + 150.0 };
+        titleTexture->Draw(Math::TranslationMatrix(pos) * Math::ScaleMatrix({ 3.0, 3.0 }), CS200::CYAN);
+    }
+
+    // Slot cards
+    for (int i = 0; i < SaveSlotCount; ++i)
+    {
+        const Math::rect& r       = slotRects[i];
+        const bool        hovered = isSlotHovered[i];
+        const bool        hasSave = SaveManager::HasSave(i);
+
+        // Card background
+        const Math::vec2 size   = r.Size();
+        const Math::vec2 center = { r.Left() + size.x * 0.5, r.Bottom() + size.y * 0.5 };
+        const auto       tf     = Math::TranslationMatrix(center) * Math::ScaleMatrix(size);
+        renderer.DrawRectangle(tf, hovered ? 0x1A3050D8 : 0x0A1A28D8, hovered ? CS200::CYAN : CS200::WHITE, 2.0);
+
+        // "Slot N" label — centered horizontally, upper half of card
+        if (slotNameTextures[i])
+        {
+            const Math::ivec2 ts = slotNameTextures[i]->GetSize();
+            const double      tx = r.Left() + (size.x - ts.x) * 0.5;
+            const double      ty = r.Bottom() + size.y * 0.55;
+            slotNameTextures[i]->Draw(Math::TranslationMatrix(Math::vec2{ tx, ty }), hovered ? CS200::YELLOW : CS200::WHITE);
+        }
+
+        // Status label — centered, lower half of card
+        if (slotStatusTextures[i])
+        {
+            const Math::ivec2 ts = slotStatusTextures[i]->GetSize();
+            const double      tx = r.Left() + (size.x - ts.x) * 0.5;
+            const double      ty = r.Bottom() + size.y * 0.15;
+            slotStatusTextures[i]->Draw(Math::TranslationMatrix(Math::vec2{ tx, ty }),
+                                        hasSave ? CS200::GREEN : CS200::GREY);
+        }
+    }
+
+    // Back button
+    if (backTexture)
+        backTexture->Draw(Math::TranslationMatrix(Math::vec2{ backRect.Left(), backRect.Bottom() }), CS200::WHITE);
 }
 
 void MainMenu::DrawSettingsMenu()
@@ -842,6 +966,13 @@ void MainMenu::DrawDebugUIRects()
         DrawDebugRect(startButtonRect);
         DrawDebugRect(settingsButtonRect);
         DrawDebugRect(exitButtonRect);
+        return;
+    }
+    if (currentState == MenuState::SaveSelect)
+    {
+        for (int i = 0; i < SaveSlotCount; ++i)
+            DrawDebugRect(slotRects[i]);
+        DrawDebugRect(backRect);
         return;
     }
 
@@ -987,6 +1118,7 @@ void MainMenu::DrawSoundTab()
 
 void MainMenu::DrawImGui()
 {
+#ifdef DEVELOPER_VERSION
     ImGui::Begin("Main Menu Debug");
 
     ImGui::Text("Menu State: %s", currentState == MenuState::Main ? "Main" : "Settings");
@@ -1027,10 +1159,10 @@ void MainMenu::DrawImGui()
     ImGui::Separator();
     ImGui::Text("Mouse Pos (Screen): (%.1f, %.1f)", Engine::GetInput().GetMousePosition().x, Engine::GetInput().GetMousePosition().y);
 
-    // Visual debugging of UI hitboxes
     ImGui::Checkbox("Show UI Rects", &showDebugRects);
 
     ImGui::End();
+#endif
 }
 
 void MainMenu::Unload()
@@ -1041,6 +1173,12 @@ void MainMenu::Unload()
     titleTexture.reset();
     startTexture.reset();
     settingsTexture.reset();
+
+    for (int i = 0; i < SaveSlotCount; ++i)
+    {
+        slotNameTextures[i].reset();
+        slotStatusTextures[i].reset();
+    }
     exitTexture.reset();
     tabDisplayTexture.reset();
     tabControlsTexture.reset();

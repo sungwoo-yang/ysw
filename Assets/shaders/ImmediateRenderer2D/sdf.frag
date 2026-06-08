@@ -71,7 +71,7 @@ void main()
     float outer_mix = smoothstep(outer_edge, outer_edge + fwidth(dist), dist);
     frag_color = mix(shape_color, vec4(0.0), outer_mix);
 
-    if (frag_color.a < 0.01)
+    if (frag_color.a < 0.002)
     {
         discard;
     }

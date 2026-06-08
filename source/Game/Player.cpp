@@ -5,15 +5,21 @@
 #include "Engine/Collision.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/GameObject.hpp"
+#include "Engine/GameObjectManager.hpp"
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
 #include "Engine/Polygon.h"
 #include "Engine/TextureManager.hpp"
 
+#include "BreakableWall.hpp"
+#include "Elevator.hpp"
+#include "Spike.hpp"
 #include "PushableMirror.hpp"
 #include "Shield.hpp"
+#include "WaterZone.hpp"
 #include "WorldTextManager.hpp"
+#include "Engine/Random.hpp"
 #include <algorithm>
 #include <cmath>
 #include <imgui.h>
@@ -148,13 +154,12 @@ Player::Player(Math::vec2 in_start_pos)
     : CS230::GameObject(in_start_pos), isJumping(true), velocityY(0.0), faceRight(true), shieldComponent(nullptr), startPosition(in_start_pos), previousPosition(in_start_pos),
       healthState(HealthState::Full), playerHp(5.0), maxPlayerHp(5.0), recoverDelayTimer(0.0), tookDamageThisFrame(false), invincibilityTimer(0.0)
 {
-    // Initialize core components
-    shieldComponent = new Shield(this);
-    AddGOComponent(shieldComponent);
-
-    // Add physical collision bounds
+    // shieldComponent = new Shield(this);
+    // AddGOComponent(shieldComponent);
     AddGOComponent(new CS230::RectCollision(PLAYER_COLLISION_BOX, this));
     dashComponent.dashCooldown = 1.0;
+
+    oriAnim.Build();
 }
 
 void Player::Update(double dt)
@@ -178,8 +183,45 @@ void Player::Update(double dt)
         coyoteTimer -= dt;
     if (wallJumpControlLockTimer > 0.0)
         wallJumpControlLockTimer -= dt;
+    if (bashLockTimer > 0.0)
+        bashLockTimer = std::max(0.0, bashLockTimer - dt);
 
-    HandleInput(dt);
+    // ── Water rush timer + kill ──────────────────────────────────────────────
+    if (waterRushTimer > 0.0)
+    {
+        waterRushTimer -= dt;
+        if (waterRushTimer <= 0.0 && healthState != HealthState::Dead)
+        {
+            playerHp    = 0.0;
+            healthState = HealthState::Dead;
+            InitDeathParticles();
+        }
+    }
+
+    // ── Water zone detection ─────────────────────────────────────────────────
+    {
+        const double feetY = GetPosition().y - collisionHalfHeight;
+        double maxDepth = 0.0;
+        auto* gom = Engine::GetGameStateManager().GetGSComponent<CS230::GameObjectManager>();
+        if (gom)
+        {
+            for (auto* obj : gom->GetObjects())
+            {
+                if (obj->Type() == GameObjectTypes::Water)
+                {
+                    auto* zone = static_cast<WaterZone*>(obj);
+                    double d = zone->GetSubmergedDepth(GetPosition().x, feetY);
+                    if (d > maxDepth) maxDepth = d;
+                }
+            }
+        }
+        waterDepth = maxDepth;
+    }
+
+    if (autoMoveActive)
+        HandleAutoMove(dt);
+    else
+        HandleInput(dt);
     dashComponent.UpdateTimers(dt);
 
     // Apply gravity unless disabled by dashing mechanics
@@ -191,14 +233,39 @@ void Player::Update(double dt)
     if (dashComponent.IsDashing() && dashComponent.disableGravityOnDash)
         applyGravity = true;
 
-    if (applyGravity)
+    const bool midWater      = waterDepth > 30.0 && waterDepth <= 70.0;
+    const bool swimmingWater = waterDepth > 70.0;
+
+    if (swimmingWater)
+    {
+        // Near-zero gravity with gentle buoyancy
+        velocityY -= gravity * 0.08 * dt;   // 8% gravity downward
+        velocityY += gravity * 0.06 * dt;   // 6% buoyancy upward → net 2% sink
+        velocityY  = std::max(velocityY, -150.0);  // slow terminal velocity in water
+        velocityY  = std::min(velocityY,  300.0);
+
+        // W/Space: swim up
+        auto& inp = Engine::GetInput();
+        if (inp.KeyDown(CS230::Input::Keys::W) || inp.KeyDown(CS230::Input::Keys::Space))
+            velocityY += gravity * 0.55 * dt;   // swim upward force
+
+        // S: sink faster
+        if (inp.KeyDown(CS230::Input::Keys::S))
+            velocityY -= gravity * 0.30 * dt;
+
+        velocityY = std::clamp(velocityY, -150.0, 250.0);
+        isJumping = true;  // can't land while swimming
+    }
+    else if (applyGravity)
     {
         const double gravityMultiplier = shouldCutJump ? jumpReleaseGravityMultiplier : 1.0;
-        velocityY -= gravity * gravityMultiplier * dt;
+        // Reduce gravity slightly in mid water
+        const double waterGravMult = midWater ? 0.65 : 1.0;
+        velocityY -= gravity * gravityMultiplier * waterGravMult * dt;
     }
 
     const bool pressingTowardWall = (wallDirection < 0 && input.KeyDown(CS230::Input::Keys::A)) || (wallDirection > 0 && input.KeyDown(CS230::Input::Keys::D));
-    const bool canWallSlide       = isJumping && isTouchingWall && wallDirection != 0 && pressingTowardWall && !dashComponent.IsDashing() && velocityY <= 0.0;
+    const bool canWallSlide       = wallClimbEnabled && isJumping && isTouchingWall && wallDirection != 0 && pressingTowardWall && !dashComponent.IsDashing() && velocityY <= 0.0;
     isWallSliding                 = canWallSlide;
 
     if (canWallSlide)
@@ -216,7 +283,14 @@ void Player::Update(double dt)
     double finalVelX = GetVelocity().x;
     if (dashComponent.IsDashing())
         finalVelX = dashComponent.GetDashVelocityX();
+    // Water rush overrides all horizontal velocity (applied last, wins over dash/friction)
+    if (waterRushTimer > 0.0)
+        finalVelX = waterRushDir.x * 1100.0;
     SetVelocity({ finalVelX, velocityY });
+
+    // LandOnSurface sets isJumping=false during CollisionTest (runs after Update),
+    // so capture it before we reset — this is the reliable ground state.
+    const bool prevOnGround = !isJumping;
 
     isJumping            = true;
     currentPlatformIndex = std::nullopt;
@@ -226,6 +300,145 @@ void Player::Update(double dt)
     CS230::GameObject::Update(dt);
 
     UpdateHealthState(dt);
+
+    // Ori animation state: use previous frame's ground contact (CollisionTest updates after this)
+    const bool   onGround = prevOnGround;
+    const double absVx    = std::abs(GetVelocity().x);
+    if (swimmingWater) {
+        oriAnim.Play("fall");
+    } else if (onGround) {
+        if (absVx > 10.0) oriAnim.Play("run");
+        else              oriAnim.Play("idle");
+    } else {
+        if (velocityY > 0.0) oriAnim.Play("jump");
+        else                 oriAnim.Play("fall");
+    }
+    oriAnim.Update(dt);
+}
+
+void Player::SetAutoMove(Math::vec2 target)
+{
+    SetAutoMove(std::vector<WaypointStep>{ { WaypointType::Walk, target } });
+}
+
+void Player::SetAutoMove(const std::vector<WaypointStep>& wps)
+{
+    if (wps.empty()) return;
+    autoWaypoints      = wps;
+    autoWaypointIdx    = 0;
+    autoMoveTarget     = wps[0].pos;
+    autoMoveActive     = true;
+    autoMoveStuckTimer = 0.0;
+    autoMovePrevPos    = GetPosition();
+    jumpLaunched       = false;
+    inputLocked        = true;
+}
+
+void Player::ClearAutoMove()
+{
+    autoMoveActive  = false;
+    inputLocked     = false;
+    autoWaypoints.clear();
+    autoWaypointIdx = 0;
+    jumpLaunched    = false;
+}
+
+void Player::HandleAutoMove(double dt)
+{
+    if (autoWaypoints.empty() || autoWaypointIdx >= static_cast<int>(autoWaypoints.size()))
+    {
+        ClearAutoMove();
+        return;
+    }
+
+    const WaypointStep& wp      = autoWaypoints[autoWaypointIdx];
+    const Math::vec2    pos     = GetPosition();
+    const double        dx      = wp.pos.x - pos.x;
+    const double        dy      = wp.pos.y - pos.y;
+    const bool          grounded = !isJumping;
+
+    // Arrival check: for Jump waypoints require we've landed after the launch
+    const bool arrivedXY   = (std::abs(dx) < 15.0 && std::abs(dy) < 100.0);
+    const bool arrived     = arrivedXY &&
+                             (wp.type != WaypointType::Jump || (jumpLaunched && grounded));
+
+    if (arrived)
+    {
+        ++autoWaypointIdx;
+        jumpLaunched = false;
+        if (autoWaypointIdx >= static_cast<int>(autoWaypoints.size()))
+        {
+            ClearAutoMove();
+            return;
+        }
+        autoMoveStuckTimer = 0.0;
+        autoMovePrevPos    = pos;
+        return;
+    }
+
+    if (wp.type == WaypointType::Jump)
+    {
+        if (!jumpLaunched && grounded && velocityY <= 0.0)
+        {
+            const double vy0  = jumpStrength;
+            const double disc = vy0 * vy0 - 2.0 * gravity * dy;
+            const double T    = (disc >= 0.0)
+                ? (vy0 + std::sqrt(disc)) / gravity
+                : 2.0 * vy0 / gravity;
+            const double vx   = (T > 0.001) ? dx / T : 0.0;
+            SetVelocity({ vx, GetVelocity().y });
+            velocityY    = vy0;
+            isJumping    = true;
+            coyoteTimer  = 0.0;
+            jumpLaunched = true;
+            faceRight    = (dx > 0);
+        }
+        else if (jumpLaunched)
+        {
+            faceRight = (dx > 0);
+        }
+        return;
+    }
+
+    // Walk waypoint: horizontal movement + auto-jump if target is above
+    double currentVelX = GetVelocity().x;
+    if (std::abs(dx) > 15.0)
+    {
+        const double dir       = (dx > 0) ? 1.0 : -1.0;
+        const double targetVel = dir * maxRunSpeed;
+        faceRight = (dx > 0);
+        if (currentVelX < targetVel)
+            currentVelX = std::min(currentVelX + playerAcceleration * dt, targetVel);
+        else
+            currentVelX = std::max(currentVelX - playerAcceleration * dt, targetVel);
+    }
+    else
+    {
+        if (currentVelX > 0.0) currentVelX = std::max(0.0, currentVelX - playerFriction * dt);
+        else                    currentVelX = std::min(0.0, currentVelX + playerFriction * dt);
+    }
+    SetVelocity({ currentVelX, GetVelocity().y });
+
+    if (dy > 60.0 && velocityY <= 0.0 && grounded)
+    {
+        velocityY   = jumpStrength;
+        isJumping   = true;
+        coyoteTimer = 0.0;
+    }
+
+    autoMoveStuckTimer += dt;
+    if (autoMoveStuckTimer >= 0.4)
+    {
+        const double moved = (pos - autoMovePrevPos).LengthSquared();
+        const bool   stuck = (moved < 100.0 && std::abs(dx) > 30.0);
+        if (stuck && velocityY <= 0.0 && grounded)
+        {
+            velocityY = jumpStrength;
+            isJumping = true;
+        }
+        autoMoveStuckTimer = 0.0;
+        autoMovePrevPos    = pos;
+    }
 }
 
 void Player::ResetState()
@@ -255,13 +468,12 @@ void Player::ResetState()
     recoverDelayTimer   = 0.0;
     tookDamageThisFrame = false;
     invincibilityTimer  = 0.0;
+    waterRushTimer      = 0.0;
+    waterRushDir        = { 0.0, 0.0 };
 
-    if (shieldComponent != nullptr)
-    {
-        RemoveGOComponent<Shield>();
-    }
-    shieldComponent = new Shield(this);
-    AddGOComponent(shieldComponent);
+    // if (shieldComponent != nullptr) RemoveGOComponent<Shield>();
+    // shieldComponent = new Shield(this);
+    // AddGOComponent(shieldComponent);
 }
 
 void Player::SetSavePoint(Math::vec2 new_spawn_point)
@@ -272,21 +484,22 @@ void Player::SetSavePoint(Math::vec2 new_spawn_point)
 
 void Player::HandleInput(double dt)
 {
+    if (inputLocked || bashLockTimer > 0.0 || ImGui::GetIO().WantCaptureKeyboard || waterRushTimer > 0.0)
+        return;
+
     auto& input = Engine::GetInput();
 
-    if (shieldComponent)
-    {
-        shieldComponent->HandleInput(dt);
-    }
+    // if (shieldComponent)
+    //     shieldComponent->HandleInput(dt);
 
-    if (input.KeyJustPressed(CS230::Input::Keys::R))
+    if (input.KeyJustPressed(CS230::Input::Keys::P))
     {
         ResetState();
-        Engine::GetLogger().LogEvent("Event: Player Respawned (R)");
+        Engine::GetLogger().LogEvent("Event: Player Respawned (P)");
         return;
     }
 
-    if (input.KeyJustPressed(CS230::Input::Keys::LShift))
+    if (dashEnabled && input.KeyJustPressed(CS230::Input::Keys::LShift))
     {
         dashComponent.TryStartDash(faceRight);
     }
@@ -312,7 +525,11 @@ void Player::HandleInput(double dt)
                 currentSpeedMultiplier = targetMult;
         }
 
-        double targetMaxSpeed = maxRunSpeed * currentSpeedMultiplier;
+        double waterSpeedMult = 1.0;
+        if      (waterDepth > 70.0) waterSpeedMult = 0.50;
+        else if (waterDepth > 30.0) waterSpeedMult = 0.45;
+        else if (waterDepth >  0.0) waterSpeedMult = 0.70;
+        double targetMaxSpeed = maxRunSpeed * currentSpeedMultiplier * waterSpeedMult;
 
         Math::vec2 move{ 0.0, 0.0 };
         if (input.KeyDown(CS230::Input::Keys::A))
@@ -374,7 +591,7 @@ void Player::HandleInput(double dt)
             jumpBufferTimer = jumpBufferTime;
         }
 
-        if (isJumping && isTouchingWall && wallDirection != 0 && jumpBufferTimer > 0.0)
+        if (wallClimbEnabled && isJumping && isTouchingWall && wallDirection != 0 && jumpBufferTimer > 0.0)
         {
             const double jumpDirection = static_cast<double>(-wallDirection);
             currentVelX                = jumpDirection * wallJumpHorizontalStrength;
@@ -396,7 +613,8 @@ void Player::HandleInput(double dt)
 
         if (coyoteTimer > 0.0 && jumpBufferTimer > 0.0 && velocityY <= 0.0)
         {
-            velocityY = jumpStrength;
+            const double jumpMult = (waterDepth > 30.0 && waterDepth <= 70.0) ? 0.65 : 1.0;
+            velocityY = jumpStrength * jumpMult;
             isJumping = true;
 
             jumpBufferTimer = 0.0;
@@ -422,6 +640,12 @@ bool Player::CanCollideWith(GameObjectTypes other_object_type)
     if (other_object_type == GameObjectTypes::Gate)
         return true;
     if (other_object_type == GameObjectTypes::FallingBlock)
+        return true;
+    if (other_object_type == GameObjectTypes::Elevator)
+        return true;
+    if (other_object_type == GameObjectTypes::BreakableWall)
+        return true;
+    if (other_object_type == GameObjectTypes::Spike)
         return true;
 
     return false;
@@ -1357,7 +1581,29 @@ void Player::ResolveCollision(GameObject* other_object)
     auto  textManager = Engine::GetGameStateManager().GetGSComponent<WorldTextManager>();
     auto& input       = Engine::GetInput();
 
-    if (other_object->Type() == GameObjectTypes::Floor || other_object->Type() == GameObjectTypes::Gate || other_object->Type() == GameObjectTypes::FallingBlock)
+    if (other_object->Type() == GameObjectTypes::BreakableWall)
+    {
+        // Dashing: wall handles its own break; don't push player back
+        if (dashComponent.IsDashing()) return;
+
+        CS230::RectCollision* my_collider    = GetGOComponent<CS230::RectCollision>();
+        CS230::RectCollision* wall_collider  = other_object->GetGOComponent<CS230::RectCollision>();
+        if (!my_collider || !wall_collider) return;
+
+        Math::rect my_box    = my_collider->WorldBoundary();
+        Math::rect other_box = wall_collider->WorldBoundary();
+
+        double prev_bottom = previousPosition.y - (PLAYER_COLLISION_SIZE.y / 2.0);
+        double prev_top    = previousPosition.y + (PLAYER_COLLISION_SIZE.y / 2.0);
+        double prev_left   = previousPosition.x - (PLAYER_COLLISION_SIZE.x / 2.0);
+        double prev_right  = previousPosition.x + (PLAYER_COLLISION_SIZE.x / 2.0);
+
+        if (ResolveAABBFallback(my_box, other_box, prev_bottom, prev_top, prev_left, prev_right))
+            return;
+        return;
+    }
+
+    if (other_object->Type() == GameObjectTypes::Floor || other_object->Type() == GameObjectTypes::Gate || other_object->Type() == GameObjectTypes::FallingBlock || other_object->Type() == GameObjectTypes::Elevator)
     {
         CS230::RectCollision* my_collider = GetGOComponent<CS230::RectCollision>();
         if (!my_collider)
@@ -1392,6 +1638,14 @@ void Player::ResolveCollision(GameObject* other_object)
                 return;
 
             other_box = block_collider->WorldBoundary();
+        }
+        else if (other_object->Type() == GameObjectTypes::Elevator)
+        {
+            CS230::RectCollision* elev_collider = other_object->GetGOComponent<CS230::RectCollision>();
+            if (!elev_collider)
+                return;
+
+            other_box = elev_collider->WorldBoundary();
         }
 
         Math::rect my_box = my_collider->WorldBoundary();
@@ -1454,7 +1708,7 @@ void Player::ResolveCollision(GameObject* other_object)
             return true;
         };
 
-        const bool can_use_aabb_fallback = other_object->Type() == GameObjectTypes::Gate || other_object->Type() == GameObjectTypes::FallingBlock || is_axis_aligned_rect_floor();
+        const bool can_use_aabb_fallback = other_object->Type() == GameObjectTypes::Gate || other_object->Type() == GameObjectTypes::FallingBlock || other_object->Type() == GameObjectTypes::Elevator || is_axis_aligned_rect_floor();
 
         bool horizontal_overlap = my_box.Right() > other_box.Left() && my_box.Left() < other_box.Right();
         bool vertical_overlap   = my_box.Top() > other_box.Bottom() && my_box.Bottom() < other_box.Top();
@@ -1492,7 +1746,24 @@ void Player::ResolveCollision(GameObject* other_object)
             return;
         }
 
-        ResolveAABBFallback(my_box, other_box, prev_bottom, prev_top, prev_left, prev_right);
+        // Fast-elevator tunneling fix: if player foot is already inside the elevator body
+        // (elevator moved up faster than prev_bottom ≥ platform_top allows), force a landing.
+        if (other_object->Type() == GameObjectTypes::Elevator &&
+            velocityY <= 0.0 &&
+            my_box.Bottom() < other_box.Top() &&
+            my_box.Bottom() >= other_box.Bottom() - 2.0 &&
+            prev_bottom    >= other_box.Bottom())
+        {
+            LandOnSurface(other_box.Top());
+            static_cast<Elevator*>(other_object)->SetRider(this);
+            return;
+        }
+
+        if (ResolveAABBFallback(my_box, other_box, prev_bottom, prev_top, prev_left, prev_right))
+        {
+            if (!isJumping && other_object->Type() == GameObjectTypes::Elevator)
+                static_cast<Elevator*>(other_object)->SetRider(this);
+        }
 
         return;
     }
@@ -1547,42 +1818,72 @@ void Player::ResolveCollision(GameObject* other_object)
             }
         }
     }
+    else if (other_object->Type() == GameObjectTypes::Spike)
+    {
+        ApplyLaserDamage(Spike::DamageAmount);
+    }
 }
 
 void Player::Draw(const Math::TransformationMatrix& camera_matrix)
 {
-    CS200::IRenderer2D&        renderer  = Engine::GetRenderer2D();
-    Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix(PLAYER_COLLISION_SIZE);
+    CS200::IRenderer2D& renderer = Engine::GetRenderer2D();
 
-    CS200::RGBA playerColor = CS200::GREEN;
+    if (healthState == HealthState::Dead)
+    {
+        if (deathEffectActive)
+            DrawDeathEffect();
+        // Dead but particles done → stay invisible until ResetState()
+        return;
+    }
 
+    // Blink during invincibility frames
     if (invincibilityTimer > 0.0)
     {
-        if (static_cast<int>(invincibilityTimer * 10.0) % 2 == 0)
+        // visible for 0.075s, invisible for 0.075s  → ~6.7 blinks/sec
+        const bool visible = static_cast<int>(invincibilityTimer / 0.075) % 2 == 0;
+        if (!visible)
+            return;
+    }
+
+    Math::vec2 feet = { GetPosition().x, GetPosition().y - collisionHalfHeight };
+    oriAnim.Draw(feet, faceRight);
+
+    // Water rush visual: blue spray from wall + trailing droplets
+    if (waterRushTimer > 0.0)
+    {
+        const double elapsed    = 1.5 - waterRushTimer;
+        const double rushAlpha  = waterRushTimer / 1.5;  // 1→0 as player dies
+
+        // Expanding spray from wall origin
+        constexpr double TWO_PI_V = 6.28318530717958647;
+        for (int i = 0; i < 10; ++i)
         {
-            playerColor = (playerColor & 0xFFFFFF00) | 100;
+            const double angle = i * (TWO_PI_V / 10.0) + elapsed * 2.5;
+            const double dist  = elapsed * 260.0 + 15.0;
+            const double sz    = std::max(1.0, 10.0 - elapsed * 5.0);
+            const Math::vec2 sp = {
+                waterRushOrigin.x + waterRushDir.x * elapsed * 120.0 + std::cos(angle) * dist * 0.35,
+                waterRushOrigin.y + std::sin(angle) * dist * 0.5
+            };
+            const uint32_t a = static_cast<uint32_t>(rushAlpha * 210);
+            const auto mat = Math::TranslationMatrix(sp) * Math::ScaleMatrix({ sz, sz });
+            renderer.DrawCircle(mat, (0x0088FFu << 8) | a, (0x44CCFFu << 8) | (a / 2), 1.0);
+        }
+
+        // Blue trailing droplets behind the player
+        for (int i = 1; i <= 5; ++i)
+        {
+            const double tx  = GetPosition().x - waterRushDir.x * i * 38.0;
+            const double ty  = GetPosition().y + std::sin(elapsed * 7.0 + i * 1.3) * 12.0;
+            const double sz  = std::max(1.0, 13.0 - i * 1.8);
+            const uint32_t a = static_cast<uint32_t>(rushAlpha * (220 - i * 30));
+            const auto mat = Math::TranslationMatrix(Math::vec2{ tx, ty }) * Math::ScaleMatrix({ sz, sz });
+            renderer.DrawCircle(mat, (0x0066FFu << 8) | a, (0x55BBFFu << 8) | (a * 2 / 3), 1.5);
         }
     }
 
-    switch (healthState)
-    {
-        case HealthState::Full: playerColor = CS200::GREEN; break;
-        case HealthState::Healthy: playerColor = CS200::CYAN; break;
-        case HealthState::Hurt: playerColor = CS200::YELLOW; break;
-        case HealthState::Critical: playerColor = 0xFFA500FF; break;
-        case HealthState::NearDeath: playerColor = CS200::RED; break;
-        case HealthState::Dead: playerColor = 0x8B0000FF; break;
-        default: playerColor = CS200::GREEN; break;
-    }
-
-    renderer.DrawRectangle(transform, playerColor, CS200::CLEAR, 0.0);
-
     if (shieldComponent)
-    {
         shieldComponent->Draw(renderer, camera_matrix);
-    }
-
-    // auto texture = CS230::TextureManager().Load("Assets/Character.png");
 
     DrawShieldCooldown(renderer);
 
@@ -1642,7 +1943,30 @@ void Player::ApplyLaserDamage(double damageAmount)
         playerHp    = 0.0;
         healthState = HealthState::Dead;
         Engine::GetLogger().LogEvent("Player died from laser damage.");
+        InitDeathParticles();
     }
+}
+
+void Player::ApplyWaterRush(Math::vec2 dir, Math::vec2 wallPos)
+{
+    if (healthState == HealthState::Dead) return;
+    waterRushTimer  = 1.5;
+    waterRushDir    = dir;
+    waterRushOrigin = wallPos;
+    // Initial kick: strong horizontal + slight upward burst
+    SetVelocity({ dir.x * 900.0, 350.0 });
+    velocityY   = 350.0;
+    isJumping   = true;
+    coyoteTimer = 0.0;
+}
+
+void Player::ApplyBashImpulse(Math::vec2 impulse)
+{
+    SetVelocity({ impulse.x, impulse.y });
+    velocityY     = impulse.y;
+    isJumping     = true;
+    coyoteTimer   = 0.0;
+    bashLockTimer = 0.40;  // 0.4s input lock after bash rebound
 }
 
 bool Player::IsDead() const
@@ -1815,4 +2139,96 @@ void Player::DrawImGui()
         ImGui::TreePop();
     }
     ImGui::PopID();
+}
+
+// ============================================================
+//  Death dissolve effect
+// ============================================================
+
+void Player::InitDeathParticles()
+{
+    deathEffectActive = true;
+    deathParticles.clear();
+
+    const Math::vec2 origin = GetPosition();
+
+    constexpr uint32_t palette[] = { 0xFFFFFF, 0xFFFFEE, 0xFFEEDD, 0xDDEEFF, 0xFFFFFF };
+    constexpr int PaletteSize    = 5;
+
+    // Large tall shards — shoot upward, fall with strong gravity
+    for (int i = 0; i < 18; ++i)
+    {
+        const double hSpeed = util::random(-200.0, 200.0);
+        const double vSpeed = util::random(350.0, 700.0);
+
+        DeathParticle p;
+        p.pos         = origin + Math::vec2{ util::random(-12.0, 12.0), 0.0 };
+        p.vel         = { hSpeed, vSpeed };
+        p.maxLifetime = util::random(0.55, 1.0);
+        p.lifetime    = p.maxLifetime;
+        p.size        = util::random(22.0, 48.0);  // tall long axis
+        p.rgb         = palette[i % PaletteSize];
+        p.initAngle   = util::random(-0.25, 0.25); // nearly vertical
+        p.angularVel  = util::random(-3.5, 3.5);
+        deathParticles.push_back(p);
+    }
+
+    // Small square debris chips
+    for (int i = 0; i < 12; ++i)
+    {
+        const double hSpeed = util::random(-280.0, 280.0);
+        const double vSpeed = util::random(150.0, 500.0);
+
+        DeathParticle p;
+        p.pos         = origin + Math::vec2{ util::random(-20.0, 20.0), util::random(-5.0, 5.0) };
+        p.vel         = { hSpeed, vSpeed };
+        p.maxLifetime = util::random(0.35, 0.70);
+        p.lifetime    = p.maxLifetime;
+        p.size        = util::random(8.0, 18.0);   // smaller chip
+        p.rgb         = palette[i % PaletteSize];
+        p.initAngle   = util::random(0.0, 6.2832);
+        p.angularVel  = util::random(-7.0, 7.0);
+        deathParticles.push_back(p);
+    }
+}
+
+void Player::UpdateDeathEffect(double dt)
+{
+    if (!deathEffectActive) return;
+
+    bool anyAlive = false;
+    for (auto& p : deathParticles)
+    {
+        p.lifetime -= dt;
+        if (p.lifetime > 0.0)
+        {
+            p.pos += p.vel * dt;
+            p.vel.y -= 1800.0 * dt;
+            anyAlive = true;
+        }
+    }
+    if (!anyAlive)
+        deathEffectActive = false;
+}
+
+void Player::DrawDeathEffect() const
+{
+    auto& r = Engine::GetRenderer2D();
+    for (const auto& p : deathParticles)
+    {
+        if (p.lifetime <= 0.0) continue;
+
+        const double ratio   = p.lifetime / p.maxLifetime;
+        // Sharp fade: bright at start, quick falloff
+        const double bright  = ratio * ratio;
+        const auto   alpha   = static_cast<uint32_t>(bright * 255.0);
+        if (alpha == 0) continue;
+
+        const uint32_t fillCol = (p.rgb << 8) | alpha;
+
+        const double drawSize = p.size * 0.7;
+        const auto mat = Math::TranslationMatrix(p.pos)
+                       * Math::ScaleMatrix(Math::vec2{ drawSize, drawSize });
+        r.DrawCircle(mat, fillCol, 0x00000000u, 0.0);
+    }
 }

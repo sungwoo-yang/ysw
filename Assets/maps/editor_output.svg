@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg">
+  <path style="fill:#00ffff;" d="M -760,560 L 1640,560 L 1640,40 L -760,40 Z"/>
+  <rect style="fill:#ffffff;" x="-761.773" y="-800" width="2400" height="1360"/>
+  <rect style="fill:#ffffff;" x="1638.03" y="-799.482" width="2400" height="1360"/>
+  <path style="fill:#00ffff;" d="M -760,-480 L 600,-480 L 600,-800 L -760,-800 Z"/>
+  <path style="fill:#00ffff;" d="M 1280,-480 L 2240,-480 L 2240,-800 L 1280,-800 Z"/>
+  <path style="fill:#00ffff;" d="M 1280,-800 L 2240,-800 L 2240,-1160 L 1280,-1160 Z"/>
+  <rect style="fill:#ffffff;" x="-760" y="-2160" width="2400" height="1360"/>
+  <rect style="fill:#ffffff;" x="1640" y="-2160" width="2400" height="1360"/>
+  <path style="fill:#00ffff;" d="M -760,40 L -600,40 L -600,-480 L -760,-480 Z"/>
+  <path style="fill:#00ffff;" d="M -760,-800 L -600,-800 L -600,-2160 L -760,-2160 Z"/>
+  <path style="fill:#00ffff;" d="M -600,-1920 L 1640,-1920 L 1640,-2160 L -600,-2160 Z"/>
+  <path style="fill:#00ffff;" d="M 2240,-800 L 4040,-800 L 4040,-1160 L 2240,-1160 Z"/>
+  <path style="fill:#00ffff;" d="M 1640,560 L 4040,560 L 4040,40 L 1640,40 Z"/>
+  <path style="fill:#00ffff;" d="M 1640,40 L 2040,40 L 2040,-120 L 1640,-120 Z"/>
+  <path style="fill:#00ffff;" d="M 2040,40 L 2400,40 L 2400,-80 L 2040,-80 Z"/>
+  <rect style="fill:#ffffff;" x="4043.48" y="-796.521" width="2400" height="1360"/>
+  <path style="fill:#00ffff;" d="M 4040,560 L 6440,560 L 6440,-280 L 4040,-280 Z"/>
+  <rect style="fill:#ffffff;" x="4040" y="-2160" width="2400" height="1360"/>
+  <path style="fill:#00ffff;" d="M 2240,-640 L 4040,-640 L 4040,-800 L 2240,-800 Z"/>
+  <path style="fill:#00ffff;" d="M 2240,-520 L 3360,-520 L 3360,-640 L 2240,-640 Z"/>
+  <path style="fill:#ff6600;" d="M 3955.29,40 L 4035.29,40 L 4035.29,-40 L 3955.29,-40 Z" id="LTRT_W_1.2"/>
+  <path style="fill:#00ffff;" d="M 2780.65,38.5436 L 2980.65,38.5436 L 2980.65,-81.4564 L 2780.65,-81.4564 Z"/>
+  <path style="fill:#00cc00;" d="M 3600,-400 L 3640,-400 L 3640,-640 L 3600,-640 Z"/>
+  <rect style="fill:#ffffff;" x="6440" y="-800" width="2400" height="1360"/>
+  <path style="fill:#00ffff;" d="M 6440,560 L 8840,560 L 8840,-200 L 6440,-200 Z"/>
+  <path style="fill:#0044cc;" d="M 6440,-200 L 8840,-200 L 8840,-240 L 6440,-240 Z"/>
+  <path style="fill:#cc00cc;" d="M 3520,-280 L 3720,-280 L 3720,-400 L 3520,-400 Z"/>
+  <rect style="fill:#ffffff;" x="8840" y="-800" width="2400" height="1360"/>
+  <path style="fill:#00ffff;" d="M 8840,560 L 11240,560 L 11240,-200 L 8840,-200 Z"/>
+  <path style="fill:#00ffff;" d="M 11040,-200 L 11240,-200 L 11240,-240 L 11040,-240 Z"/>
+  <path style="fill:#00ffff;" d="M 10760,-200 L 11040,-200 L 11040,-240 L 10760,-240 Z"/>
+  <path style="fill:#884400;" d="M 11040,-240 L 11240,-240 L 11240,-680 L 11040,-680 Z" id="BWALL_WATER"/>
+  <path style="fill:#0044cc;" d="M 8840,-200 L 10760,-200 L 10760,-240 L 8840,-240 Z"/>
+  <path style="fill:#4488cc;" d="M 4316,-281 L 4756,-281 L 4756,-321 L 4316,-321 Z" id="ELEV_1000_8.0"/>
+  <path style="fill:#00ffff;" d="M 4880,-800 L 6440,-800 L 6440,-1160 L 4880,-1160 Z"/>
+  <path style="fill:#00ffff;" d="M 5440,-1160 L 5760,-1160 L 5760,-1320 L 5440,-1320 Z"/>
+  <path style="fill:#00ffff;" d="M 5760,-1160 L 6120,-1160 L 6120,-1480 L 5760,-1480 Z"/>
+  <path style="fill:#00ffff;" d="M 6120,-1160 L 6440,-1160 L 6440,-1640 L 6120,-1640 Z"/>
+  <path style="fill:#4488cc;" d="M 6680,-1600 L 6880,-1600 L 6880,-1640 L 6680,-1640 Z" id="ELEV_400_6.0"/>
+  <path style="fill:#4488cc;" d="M 7040,-1280 L 7240,-1280 L 7240,-1320 L 7040,-1320 Z" id="ELEV_600_7.0"/>
+  <path style="fill:#00ffff;" d="M 6440,-800 L 8840,-800 L 8840,-960 L 6440,-960 Z"/>
+  <path style="fill:#cc2222;" d="M 6440,-960 L 8840,-960 L 8840,-1040 L 6440,-1040 Z"/>
+  <path style="fill:#4488cc;" d="M 7480,-1560 L 7680,-1560 L 7680,-1600 L 7480,-1600 Z" id="ELEV_320_7.0"/>
+  <path style="fill:#4488cc;" d="M 7960,-1600 L 8160,-1600 L 8160,-1640 L 7960,-1640 Z" id="ELEV_200_7.0"/>
+  <path style="fill:#4488cc;" d="M 8400,-1561.91 L 8640,-1561.91 L 8640,-1601.91 L 8400,-1601.91 Z" id="ELEV_600_7.0"/>
+  <rect style="fill:#ffffff;" x="6440" y="-2160" width="2400" height="1360"/>
+  <rect style="fill:#ffffff;" x="8840" y="-3520" width="2400" height="1360"/>
+  <path style="fill:#00ffff;" d="M 8840,-1720 L 11240,-1720 L 11240,-2240 L 8840,-2240 Z"/>
+  <rect style="fill:#ffffff;" x="11240" y="-2160" width="2400" height="1360"/>
+  <rect style="fill:#ffffff;" x="8840" y="-2160" width="2400" height="1360"/>
+  <rect style="fill:#ffffff;" x="11240" y="-3520" width="2400" height="1360"/>
+  <path style="fill:#884400;" d="M 11480,-2160 L 11640,-2160 L 11640,-2240 L 11480,-2240 Z"/>
+  <path style="fill:#884400;" d="M 11920,-2280 L 12120,-2280 L 12120,-2360 L 11920,-2360 Z"/>
+  <path style="fill:#884400;" d="M 12360,-2160 L 12400,-2160 L 12400,-2280 L 12360,-2280 Z"/>
+  <path style="fill:#884400;" d="M 12600,-2160 L 12640,-2160 L 12640,-2280 L 12600,-2280 Z"/>
+  <path style="fill:#884400;" d="M 12840,-2280 L 13000,-2280 L 13000,-2360 L 12840,-2360 Z"/>
+  <path style="fill:#884400;" d="M 13280,-2280 L 13360,-2280 L 13360,-2400 L 13280,-2400 Z"/>
+  <path style="fill:#00ffff;" d="M 11080,-1120 L 11240,-1120 L 11240,-1720 L 11080,-1720 Z"/>
+  <path style="fill:#00ffff;" d="M 11040,-680 L 11240,-680 L 11240,-800 L 11040,-800 Z"/>
+  <path style="fill:#00ffff;" d="M 11240,-800 L 13640,-800 L 13640,-880 L 11240,-880 Z"/>
+  <path style="fill:#00ffff;" d="M 11040,-800 L 11240,-800 L 11240,-880 L 11040,-880 Z"/>
+  <path style="fill:#884400;" d="M 11080,-880 L 11240,-880 L 11240,-1120 L 11080,-1120 Z"/>
+  <path style="fill:#884400;" d="M 13640,-880 L 13800,-880 L 13800,-1120 L 13640,-1120 Z"/>
+  <path style="fill:#00ffff;" d="M 13640,-1120 L 13800,-1120 L 13800,-2160 L 13640,-2160 Z"/>
+  <path style="fill:#00ffff;" d="M 13640,-800 L 13800,-800 L 13800,-880 L 13640,-880 Z"/>
+  <rect style="fill:#ffffff;" x="13640" y="-3520" width="2400" height="1360"/>
+  <rect style="fill:#ffffff;" x="13640" y="-2160" width="2400" height="1360"/>
+  <path style="fill:#00ffff;" d="M 13640,-2160 L 16040,-2160 L 16040,-2360 L 13640,-2360 Z"/>
+  <path style="fill:#00ffff;" d="M 13800,-1840 L 16040,-1840 L 16040,-2160 L 13800,-2160 Z"/>
+  <path style="fill:#00ffff;" d="M 13800,-800 L 16040,-800 L 16040,-880 L 13800,-880 Z"/>
+  <path style="fill:#00ffff;" d="M 13640,-240 L 13800,-240 L 13800,-800 L 13640,-800 Z"/>
+  <path style="fill:#0044cc;" d="M 11240,-240 L 13640,-240 L 13640,-800 L 11240,-800 Z"/>
+  <path style="fill:#ff0000;" d="M 5040,-1160 L 5120,-1160 L 5120,-1240 L 5040,-1240 Z"/>
+  <path style="fill:#00ffff;" d="M 11240,560 L 13800,560 L 13800,-240 L 11240,-240 Z"/>
+  <circle cx="-10" cy="-0" r="20" fill="#ff8800"/>
+</svg>

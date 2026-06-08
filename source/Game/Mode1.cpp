@@ -219,15 +219,7 @@ void Mode1::Draw()
     GetGSComponent<CS230::GameObjectManager>()->DrawAll(view_projection_matrix);
     renderer.EndScene();
 
-    postProcessor.BeginBloomMaskRender();
-    renderer.BeginScene(view_projection_matrix);
-    if (player != nullptr)
-    {
-        player->Draw(view_projection_matrix);
-    }
-    renderer.EndScene();
-
-    postProcessor.EndRenderAndDraw(); //
+    postProcessor.EndRenderAndDraw();
 
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
     renderer.BeginScene(screen_matrix);

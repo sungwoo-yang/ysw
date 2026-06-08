@@ -1,6 +1,8 @@
 #include "LaserCutRope.hpp"
 
 #include "CS200/IRenderer2D.hpp"
+#include <algorithm>
+#include <cmath>
 #include "Engine/Collision.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/GameObjectManager.hpp"
@@ -31,15 +33,33 @@ void LaserCutRope::Update(double dt)
 void LaserCutRope::Draw(const Math::TransformationMatrix& camera_matrix)
 {
     if (isCut)
-    {
         return;
+
+    auto&            renderer = Engine::GetRenderer2D();
+    const Math::vec2 pos      = GetPosition();
+    const double     top      = pos.y + size.y * 0.5;
+    const double     bottom   = pos.y - size.y * 0.5;
+
+    // Chain links along the rope height
+    constexpr double LINK_H   = 14.0;
+    constexpr double LINK_W   = 7.0;
+    const int        numLinks = std::max(1, static_cast<int>(size.y / LINK_H));
+
+    for (int i = 0; i < numLinks; ++i)
+    {
+        const double t    = (i + 0.5) / static_cast<double>(numLinks);
+        const double linkY = bottom + size.y * (1.0 - t);
+
+        // Alternate horizontal / vertical oval links
+        const double lw = (i % 2 == 0) ? LINK_W : LINK_W * 0.6;
+        const double lh = LINK_H * 0.55;
+        const auto   mat = Math::TranslationMatrix(Math::vec2{ pos.x, linkY })
+                         * Math::ScaleMatrix(Math::vec2{ lw * 2.0, lh * 2.0 });
+        renderer.DrawCircle(mat, CS200::CLEAR, 0xB0A080FFu, 1.5);
     }
 
-    auto& renderer = Engine::GetRenderer2D();
-
-    Math::TransformationMatrix transform = GetMatrix() * Math::ScaleMatrix(size);
-
-    renderer.DrawRectangle(transform, 0x00CC00FF, CS200::WHITE, 1.0);
+    // Center spine line
+    renderer.DrawLine({ pos.x, top }, { pos.x, bottom }, 0x80706050u, 1.0);
 
     CS230::GameObject::Draw(camera_matrix);
 }

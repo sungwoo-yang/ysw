@@ -9,9 +9,12 @@
 #include "Engine/Error.hpp"
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Window.hpp"
-// #include "Game/Mainmenu.hpp"
+#include "Game/MainMenu.hpp"
 #include "Game/Mode1.hpp"
 #include "Game/Boss1.hpp"
+#include "Engine/SettingsManager.hpp"
+#include "Game/LevelEditor.hpp"
+#include "Game/OriMode.hpp"
 #include "Game/PauseMenu.hpp"
 #include "Game/Splash.hpp"
 #include <iostream>
@@ -72,13 +75,20 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
         Engine& engine = Engine::Instance();
         engine.Start("OLLIM");
 
-        Engine::GetWindow().SetFullscreen(true);
+        engine.AddFont("Assets/fonts/Elara-Bold.png");
+        engine.AddFont("Assets/fonts/Elara-Bold.png"); // index 1 kept for any GetFont(1) callers
 
-        engine.AddFont("Assets/fonts/Font_Outlined.png");
-        engine.AddFont("Assets/fonts/Font_Simple.png");
+        CS230::SettingsManager::Instance().LoadSettings();  // applies volume from settings.cfg
 
         engine.GetGameStateManager().SetPauseState<PauseMenu>();
-        engine.GetGameStateManager().PushState<Splash>();
+
+#ifdef DEVELOPER_VERSION
+        // Dev mode: jump straight into the Level Editor
+        engine.GetGameStateManager().PushState<LevelEditor>();
+#else
+        // Release mode: start at the main menu
+        engine.GetGameStateManager().PushState<MainMenu>();
+#endif
 
 #if !defined(__EMSCRIPTEN__)
         while (engine.HasGameEnded() == false)

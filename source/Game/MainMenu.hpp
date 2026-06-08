@@ -27,6 +27,7 @@ private:
     enum class MenuState
     {
         Main,
+        SaveSelect,
         Settings
     };
 
@@ -39,10 +40,12 @@ private:
 
     void UpdateMainMenu(double dt);
     void DrawMainMenu();
+    void UpdateSaveSelectMenu(double dt);
+    void DrawSaveSelectMenu();
 
     // Visual assets for menu text
     std::shared_ptr<CS230::Texture> titleTexture;
-    std::shared_ptr<CS230::Texture> startTexture;
+    std::shared_ptr<CS230::Texture> startTexture;    // "Game Start"
     std::shared_ptr<CS230::Texture> settingsTexture;
     std::shared_ptr<CS230::Texture> exitTexture;
 
@@ -54,6 +57,13 @@ private:
     bool isStartHovered    = false;
     bool isSettingsHovered = false;
     bool isExitHovered     = false;
+
+    // Save select: 3 slot cards
+    static constexpr int SaveSlotCount = 3;
+    Math::rect                      slotRects[SaveSlotCount];
+    std::shared_ptr<CS230::Texture> slotNameTextures[SaveSlotCount];
+    std::shared_ptr<CS230::Texture> slotStatusTextures[SaveSlotCount];
+    bool isSlotHovered[SaveSlotCount] = {};
 
     void UpdateSettingsMenu(double dt);
     void DrawSettingsMenu();

@@ -390,8 +390,8 @@ void PauseMenu::UpdateSettings()
         const float sfxFloat = static_cast<float>(sfxLevel) / 10.0f;
         CS230::SettingsManager::Instance().SetBGMVolume(bgmFloat);
         CS230::SettingsManager::Instance().SetSFXVolume(sfxFloat);
-        AudioManager::SetBGMVolume(static_cast<int>(bgmFloat * 128.0f));
-        AudioManager::SetSFXVolume(static_cast<int>(sfxFloat * 128.0f));
+        AudioManager::SetBGMVolume(static_cast<int>(bgmFloat * 14.0f));
+        AudioManager::SetSFXVolume(static_cast<int>(sfxFloat *  8.0f));
     }
 
     if (CheckClick(applyRect))

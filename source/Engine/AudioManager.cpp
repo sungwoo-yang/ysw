@@ -15,6 +15,10 @@ void AudioManager::Initialize()
     {
         std::cerr << "[AudioManager Error] SDL_mixer could not initialize! Error: " << Mix_GetError() << std::endl;
     }
+
+    // Safe default volumes — LoadSettings will override these if a config exists
+    Mix_VolumeMusic(7);  // BGM: 7/128
+    Mix_Volume(-1, 4);   // SFX: 4/128
 }
 
 void AudioManager::Shutdown()

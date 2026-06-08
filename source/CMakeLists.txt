@@ -68,6 +68,11 @@ set(SOURCE_CODE
     Game/Constellation.hpp Game/Constellation.cpp
     Game/Door.hpp Game/Door.cpp
     Game/DoorActionHandler.hpp Game/DoorActionHandler.cpp
+    Game/BreakableWall.hpp Game/BreakableWall.cpp
+    Game/Spike.hpp Game/Spike.cpp
+    Game/Staircase.hpp Game/Staircase.cpp
+    Game/Ramp.hpp Game/Ramp.cpp
+    Game/Elevator.hpp Game/Elevator.cpp
     Game/FallingBlock.hpp Game/FallingBlock.cpp
     Game/Gate.hpp Game/Gate.cpp
     Game/Laser.hpp Game/Laser.cpp
@@ -96,6 +101,21 @@ set(SOURCE_CODE
     Game/YellowLaser.hpp Game/YellowLaser.cpp
     Game/FallCutscene.hpp Game/FallCutscene.cpp
     Game/Mode3.hpp Game/Mode3.cpp
+    Game/LevelEditor.hpp Game/LevelEditor.cpp
+    Game/LaserTurret.hpp Game/LaserTurret.cpp
+    Game/WaterZone.hpp Game/WaterZone.cpp
+    Game/TutorialOverlay.hpp Game/TutorialOverlay.cpp
+    Game/TutorialScript.hpp
+    Game/CutscenePlayer.hpp Game/CutscenePlayer.cpp
+    Game/ScriptManager.hpp  Game/ScriptManager.cpp
+    Game/InGameScriptEditor.hpp Game/InGameScriptEditor.cpp
+    Game/LevelStreamer.hpp Game/LevelStreamer.cpp
+    Game/SaveData.hpp
+    Game/SaveManager.hpp Game/SaveManager.cpp
+    Game/OriPostProcessor.hpp Game/OriPostProcessor.cpp
+    Game/OriAnimData.hpp
+    Game/OriAnim.hpp Game/OriAnim.cpp
+    Game/OriMode.hpp Game/OriMode.cpp
     Game/PostProcessor.hpp Game/PostProcessor.cpp
     
     OpenGL/Buffer.hpp OpenGL/Buffer.cpp

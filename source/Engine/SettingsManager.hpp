@@ -10,11 +10,11 @@ namespace CS230
     {
         int         resolutionX  = 1280;
         int         resolutionY  = 720;
-        bool        fullscreen   = false;
+        bool        fullscreen   = true;
         bool        borderless   = false;
-        float       masterVolume = 1.0f;
-        float       bgmVolume    = 1.0f;
-        float       sfxVolume    = 1.0f;
+        float       masterVolume = 0.5f;
+        float       bgmVolume    = 0.5f;
+        float       sfxVolume    = 0.5f;
         int         frameLimit   = 60;
         bool        showFPS      = false;
         std::string language     = "English";

@@ -1,22 +1,33 @@
 #include "Mode3.hpp"
 
+#include "LevelEditor.hpp"
+#include "MainMenu.hpp"
+
 #include "BossConfig.hpp"
+#include "BreakableWall.hpp"
 #include "Door.hpp"
 #include "DoorActionHandler.hpp"
 #include "LightOrb.hpp"
 #include "LightOrbManager.hpp"
-#include "MainMenu.hpp"
 #include "MiniMap.hpp"
 #include "ObjectFactory.hpp"
 #include "Player.hpp"
 #include "ShieldChargeShot.hpp"
 #include "ShieldEnergy.hpp"
+#include "CutscenePlayer.hpp"
+#include "Gate.hpp"
+#include "InGameScriptEditor.hpp"
+#include "LevelStreamer.hpp"
+#include "SaveManager.hpp"
+#include "ScriptManager.hpp"
+#include "TutorialOverlay.hpp"
 #include "WorldTextManager.hpp"
 
 #include "CS200/IRenderer2D.hpp"
 #include "CS200/NDC.hpp"
 
 #include "Engine/AudioManager.hpp"
+#include "Engine/SettingsManager.hpp"
 #include "Engine/BackgroundElement.hpp"
 #include "Engine/Camera.hpp"
 #include "Engine/Engine.hpp"
@@ -26,6 +37,7 @@
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
+#include "Engine/Collision.hpp"
 #include "Engine/MapElement.h"
 #include "Engine/MapManager.h"
 #include "Engine/ShowCollision.hpp"
@@ -34,12 +46,16 @@
 
 #include "OpenGL/GL.hpp"
 
+#include <SDL.h>
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <imgui.h>
 #include <span>
 #include <vector>
 
 std::optional<Math::vec2> Mode3::pendingReturnPosition = std::nullopt;
+bool                      Mode3::s_startInEditor        = false;
 
 void Mode3::SetReturnPosition(Math::vec2 position)
 {
@@ -59,13 +75,22 @@ void Mode3::Load()
 
     AddGSComponent(new CS230::GameObjectManager());
 
-    Math::vec2 spawnPosition = { 300.0, -3000.0 };
+    spawnPos = { -10.0, 0.0 };
 
+    // Priority: editor return > save file > default
     if (pendingReturnPosition.has_value())
     {
-        spawnPosition         = pendingReturnPosition.value();
+        spawnPos              = pendingReturnPosition.value();
         pendingReturnPosition = std::nullopt;
     }
+    else if (SaveManager::HasSave())
+    {
+        if (auto sd = SaveManager::Load())
+            spawnPos = { sd->spawnX, sd->spawnY };
+    }
+    Math::vec2 spawnPosition = spawnPos;
+    deathTimer   = -1.0;
+    respawnDone  = false;
 
     player = new Player(spawnPosition);
 
@@ -87,6 +112,7 @@ void Mode3::Load()
     });
 
     Math::ivec2 winSize = Engine::GetWindow().GetSize();
+    postProcessor.Initialize(winSize);
 
     camera->SetLimit(
         Math::irect{
@@ -96,7 +122,7 @@ void Mode3::Load()
 
     AddGSComponent(camera);
 
-    mapManager->AddMap(new CS230::Map("Assets/maps/main.svg"));
+    mapManager->AddMap(new CS230::Map("Assets/maps/editor_output.svg"));
     mapManager->LoadMap();
     AddGSComponent(mapManager);
 
@@ -117,10 +143,23 @@ void Mode3::Load()
 
     AudioManager::LoadSound("BGM_Virgo", std::filesystem::path("Assets/sounds/Virgo.mp3"), AudioTypes::BGM);
     AudioManager::LoadSound("SFX_Landing", std::filesystem::path("Assets/sounds/Landing_Effect.mp3"), AudioTypes::SFX);
+
+    // Auto-enter the level editor on first launch.
+    // s_startInEditor is reset to false here so subsequent Mode3 loads
+    // (after returning from the editor) start the game normally.
+    if (s_startInEditor)
+    {
+        s_startInEditor = false;
+        LevelEditor::SetGameObjects(GetGSComponent<CS230::GameObjectManager>());
+        LevelEditor::SetSpawnPos(spawnPosition);
+        LevelEditor::SetInitialCamera(spawnPosition, 1.0);
+        Engine::GetGameStateManager().PushState<LevelEditor>();
+    }
 }
 
 bool Mode3::CanPause() const
 {
+    if (miniMap && miniMap->IsVisible()) return false;
     return currentState == State::Playing;
 }
 
@@ -133,25 +172,76 @@ void Mode3::InitGame()
         gom->Add(player);
     }
 
-    shieldEnergy = new Boss::ShieldEnergy();
-    shieldEnergy->SetEnergy(shieldEnergy->GetMaxEnergy());
-
-    shieldChargeShot = new Boss::ShieldChargeShot(player, shieldEnergy);
+    // shieldEnergy = new Boss::ShieldEnergy();
+    // shieldEnergy->SetEnergy(shieldEnergy->GetMaxEnergy());
+    // shieldChargeShot = new Boss::ShieldChargeShot(player, shieldEnergy);
 
     worldTextManager = new WorldTextManager();
     worldTextManager->SetCamera(camera);
     AddGSComponent(worldTextManager);
 
+    tutorialOverlay = new TutorialOverlay();
+    AddGSComponent(tutorialOverlay);
+
+    cutscenePlayer = new CutscenePlayer();
+    cutscenePlayer->SetRefs(player, tutorialOverlay, camera,
+                            Engine::GetWindow().GetSize());
+    AddGSComponent(cutscenePlayer);
+
+    scriptManager = new ScriptManager();
+    scriptManager->SetCutscenePlayer(cutscenePlayer);
+    scriptManager->LoadTriggers();
+    AddGSComponent(scriptManager);
+
+    scriptEditorIG = new InGameScriptEditor();
+    scriptEditorIG->SetRefs(camera, cutscenePlayer, scriptManager,
+                            Engine::GetWindow().GetSize());
+    scriptEditorIG->LoadTriggers();
+
+    // Room bounds: global union for minimap + per-room clamping for camera
+    {
+        const auto& rooms = mapManager->GetAllRooms();
+        if (!rooms.empty())
+        {
+            double minX = rooms[0].Left(),   maxX = rooms[0].Right();
+            double minY = rooms[0].Bottom(), maxY = rooms[0].Top();
+            for (const auto& r : rooms)
+            {
+                minX = std::min(minX, r.Left());   maxX = std::max(maxX, r.Right());
+                minY = std::min(minY, r.Bottom()); maxY = std::max(maxY, r.Top());
+            }
+            worldBounds  = Math::rect{{ minX, minY }, { maxX, maxY }};
+            cameraBounds = worldBounds;
+        }
+    }
+
     if (miniMap)
     {
+        miniMap->SetWorldBounds(worldBounds ? *worldBounds : level_boundary);
         miniMap->AttachPlayer(player);
         miniMap->AttachCamera(camera);
         miniMap->AttachMapManager(mapManager);
         miniMap->AttachGameObjectManager(gom);
+        miniMap->SetMode(MiniMapMode::Full);
+        miniMap->SetVisible(false);
     }
 
-    Math::ivec2 winSize = Engine::GetWindow().GetSize();
-    camera->SetPosition(player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.5 });
+    // Set initial camera position
+    {
+        Math::ivec2 winSize = Engine::GetWindow().GetSize();
+        camera->SetPosition(player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.5 });
+    }
+
+    // Level streaming: assign objects to rooms, start with all active
+    levelStreamer = new LevelStreamer();
+    levelStreamer->Init(mapManager->GetAllRooms(), gom->GetObjects());
+
+    // Apply saved game state (abilities, HP, gate states)
+    if (SaveManager::HasSave())
+    {
+        if (auto sd = SaveManager::Load())
+            ApplySave(*sd);
+    }
 
     AudioManager::Play("BGM_Virgo");
 }
@@ -159,8 +249,8 @@ void Mode3::InitGame()
 void Mode3::Update(double dt)
 {
     UpdateGSComponents(dt);
-
     shaderTime += dt;
+    postProcessor.Tick(dt);
 
     if (currentState == State::Loading)
     {
@@ -174,19 +264,161 @@ void Mode3::Update(double dt)
         return;
     }
 
+    // Map open: lock player, handle ESC to close
+    const bool mapVisible = miniMap && miniMap->IsVisible();
+    if (player) player->inputLocked = mapVisible;
+
+    if (mapVisible)
+    {
+        if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::Escape))
+            miniMap->SetVisible(false);
+        // Skip game-object updates while map is open
+        goto camera_update;
+    }
+
+    // M key: open full-screen map
     if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::M))
     {
         if (miniMap)
-            miniMap->ToggleMode();
+            miniMap->SetVisible(true);
     }
 
-    GetGSComponent<CS230::GameObjectManager>()->UpdateAll(dt);
-    GetGSComponent<CS230::GameObjectManager>()->CollisionTest();
-
-    if (shieldChargeShot != nullptr)
+#ifdef DEVELOPER_VERSION
+    // Tab: switch to level editor (debug builds only)
     {
-        shieldChargeShot->Update(dt);
+        const Uint8* sdlKeys = SDL_GetKeyboardState(nullptr);
+        if (sdlKeys[SDL_SCANCODE_TAB])
+        {
+            const Math::vec2 playerPos = player ? player->GetPosition() : Math::vec2{300.0, -3000.0};
+            LevelEditor::SetGameObjects(GetGSComponent<CS230::GameObjectManager>());
+            LevelEditor::SetSpawnPos(playerPos);
+            LevelEditor::SetInitialCamera(playerPos, 1.0);
+            Engine::GetGameStateManager().PushState<LevelEditor>();
+            return;
+        }
     }
+#endif
+
+    // ---- Bash system ----
+    if (player && player->bashEnabled)
+    {
+        constexpr double BASH_RADIUS = 160.0;
+        constexpr double SLOW_FACTOR = 0.12;
+
+        bool         foundTarget = false;
+        LaserTurret* nearest     = nullptr;
+        double       nearestDist = BASH_RADIUS * BASH_RADIUS;
+
+        for (auto* obj : GetGSComponent<CS230::GameObjectManager>()->GetObjects())
+        {
+            if (obj->Type() != GameObjectTypes::LaserTurret) continue;
+            auto* t = static_cast<LaserTurret*>(obj);
+            if (!t->IsBulletActive() || t->IsBulletBashed()) continue;
+
+            const double d2 = (t->GetBulletPosition() - player->GetPosition()).LengthSquared();
+            if (d2 <= nearestDist)
+            {
+                nearestDist  = d2;
+                nearest      = t;
+                foundTarget  = true;
+            }
+        }
+
+        if (foundTarget)
+        {
+            // Reset window timer when acquiring a new target
+            if (!bashReady || bashTarget != nearest)
+                bashWindowTimer = 0.0;
+
+            bashWindowTimer += dt;   // real (unscaled) time
+            bashReady        = true;
+            bashTarget       = nearest;
+
+            // Slow-mo only within the 1-second window
+            timeScaleTarget = (bashWindowTimer < BASH_WINDOW) ? SLOW_FACTOR : 1.0;
+        }
+        else
+        {
+            bashReady       = false;
+            bashTarget      = nullptr;
+            timeScaleTarget = 1.0;
+            bashWindowTimer = 0.0;
+        }
+
+        // Smooth time-scale transition
+        timeScale += (timeScaleTarget - timeScale) * std::min(dt * 14.0, 1.0);
+
+        // ---- Execute bash on left click ----
+        if (bashReady && bashTarget &&
+            Engine::GetInput().MouseButtonJustPressed(CS230::Input::MouseButton::Left))
+        {
+            const Math::ivec2 win = Engine::GetWindow().GetSize();
+            const Math::vec2  ms  = Engine::GetInput().GetMousePosition();
+            const Math::vec2  mouseWorld = camera->GetPosition()
+                                         + Math::vec2{ ms.x, win.y - ms.y };
+
+            const Math::vec2 bulletPos = bashTarget->GetBulletPosition();
+            Math::vec2 toMouse = mouseWorld - bulletPos;
+            if (toMouse.LengthSquared() < 1.0) toMouse = { 1.0, 0.0 };
+            const Math::vec2 bashDir = toMouse.Normalize();
+
+            const double dot       = bashTarget->GetBulletDirection().Dot(bashDir);
+            const double forceMult = 1.0 - 0.5 * dot;
+            constexpr double BASE_FORCE = 950.0;
+            const Math::vec2 impulse = -bashDir * (BASE_FORCE * forceMult);
+
+            bashTarget->BashBullet(bashDir);
+            player->ApplyBashImpulse(impulse);
+
+            bashReady       = false;
+            bashTarget      = nullptr;
+            timeScale       = 1.0;
+            timeScaleTarget = 1.0;
+            bashWindowTimer = 0.0;
+        }
+    }
+    else
+    {
+        bashReady       = false;
+        bashTarget      = nullptr;
+        timeScale       = 1.0;
+        timeScaleTarget = 1.0;
+        bashWindowTimer = 0.0;
+    }
+
+    {
+        const double freezeMult = (cutscenePlayer && cutscenePlayer->IsTimeFrozen()) ? 0.0 : 1.0;
+        const double scaledDt   = dt * timeScale * freezeMult;
+        GetGSComponent<CS230::GameObjectManager>()->UpdateAll(scaledDt);
+        GetGSComponent<CS230::GameObjectManager>()->CollisionTest();
+    }
+
+    // Level streaming — activate / deactivate objects by room proximity
+    if (levelStreamer && player)
+        levelStreamer->Update(player->GetPosition(), dt);
+
+    // Deferred save (requested by Bonfire::Interact)
+    if (SaveManager::ConsumeSaveRequest())
+    {
+        SaveGame();
+        // Show brief on-screen feedback
+        if (tutorialOverlay)
+            tutorialOverlay->Show("Game Saved.", 1.8, { 0.5, 0.12 });
+    }
+
+    // 스크립트 트리거 감지 (in-game editor 활성 시 비활성)
+    if (scriptManager && player && !(scriptEditorIG && scriptEditorIG->active))
+        scriptManager->CheckTriggers(player->GetPosition());
+
+    // 컷씬 플레이어 업데이트
+    if (cutscenePlayer) cutscenePlayer->Update(dt);
+
+    // 인게임 스크립트 에디터 입력 처리
+    if (scriptEditorIG && scriptEditorIG->active)
+        scriptEditorIG->Update();
+
+    // if (shieldChargeShot != nullptr)
+    //     shieldChargeShot->Update(dt * timeScale);
 
     if (player != nullptr && player->interactionTarget == nullptr)
         player->isInteracting = false;
@@ -215,24 +447,136 @@ void Mode3::Update(double dt)
 
     if (player != nullptr)
     {
-        Math::vec2 winSize = static_cast<Math::vec2>(Engine::GetWindow().GetSize());
+        const Math::ivec2 winSize = Engine::GetWindow().GetSize();
+        const double      winW    = winSize.x;
+        const double      winH    = winSize.y;
 
-        float currentScale = 0.8f;
-        camera->SetScale(currentScale);
+        // Zoom: cutscene overrides, otherwise default 1.0
+        if (cutscenePlayer && cutscenePlayer->overridingZoom)
+            camera->SetScale(cutscenePlayer->zoomTarget);
+        else
+            camera->SetScale(1.0);
 
-        Math::vec2 scaledWinSize = winSize / currentScale;
+        // Compute target: player-centered, clamped to cameraBounds
+        const double camZoom = camera->GetScale();
+        const double visW    = winW / camZoom;
+        const double visH    = winH / camZoom;
+        Math::vec2 target = player->GetPosition() - Math::vec2{ visW * 0.5, visH * 0.5 };
 
-        Math::vec2 targetPos = player->GetPosition() - Math::vec2{ scaledWinSize.x * 0.5, scaledWinSize.y * 0.5 };
+        if (cameraBounds && !(cutscenePlayer && cutscenePlayer->overridingCamera))
+        {
+            const double bW = cameraBounds->Right()  - cameraBounds->Left();
+            const double bH = cameraBounds->Top()    - cameraBounds->Bottom();
 
-        camera->Update(targetPos, dt);
+            if (visW >= bW)
+                target.x = cameraBounds->Left() - (visW - bW) * 0.5;
+            else
+                target.x = std::clamp(target.x, cameraBounds->Left(), cameraBounds->Right()  - visW);
+
+            if (visH >= bH)
+                target.y = cameraBounds->Bottom() - (visH - bH) * 0.5;
+            else
+                target.y = std::clamp(target.y, cameraBounds->Bottom(), cameraBounds->Top() - visH);
+        }
+
+
+        // 씬 스크립트가 카메라를 제어 중이면 플레이어 추적 대신 컷씬 타겟 사용
+        if (cutscenePlayer && cutscenePlayer->overridingCamera)
+            target = cutscenePlayer->cameraTarget;
+
+        // Smooth lerp — no teleport
+        constexpr double CAM_SPEED = 8.0;
+        const Math::vec2 cur = camera->GetPosition();
+        camera->SetPosition(cur + (target - cur) * std::min(dt * CAM_SPEED, 1.0));
     }
 
-    if (Engine::GetInput().KeyJustPressed(CS230::Input::Keys::P))
+    // Pass player HP and camera position to post-processor
+    if (player)
+        postProcessor.SetPlayerHp(static_cast<float>(player->GetHP()), 5.0f);
+    if (camera)
     {
-        player->SetPosition({ 1900, -1500 });
+        const Math::vec2 cp = camera->GetPosition();
+        postProcessor.SetCameraPos(static_cast<float>(cp.x), static_cast<float>(cp.y));
     }
 
-    miniMap->Update(dt);
+    // ── Death → light-dissolve → respawn ────────────────────────────────────
+    if (player && player->IsDead())
+    {
+        if (deathTimer < 0.0) deathTimer = 0.0;
+        deathTimer += dt;
+
+        // Phase durations
+        constexpr double FADE_IN  = 1.0;  // 0→1 blackout (death → black)
+        constexpr double HOLD     = 0.5;  // full black (respawn happens here)
+        constexpr double FADE_OUT = 0.8;  // 1→0 blackout (black → normal)
+
+        player->UpdateDeathEffect(dt);
+
+        if (deathTimer < FADE_IN)
+        {
+            const float blackout = static_cast<float>(deathTimer / FADE_IN);
+            postProcessor.SetBlackout(blackout);
+        }
+        else if (deathTimer < FADE_IN + HOLD)
+        {
+            postProcessor.SetBlackout(1.0f);
+            if (!respawnDone)
+            {
+                player->ResetState();
+                player->SetPosition(spawnPos);
+
+                // Reset broken water walls
+                for (auto* obj : GetGSComponent<CS230::GameObjectManager>()->GetObjects())
+                    if (obj && obj->Type() == GameObjectTypes::BreakableWall)
+                        static_cast<BreakableWall*>(obj)->ResetIfWater();
+
+                // Snap camera to spawn position while screen is black
+                if (camera)
+                {
+                    const Math::ivec2 win  = Engine::GetWindow().GetSize();
+                    const double      zoom = camera->GetScale();
+                    const double      visW = win.x / zoom;
+                    const double      visH = win.y / zoom;
+                    Math::vec2 camSnap     = spawnPos - Math::vec2{ visW * 0.5, visH * 0.5 };
+
+                    if (cameraBounds)
+                    {
+                        const double bW = cameraBounds->Right()  - cameraBounds->Left();
+                        const double bH = cameraBounds->Top()    - cameraBounds->Bottom();
+                        camSnap.x = (visW >= bW)
+                            ? cameraBounds->Left() - (visW - bW) * 0.5
+                            : std::clamp(camSnap.x, cameraBounds->Left(), cameraBounds->Right()  - visW);
+                        camSnap.y = (visH >= bH)
+                            ? cameraBounds->Bottom() - (visH - bH) * 0.5
+                            : std::clamp(camSnap.y, cameraBounds->Bottom(), cameraBounds->Top() - visH);
+                    }
+
+                    camera->SetPosition(camSnap);
+                }
+
+                respawnDone = true;
+            }
+        }
+        else
+        {
+            const double fadeProgress = (deathTimer - FADE_IN - HOLD) / FADE_OUT;
+            postProcessor.SetBlackout(static_cast<float>(1.0 - fadeProgress));
+            if (fadeProgress >= 1.0)
+            {
+                postProcessor.SetBlackout(0.0f);
+                deathTimer  = -1.0;
+                respawnDone = false;
+            }
+        }
+        goto camera_update;
+    }
+    else
+    {
+        postProcessor.SetBlackout(0.0f);
+    }
+
+    camera_update:
+    if (miniMap) miniMap->Update(dt);
 }
 
 void Mode3::Draw()
@@ -260,44 +604,120 @@ void Mode3::Draw()
         return;
     }
 
-    Engine::GetWindow().Clear(CS200::BLACK);
+    // Snap camera position to nearest pixel to eliminate sub-pixel jitter
+    const Math::vec2 rawCamPos  = camera->GetPosition();
+    const Math::vec2 snapCamPos = { std::round(rawCamPos.x), std::round(rawCamPos.y) };
+    Math::TransformationMatrix vp = CS200::build_ndc_matrix(display_size_int) *
+        (Math::ScaleMatrix({ camera->GetScale(), camera->GetScale() }) * Math::TranslationMatrix(-snapCamPos));
 
+    // Scene pass: background + all game objects
+    postProcessor.BeginSceneRender();
     {
         GL::UseProgram(backgroundShader.Shader);
-
-        GLint resLoc  = GL::GetUniformLocation(backgroundShader.Shader, "u_resolution");
-        GLint timeLoc = GL::GetUniformLocation(backgroundShader.Shader, "u_time");
-
-        GL::Uniform2f(resLoc, static_cast<float>(display_size_int.x), static_cast<float>(display_size_int.y));
-
-        GL::Uniform1f(timeLoc, static_cast<float>(shaderTime));
-
+        GL::Uniform2f(GL::GetUniformLocation(backgroundShader.Shader, "u_resolution"),
+                      static_cast<float>(display_size_int.x), static_cast<float>(display_size_int.y));
+        GL::Uniform1f(GL::GetUniformLocation(backgroundShader.Shader, "u_time"),
+                      static_cast<float>(shaderTime));
+        if (camera)
+        {
+            const Math::vec2 cp = camera->GetPosition();
+            GL::Uniform2f(GL::GetUniformLocation(backgroundShader.Shader, "u_camPos"),
+                          static_cast<float>(cp.x), static_cast<float>(cp.y));
+        }
+        GL::Uniform1f(GL::GetUniformLocation(backgroundShader.Shader, "u_parallax"), 0.25f);
         GL::BindVertexArray(backgroundVAO);
         GL::DrawArrays(GL_TRIANGLE_FAN, 0, 4);
         GL::BindVertexArray(0);
         GL::UseProgram(0);
     }
+    renderer.BeginScene(vp);
+    GetGSComponent<CS230::GameObjectManager>()->DrawAll(vp);
+    // if (shieldChargeShot != nullptr)
+    //     shieldChargeShot->Draw(vp);
 
-    Math::TransformationMatrix view_projection_matrix = CS200::build_ndc_matrix(display_size_int) * camera->GetMatrix();
-    renderer.BeginScene(view_projection_matrix);
-
-    GetGSComponent<CS230::GameObjectManager>()->DrawAll(view_projection_matrix);
-
-    if (shieldChargeShot != nullptr)
+    // Bash aim indicator
+    if (bashReady && bashTarget && player)
     {
-        shieldChargeShot->Draw(view_projection_matrix);
+        constexpr double kPI    = 3.14159265358979323846;
+        constexpr double TWO_PI = kPI * 2.0;
+
+        const Math::ivec2 win  = Engine::GetWindow().GetSize();
+        const Math::vec2  ms   = Engine::GetInput().GetMousePosition();
+        const Math::vec2  mw   = camera->GetPosition() + Math::vec2{ ms.x, win.y - ms.y };
+        const Math::vec2  bPos = bashTarget->GetBulletPosition();
+
+        const double progress = std::min(bashWindowTimer / BASH_WINDOW, 1.0);
+
+        // ---- Aim line & arrow ----
+        renderer.DrawLine(bPos, mw, 0xFFFFFF90u, 1.5);
+        const Math::vec2 toMouse = (mw - bPos).LengthSquared() > 1.0
+                                 ? (mw - bPos).Normalize() : Math::vec2{ 1.0, 0.0 };
+        constexpr double ARROW = 18.0;
+        const Math::vec2 arrowLeft = { -toMouse.y, toMouse.x };
+        renderer.DrawLine(mw, mw - toMouse * ARROW + arrowLeft * (ARROW * 0.5), 0xFFFFFF90u, 1.5);
+        renderer.DrawLine(mw, mw - toMouse * ARROW - arrowLeft * (ARROW * 0.5), 0xFFFFFF90u, 1.5);
+
+        // Player rebound direction
+        renderer.DrawLine(player->GetPosition(),
+                          player->GetPosition() + (-toMouse) * 80.0,
+                          0xFF8844FFu, 2.0);
+
+        // ---- Circular light sweep ----
+        constexpr double RADIUS    = 55.0;         // smaller circle
+        constexpr double START_ANG = kPI * 0.5;    // 12 o'clock
+        constexpr int    RING_SEGS = 72;
+        constexpr double BULGE_ANG = kPI / 5.0;    // ±36° glow spread
+
+        const double headAng = START_ANG - progress * TWO_PI;
+
+        for (int i = 0; i < RING_SEGS; ++i)
+        {
+            const double a0 = START_ANG - (double)i       / RING_SEGS * TWO_PI;
+            const double a1 = START_ANG - (double)(i + 1) / RING_SEGS * TWO_PI;
+            const double aMid = (a0 + a1) * 0.5;
+
+            // Angular distance from head (wrap-safe via cos trick)
+            double dAng = std::acos(std::max(-1.0, std::min(1.0,
+                std::cos(aMid) * std::cos(headAng) + std::sin(aMid) * std::sin(headAng))));
+
+            // Glow: 1 at head, 0 at BULGE_ANG away
+            const double glow = std::max(0.0, 1.0 - dAng / BULGE_ANG);
+            const double glowSmooth = glow * glow;  // quadratic falloff
+
+            // Line width: thin normally, bulges at the light position
+            const double lineW = 1.0 + glowSmooth * 7.0;
+
+            // Color: dim grey ring → bright white-blue at glow
+            const uint32_t baseAlpha  = static_cast<uint32_t>(0x55 + glowSmooth * 0xAA);
+            const uint32_t rComp = static_cast<uint32_t>(0x55 + glowSmooth * 0xAA);
+            const uint32_t gComp = static_cast<uint32_t>(0x66 + glowSmooth * 0x99);
+            const uint32_t bComp = static_cast<uint32_t>(0x77 + glowSmooth * 0x88);
+            const uint32_t col = (rComp << 24) | (gComp << 16) | (bComp << 8) | baseAlpha;
+
+            renderer.DrawLine(
+                { bPos.x + RADIUS * std::cos(a0), bPos.y + RADIUS * std::sin(a0) },
+                { bPos.x + RADIUS * std::cos(a1), bPos.y + RADIUS * std::sin(a1) },
+                col, lineW);
+        }
     }
+
+    // In-game script editor world overlay
+    if (scriptEditorIG) scriptEditorIG->DrawWorld(renderer);
 
     renderer.EndScene();
 
+    // Bloom is now extracted automatically by bright_pass in OriPostProcessor
+
+    // Composite bloom to screen
+    postProcessor.EndRenderAndDraw();
+
+    // Screen-space UI (world text)
     Math::TransformationMatrix screen_matrix = CS200::build_ndc_matrix(display_size_int);
     renderer.BeginScene(screen_matrix);
-
     if (worldTextManager != nullptr)
-    {
         worldTextManager->Draw();
-    }
-
+    if (tutorialOverlay != nullptr)
+        tutorialOverlay->Draw();
     renderer.EndScene();
 }
 
@@ -322,38 +742,157 @@ void Mode3::DrawImGui()
     }
     if (ImGui::CollapsingHeader("Light Gauge / Charge Shot", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (shieldEnergy != nullptr)
-        {
-            ImGui::Text("Light Gauge: %.1f / %.1f", shieldEnergy->GetEnergy(), shieldEnergy->GetMaxEnergy());
-            ImGui::ProgressBar(shieldEnergy->GetRatio(), ImVec2(220.0f, 18.0f));
-
-            if (ImGui::Button("Fill Gauge"))
-            {
-                shieldEnergy->SetEnergy(shieldEnergy->GetMaxEnergy());
-            }
-
-            ImGui::SameLine();
-
-            if (ImGui::Button("Reset Gauge"))
-            {
-                shieldEnergy->Reset();
-            }
-        }
-
-        if (shieldChargeShot != nullptr)
-        {
-            ImGui::Separator();
-            ImGui::Text("Charging: %s", shieldChargeShot->IsCharging() ? "true" : "false");
-            ImGui::Text("Ready: %s", shieldChargeShot->IsReadyToFire() ? "true" : "false");
-            ImGui::ProgressBar(shieldChargeShot->GetChargeRatio(), ImVec2(220.0f, 18.0f));
-        }
+        // if (shieldEnergy != nullptr) { ... }
+        // if (shieldChargeShot != nullptr) { ... }
     }
     ImGui::End();
-#endif
-    ImGui::Begin("Mode3 Release");
-    if (miniMap)
-        miniMap->DrawImGui();
+
+    ImGui::Begin("Mode3");
+    if (player)
+    {
+        const int maxHp     = 5;
+        const int currentHp = static_cast<int>(player->GetHP() + 0.01);
+        ImGui::TextColored({ 1.0f, 0.3f, 0.3f, 1.0f }, "HP  ");
+        ImGui::SameLine();
+        for (int i = 0; i < maxHp; ++i)
+        {
+            const bool filled = (i < currentHp);
+            ImGui::TextColored(
+                filled ? ImVec4{ 1.0f, 0.2f, 0.2f, 1.0f }
+                       : ImVec4{ 0.4f, 0.1f, 0.1f, 1.0f },
+                filled ? "[*]" : "[ ]");
+            if (i < maxHp - 1) ImGui::SameLine();
+        }
+        ImGui::Separator();
+
+        ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0f }, "Abilities");
+        bool dash = player->dashEnabled;
+        bool wall = player->wallClimbEnabled;
+        bool bash = player->bashEnabled;
+        if (ImGui::Checkbox("Dash [LShift]", &dash))
+            player->dashEnabled = dash;
+        if (ImGui::Checkbox("Wall Climb", &wall))
+            player->wallClimbEnabled = wall;
+        if (ImGui::Checkbox("Bash [LClick near bullet]", &bash))
+            player->bashEnabled = bash;
+    }
+    if (currentState == State::Playing)
+    {
+        ImGui::Separator();
+        if (ImGui::Button("Level Editor [Tab]", { 180.0f, 0.0f }))
+        {
+            const Math::vec2 playerPos = player ? player->GetPosition() : Math::vec2{ -10.0, 0.0 };
+            LevelEditor::SetGameObjects(GetGSComponent<CS230::GameObjectManager>());
+            LevelEditor::SetSpawnPos(playerPos);
+            LevelEditor::SetInitialCamera(playerPos, 1.0);
+            Engine::GetGameStateManager().PushState<LevelEditor>();
+        }
+
+        if (scriptEditorIG)
+        {
+            ImGui::SameLine();
+            const bool igOn = scriptEditorIG->active;
+            if (igOn) ImGui::PushStyleColor(ImGuiCol_Button, { 0.2f, 0.7f, 0.3f, 1.0f });
+            if (ImGui::Button(igOn ? "ScriptEd [ON]" : "Script Ed", { 120.0f, 0.0f }))
+                scriptEditorIG->active = !scriptEditorIG->active;
+            if (igOn) ImGui::PopStyleColor();
+        }
+    }
+    ImGui::Separator();
+    if (ImGui::Button("Main Menu", { 265.0f, 0.0f }))
+    {
+        CS230::SettingsManager::Instance().SaveSettings();
+        Engine::GetGameStateManager().ChangeStateWithFade<MainMenu>();
+    }
+    if (levelStreamer)
+        ImGui::TextDisabled("Streaming: %d rooms active", levelStreamer->ActiveRoomCount());
     ImGui::End();
+
+    if (scriptEditorIG) scriptEditorIG->DrawImGui();
+#endif
+
+    if (miniMap) miniMap->DrawImGui();
+}
+
+// ---------------------------------------------------------------------------
+// Save / Load helpers
+// ---------------------------------------------------------------------------
+
+void Mode3::SaveGame()
+{
+    SaveData data;
+
+    if (player)
+    {
+        const Math::vec2 sp = player->GetSavePoint();
+        data.spawnX    = sp.x;
+        data.spawnY    = sp.y;
+        data.hp        = player->GetHP();
+        data.dash      = player->dashEnabled;
+        data.wallClimb = player->wallClimbEnabled;
+        data.bash      = player->bashEnabled;
+    }
+
+    // Collect open-gate names (crack walls that have been destroyed)
+    auto* gom = GetGSComponent<CS230::GameObjectManager>();
+    if (gom)
+    {
+        for (auto* obj : gom->GetObjects())
+        {
+            if (obj->Type() != GameObjectTypes::Gate) continue;
+            auto* gate = static_cast<Gate*>(obj);
+            if (!gate->IsOpen()) continue;
+
+            // Use object name if set, otherwise fall back to "x,y" position key
+            std::string id = gate->GetName();
+            if (id.empty())
+            {
+                const Math::vec2 p = gate->GetPosition();
+                id = std::to_string(static_cast<int>(p.x)) + ","
+                   + std::to_string(static_cast<int>(p.y));
+            }
+            data.openGates.push_back(id);
+        }
+    }
+
+    SaveManager::Save(data);
+}
+
+void Mode3::ApplySave(const SaveData& data)
+{
+    if (player)
+    {
+        player->dashEnabled      = data.dash;
+        player->wallClimbEnabled = data.wallClimb;
+        player->bashEnabled      = data.bash;
+        // HP is set indirectly: player starts with maxHp then we adjust
+        // (Player doesn't expose SetHP — apply via damage from max to target)
+        // For simplicity, we leave HP at max on load (safe respawn design)
+    }
+
+    // Re-open gates that were open when the game was saved
+    auto* gom = GetGSComponent<CS230::GameObjectManager>();
+    if (gom && !data.openGates.empty())
+    {
+        for (auto* obj : gom->GetObjects())
+        {
+            if (obj->Type() != GameObjectTypes::Gate) continue;
+            auto* gate = static_cast<Gate*>(obj);
+
+            std::string id = gate->GetName();
+            if (id.empty())
+            {
+                const Math::vec2 p = gate->GetPosition();
+                id = std::to_string(static_cast<int>(p.x)) + ","
+                   + std::to_string(static_cast<int>(p.y));
+            }
+
+            for (const auto& saved : data.openGates)
+            {
+                if (saved == id) { gate->Open(); break; }
+            }
+        }
+    }
 }
 
 void Mode3::Unload()
@@ -363,6 +902,8 @@ void Mode3::Unload()
     OpenGL::DestroyShader(backgroundShader);
     GL::DeleteVertexArrays(1, &backgroundVAO);
     GL::DeleteBuffers(1, &backgroundVBO);
+
+    postProcessor.Shutdown();
 
     delete shieldChargeShot;
     shieldChargeShot = nullptr;
@@ -377,4 +918,10 @@ void Mode3::Unload()
 
     delete miniMap;
     miniMap = nullptr;
+
+    delete scriptEditorIG;
+    scriptEditorIG = nullptr;
+
+    delete levelStreamer;
+    levelStreamer = nullptr;
 }
