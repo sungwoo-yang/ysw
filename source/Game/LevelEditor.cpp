@@ -206,6 +206,8 @@ void LevelEditor::Load()
     polyInProgress.clear();
     selectedIndex      = -1;
     isDraggingObject   = false;
+    placingSpawn       = false;
+    isDraggingSpawn    = false;
     draggedVertexIndex = -1;
     prevDeleteDown     = false;
     prevTabDown        = true;  // Tab was held to enter; skip first frame to avoid immediate exit
@@ -366,6 +368,8 @@ void LevelEditor::UpdateModeSwitch()
     {
         currentMode        = EditorMode::View;
         isDrawingRect      = false;
+        placingSpawn       = false;
+        isDraggingSpawn    = false;
         polyInProgress.clear();
         draggedVertexIndex = -1;
     }
@@ -375,6 +379,8 @@ void LevelEditor::UpdateModeSwitch()
     {
         currentMode = (currentMode == EditorMode::Rect) ? EditorMode::View : EditorMode::Rect;
         isDrawingRect = false;
+        placingSpawn  = false;
+        isDraggingSpawn = false;
     }
 
     // P → toggle Polygon
@@ -383,11 +389,15 @@ void LevelEditor::UpdateModeSwitch()
         if (currentMode == EditorMode::Polygon)
         {
             currentMode = EditorMode::View;
+            placingSpawn = false;
+            isDraggingSpawn = false;
             polyInProgress.clear();
         }
         else
         {
             currentMode = EditorMode::Polygon;
+            placingSpawn = false;
+            isDraggingSpawn = false;
         }
     }
 
@@ -397,11 +407,15 @@ void LevelEditor::UpdateModeSwitch()
         if (currentMode == EditorMode::VertexEdit)
         {
             currentMode        = EditorMode::View;
+            placingSpawn       = false;
+            isDraggingSpawn    = false;
             draggedVertexIndex = -1;
         }
         else if (selectedIndex >= 0 && selectedIndex < static_cast<int>(objects.size()))
         {
             currentMode = EditorMode::VertexEdit;
+            placingSpawn = false;
+            isDraggingSpawn = false;
         }
     }
 
@@ -416,6 +430,8 @@ void LevelEditor::UpdateModeSwitch()
         {
             currentMode        = EditorMode::View;
             isDrawingRect      = false;
+            placingSpawn       = false;
+            isDraggingSpawn    = false;
             polyInProgress.clear();
             draggedVertexIndex = -1;
         }
@@ -679,11 +695,15 @@ void LevelEditor::DrawObjects(CS200::IRenderer2D& renderer)
     // ---- Spawn position marker (player bounding box) ----
     {
         constexpr CS200::RGBA SPAWN_COL = 0xFF8800FF; // orange
+        constexpr CS200::RGBA SPAWN_FILL = 0xFF880040u;
         constexpr double      HW        = 20.0;        // player half-width
         constexpr double      HH        = 40.0;        // player half-height
         const Math::vec2&     sp        = s_spawnPos;
+        const auto            spawnBox  = Math::TranslationMatrix(sp) * Math::ScaleMatrix({ HW * 2.0, HH * 2.0 });
 
         // Player collision rect
+        if (placingSpawn || isDraggingSpawn)
+            renderer.DrawRectangle(spawnBox, SPAWN_FILL, CS200::CLEAR, 0.0);
         renderer.DrawLine({ sp.x - HW, sp.y - HH }, { sp.x + HW, sp.y - HH }, SPAWN_COL, 2.0);
         renderer.DrawLine({ sp.x + HW, sp.y - HH }, { sp.x + HW, sp.y + HH }, SPAWN_COL, 2.0);
         renderer.DrawLine({ sp.x + HW, sp.y + HH }, { sp.x - HW, sp.y + HH }, SPAWN_COL, 2.0);
@@ -691,6 +711,12 @@ void LevelEditor::DrawObjects(CS200::IRenderer2D& renderer)
         // Center crosshair
         renderer.DrawLine({ sp.x - HW * 0.5, sp.y }, { sp.x + HW * 0.5, sp.y }, SPAWN_COL, 1.5);
         renderer.DrawLine({ sp.x, sp.y - HH * 0.5 }, { sp.x, sp.y + HH * 0.5 }, SPAWN_COL, 1.5);
+
+        if (placingSpawn && !isDraggingSpawn)
+        {
+            const auto previewBox = Math::TranslationMatrix(snappedMouse) * Math::ScaleMatrix({ HW * 2.0, HH * 2.0 });
+            renderer.DrawRectangle(previewBox, SPAWN_FILL, SPAWN_COL, 1.5);
+        }
     }
 
     if (currentMode == EditorMode::Rect && isDrawingRect)
@@ -758,6 +784,80 @@ void LevelEditor::DrawObjects(CS200::IRenderer2D& renderer)
 }
 
 // ---------------------------------------------------------------------------
+// Spawn marker editing
+// ---------------------------------------------------------------------------
+
+bool LevelEditor::UpdateSpawnEditing()
+{
+    auto&            input      = Engine::GetInput();
+    const bool       imguiMouse = ImGui::GetIO().WantCaptureMouse;
+    const Math::vec2 mouseWorld = ScreenToWorld(input.GetMousePosition());
+    const Math::vec2 snapped    = SnapToGrid(mouseWorld, gridSize);
+
+    constexpr double SPAWN_PICK_RADIUS = 54.0;
+    const bool       mouseOnSpawn = (mouseWorld - s_spawnPos).LengthSquared() <= SPAWN_PICK_RADIUS * SPAWN_PICK_RADIUS;
+
+    bool consumed = false;
+
+    if (!ImGui::GetIO().WantCaptureKeyboard)
+    {
+        if (input.KeyJustPressed(CS230::Input::Keys::G))
+        {
+            placingSpawn       = !placingSpawn;
+            isDraggingSpawn    = false;
+            currentMode        = EditorMode::View;
+            isDrawingRect      = false;
+            polyInProgress.clear();
+            draggedVertexIndex = -1;
+            consumed           = true;
+        }
+
+        if (input.KeyJustPressed(CS230::Input::Keys::Escape) && placingSpawn)
+        {
+            placingSpawn    = false;
+            isDraggingSpawn = false;
+            consumed        = true;
+        }
+    }
+
+    if (imguiMouse)
+    {
+        if (!input.MouseButtonDown(CS230::Input::MouseButton::Left))
+            isDraggingSpawn = false;
+        return consumed || placingSpawn || isDraggingSpawn;
+    }
+
+    if (input.MouseButtonJustPressed(CS230::Input::MouseButton::Left))
+    {
+        if (placingSpawn || (currentMode == EditorMode::View && mouseOnSpawn))
+        {
+            s_spawnPos       = snapped;
+            isDraggingSpawn  = true;
+            currentMode      = EditorMode::View;
+            selectedIndex    = -1;
+            consumed         = true;
+        }
+    }
+
+    if (isDraggingSpawn)
+    {
+        if (input.MouseButtonDown(CS230::Input::MouseButton::Left))
+        {
+            s_spawnPos = snapped;
+            consumed   = true;
+        }
+        else
+        {
+            isDraggingSpawn = false;
+            placingSpawn    = false;
+            consumed        = true;
+        }
+    }
+
+    return consumed || placingSpawn || isDraggingSpawn;
+}
+
+// ---------------------------------------------------------------------------
 // SVG Save
 // ---------------------------------------------------------------------------
 
@@ -819,7 +919,7 @@ void LevelEditor::SaveSVG()
 
     // Save spawn position as a distinct orange circle
     f << "  <circle cx=\"" << s_spawnPos.x << "\" cy=\"" << -s_spawnPos.y
-      << "\" r=\"20\" fill=\"#ff8800\"/>\n";
+      << "\" r=\"20\" fill=\"#ff8800\" id=\"PlayerSpawn\"/>\n";
 
     f << "</svg>\n";
 
@@ -949,6 +1049,7 @@ void LevelEditor::LoadSVG()
     {
         static const std::regex rSpawnCircle(R"xxx(<circle\s[^/]*/?>)xxx", std::regex::icase);
         static const std::regex rSpawnFill  (R"xxx(fill\s*=\s*"#ff8800")xxx", std::regex::icase);
+        static const std::regex rSpawnId    (R"xxx(\bid\s*=\s*"PlayerSpawn")xxx", std::regex::icase);
         static const std::regex rCX         (R"xxx(\bcx\s*=\s*"([^"]+)")xxx");
         static const std::regex rCY         (R"xxx(\bcy\s*=\s*"([^"]+)")xxx");
 
@@ -956,7 +1057,7 @@ void LevelEditor::LoadSVG()
         for (; cit != std::sregex_iterator{}; ++cit)
         {
             const std::string ctag = (*cit)[0].str();
-            if (!std::regex_search(ctag, rSpawnFill))
+            if (!std::regex_search(ctag, rSpawnFill) && !std::regex_search(ctag, rSpawnId))
                 continue;
             std::smatch cm;
             if (std::regex_search(ctag, cm, rCX))
@@ -1027,8 +1128,12 @@ void LevelEditor::Update(double dt)
     UpdateModeSwitch();
     if (!scriptEditorMode)
     {
-        UpdateObjectCreation();
-        UpdateSelectionAndEdit();
+        const bool spawnInputConsumed = UpdateSpawnEditing();
+        if (!spawnInputConsumed)
+        {
+            UpdateObjectCreation();
+            UpdateSelectionAndEdit();
+        }
     }
     UpdateTriggerEditing();
     UpdateSaveLoad();
@@ -1040,8 +1145,7 @@ void LevelEditor::Update(double dt)
         if (tabNow && !prevTabDown && !ImGui::GetIO().WantCaptureKeyboard)
         {
             SaveSVG();
-            // Return to where the player WAS (not the spawn marker)
-            Mode3::SetReturnPosition(s_gameReturnPos);
+            Mode3::SetReturnPosition(s_spawnPos);
             Engine::GetGameStateManager().ChangeStateWithFade<Mode3>();
         }
         prevTabDown = tabNow;
@@ -1120,6 +1224,8 @@ void LevelEditor::DrawImGui()
         {
             currentMode        = mode;
             isDrawingRect      = false;
+            placingSpawn       = false;
+            isDraggingSpawn    = false;
             polyInProgress.clear();
             draggedVertexIndex = -1;
         }
@@ -1178,37 +1284,55 @@ void LevelEditor::DrawImGui()
             // Parse current id
             const char* dirItems[] = { "N","S","E","W","NE","NW","SE","SW" };
             static const char* dirValues[] = { "N","S","E","W","NE","NW","SE","SW" };
-            int   dirIdx  = 1; // default S
+            const char* modeItems[] = { "Player Line", "Timed" };
+            int   modeIdx  = 0; // default: existing line-of-sight turret
+            int   dirIdx   = 1; // default S
             float interval = 2.0f;
+            float initialDelay = 2.0f;
             {
                 // simple split on '_'
                 std::string sid = selObj.id;
                 size_t p1 = sid.find('_');
                 size_t p2 = (p1 != std::string::npos) ? sid.find('_', p1+1) : std::string::npos;
+                size_t p3 = (p2 != std::string::npos) ? sid.find('_', p2+1) : std::string::npos;
                 if (p1 != std::string::npos && p2 != std::string::npos)
                 {
+                    const std::string prefix = sid.substr(0, p1);
+                    if (prefix == "ATRT")
+                        modeIdx = 1;
+
                     std::string d = sid.substr(p1+1, p2-p1-1);
                     for (int k = 0; k < 8; ++k)
                         if (d == dirValues[k]) { dirIdx = k; break; }
-                    try { interval = std::stof(sid.substr(p2+1)); } catch(...) {}
+                    try { interval = std::stof(sid.substr(p2+1, p3-p2-1)); } catch(...) {}
+                    initialDelay = interval;
+                    if (p3 != std::string::npos)
+                        try { initialDelay = std::stof(sid.substr(p3+1)); } catch(...) {}
                 }
             }
-            ImGui::SetNextItemWidth(80.0f);
-            bool changed = ImGui::Combo("Dir##t", &dirIdx, dirItems, 8);
+            ImGui::SetNextItemWidth(120.0f);
+            bool changed = ImGui::Combo("Mode##t", &modeIdx, modeItems, 2);
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(70.0f);
-            changed |= ImGui::InputFloat("Sec##t", &interval, 0.5f, 2.0f, "%.1f");
+            ImGui::SetNextItemWidth(80.0f);
+            changed |= ImGui::Combo("Dir##t", &dirIdx, dirItems, 8);
+            ImGui::SetNextItemWidth(105.0f);
+            changed |= ImGui::InputFloat("Cooldown##t", &interval, 0.5f, 2.0f, "%.1f");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(105.0f);
+            changed |= ImGui::InputFloat("Delay##t", &initialDelay, 0.5f, 2.0f, "%.1f");
             interval = std::clamp(interval, 0.5f, 10.0f);
+            initialDelay = std::clamp(initialDelay, 0.0f, 30.0f);
             if (changed)
             {
                 PushUndo();
                 char buf[64];
-                snprintf(buf, sizeof(buf), "LTRT_%s_%.1f", dirValues[dirIdx], interval);
+                const char* prefix = (modeIdx == 1) ? "ATRT" : "LTRT";
+                snprintf(buf, sizeof(buf), "%s_%s_%.1f_%.1f", prefix, dirValues[dirIdx], interval, initialDelay);
                 selObj.id = buf;
             }
         }
 
-        // ---- BreakableWall: water flag ----
+        // ---- BreakableWall: water flag + custom ID ----
         if (selObj.type == ObjectType::BreakableWall)
         {
             ImGui::Separator();
@@ -1220,6 +1344,25 @@ void LevelEditor::DrawImGui()
             }
             if (isWater)
                 ImGui::TextDisabled("깨지면 물이 터져나와 플레이어 사망");
+
+            if (!isWater)
+            {
+                // Sync buffer when selection changes
+                static char bwIdBuf[64] = {};
+                static int  lastBwIdx   = -1;
+                if (lastBwIdx != selectedIndex)
+                {
+                    strncpy_s(bwIdBuf, sizeof(bwIdBuf), selObj.id.c_str(), _TRUNCATE);
+                    lastBwIdx = selectedIndex;
+                }
+                ImGui::SetNextItemWidth(200.0f);
+                if (ImGui::InputText("ID##bwid", bwIdBuf, sizeof(bwIdBuf),
+                                     ImGuiInputTextFlags_CharsNoBlank))
+                    selObj.id = bwIdBuf;
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                    PushUndo();
+                ImGui::TextDisabled("ex) BOSS_ENTRANCE");
+            }
         }
 
         // ---- Elevator settings (travel distance + period) ----
@@ -1346,6 +1489,23 @@ void LevelEditor::DrawImGui()
     ImGui::TextColored({ 1.0f, 0.55f, 0.0f, 1.0f }, "Spawn:");
     ImGui::SameLine();
     ImGui::TextDisabled("(%.0f, %.0f)", s_spawnPos.x, s_spawnPos.y);
+    const bool spawnMode = placingSpawn || isDraggingSpawn;
+    if (spawnMode) ImGui::PushStyleColor(ImGuiCol_Button, { 0.85f, 0.42f, 0.08f, 1.0f });
+    if (ImGui::Button(spawnMode ? "Placing Spawn..." : "Place Spawn [G]", { 265.0f, 0.0f }))
+    {
+        placingSpawn       = !placingSpawn;
+        isDraggingSpawn    = false;
+        currentMode        = EditorMode::View;
+        isDrawingRect      = false;
+        polyInProgress.clear();
+        draggedVertexIndex = -1;
+    }
+    if (spawnMode) ImGui::PopStyleColor();
+    if (ImGui::Button("Center On Spawn", { 130.0f, 0.0f }))
+        editorCamPos = s_spawnPos;
+    ImGui::SameLine();
+    if (ImGui::Button("Spawn At View", { 130.0f, 0.0f }))
+        s_spawnPos = SnapToGrid(editorCamPos, gridSize);
     float spArr[2] = { static_cast<float>(s_spawnPos.x), static_cast<float>(s_spawnPos.y) };
     ImGui::SetNextItemWidth(130.0f);
     if (ImGui::InputFloat("X##spawnx", &spArr[0], 40.0f, 200.0f, "%.0f")) s_spawnPos.x = static_cast<double>(spArr[0]);
@@ -1371,6 +1531,7 @@ void LevelEditor::DrawImGui()
         ImGui::TextDisabled("Del=Delete  Esc=Cancel  Enter=Close poly");
         ImGui::TextDisabled("Ctrl+Z=Undo  Ctrl+D=Dup");
         ImGui::TextDisabled("Ctrl+S=Save  Ctrl+O=Load");
+        ImGui::TextDisabled("G=Place/drag spawn");
         ImGui::TextDisabled("Tab=Play   RClick=Context menu");
         ImGui::TextDisabled("Wheel=Zoom  MMB=Pan  Arrows=Page");
     }
@@ -1416,7 +1577,11 @@ void LevelEditor::PushUndo()
 void LevelEditor::DrawContextMenu()
 {
     if (ImGui::MenuItem("Set Spawn Here"))
+    {
         s_spawnPos = SnapToGrid(contextMenuWorldPos, gridSize);
+        placingSpawn    = false;
+        isDraggingSpawn = false;
+    }
 
     ImGui::Separator();
     if (ImGui::MenuItem("Rect Mode [R]"))

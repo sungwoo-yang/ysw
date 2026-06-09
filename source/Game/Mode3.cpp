@@ -5,6 +5,7 @@
 
 #include "BossConfig.hpp"
 #include "BreakableWall.hpp"
+#include "BullBoss.hpp"
 #include "Door.hpp"
 #include "DoorActionHandler.hpp"
 #include "LightOrb.hpp"
@@ -37,6 +38,7 @@
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
+#include "Engine/Path.hpp"
 #include "Engine/Collision.hpp"
 #include "Engine/MapElement.h"
 #include "Engine/MapManager.h"
@@ -50,12 +52,74 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <imgui.h>
+#include <iterator>
+#include <regex>
 #include <span>
 #include <vector>
 
 std::optional<Math::vec2> Mode3::pendingReturnPosition = std::nullopt;
 bool                      Mode3::s_startInEditor        = false;
+
+namespace
+{
+    constexpr double BASH_RADIUS      = 160.0;
+    constexpr double BASH_SLOW_FACTOR = 0.12;
+
+    std::optional<Math::vec2> LoadEditorSpawnMarker()
+    {
+        std::filesystem::path path;
+        try
+        {
+            path = assets::locate_asset("Assets/maps/editor_output.svg");
+        }
+        catch (...)
+        {
+            return std::nullopt;
+        }
+
+        std::ifstream f(path);
+        if (!f.is_open())
+            return std::nullopt;
+
+        std::string content((std::istreambuf_iterator<char>(f)),
+                             std::istreambuf_iterator<char>());
+        std::replace(content.begin(), content.end(), '\n', ' ');
+        std::replace(content.begin(), content.end(), '\r', ' ');
+
+        static const std::regex rCircle(R"xxx(<circle\s[^>]*>)xxx", std::regex::icase);
+        static const std::regex rSpawnFill(R"xxx(fill\s*=\s*"#ff8800")xxx", std::regex::icase);
+        static const std::regex rSpawnId(R"xxx(\bid\s*=\s*"PlayerSpawn")xxx", std::regex::icase);
+        static const std::regex rCX(R"xxx(\bcx\s*=\s*"([^"]+)")xxx");
+        static const std::regex rCY(R"xxx(\bcy\s*=\s*"([^"]+)")xxx");
+
+        auto it  = std::sregex_iterator(content.begin(), content.end(), rCircle);
+        auto end = std::sregex_iterator{};
+        for (; it != end; ++it)
+        {
+            const std::string tag = (*it)[0].str();
+            if (!std::regex_search(tag, rSpawnFill) && !std::regex_search(tag, rSpawnId))
+                continue;
+
+            std::smatch mx;
+            std::smatch my;
+            if (!std::regex_search(tag, mx, rCX) || !std::regex_search(tag, my, rCY))
+                continue;
+
+            try
+            {
+                return Math::vec2{ std::stod(mx[1].str()), -std::stod(my[1].str()) };
+            }
+            catch (...)
+            {
+                return std::nullopt;
+            }
+        }
+
+        return std::nullopt;
+    }
+}
 
 void Mode3::SetReturnPosition(Math::vec2 position)
 {
@@ -75,9 +139,9 @@ void Mode3::Load()
 
     AddGSComponent(new CS230::GameObjectManager());
 
-    spawnPos = { -10.0, 0.0 };
+    spawnPos = LoadEditorSpawnMarker().value_or(Math::vec2{ -10.0, 0.0 });
 
-    // Priority: editor return > save file > default
+    // Priority: editor return > save file checkpoint > editor map spawn marker > fallback
     if (pendingReturnPosition.has_value())
     {
         spawnPos              = pendingReturnPosition.value();
@@ -302,9 +366,6 @@ void Mode3::Update(double dt)
     // ---- Bash system ----
     if (player && player->bashEnabled)
     {
-        constexpr double BASH_RADIUS = 160.0;
-        constexpr double SLOW_FACTOR = 0.12;
-
         bool         foundTarget = false;
         LaserTurret* nearest     = nullptr;
         double       nearestDist = BASH_RADIUS * BASH_RADIUS;
@@ -313,14 +374,16 @@ void Mode3::Update(double dt)
         {
             if (obj->Type() != GameObjectTypes::LaserTurret) continue;
             auto* t = static_cast<LaserTurret*>(obj);
-            if (!t->IsBulletActive() || t->IsBulletBashed()) continue;
 
-            const double d2 = (t->GetBulletPosition() - player->GetPosition()).LengthSquared();
-            if (d2 <= nearestDist)
+            for (const Math::vec2 bulletPos : t->GetBashableBulletPositions())
             {
-                nearestDist  = d2;
-                nearest      = t;
-                foundTarget  = true;
+                const double d2 = (bulletPos - player->GetPosition()).LengthSquared();
+                if (d2 <= nearestDist)
+                {
+                    nearestDist  = d2;
+                    nearest      = t;
+                    foundTarget  = true;
+                }
             }
         }
 
@@ -335,7 +398,7 @@ void Mode3::Update(double dt)
             bashTarget       = nearest;
 
             // Slow-mo only within the 1-second window
-            timeScaleTarget = (bashWindowTimer < BASH_WINDOW) ? SLOW_FACTOR : 1.0;
+            timeScaleTarget = (bashWindowTimer < BASH_WINDOW) ? BASH_SLOW_FACTOR : 1.0;
         }
         else
         {
@@ -345,8 +408,11 @@ void Mode3::Update(double dt)
             bashWindowTimer = 0.0;
         }
 
-        // Smooth time-scale transition
-        timeScale += (timeScaleTarget - timeScale) * std::min(dt * 14.0, 1.0);
+        // Smooth time-scale transition (tutorial Frozen state overrides to gradual stop)
+        if (parryTut.state == ParryTutState::Frozen)
+            timeScale += (0.0 - timeScale) * std::min(dt * 8.0, 1.0);
+        else
+            timeScale += (timeScaleTarget - timeScale) * std::min(dt * 14.0, 1.0);
 
         // ---- Execute bash on left click ----
         if (bashReady && bashTarget &&
@@ -357,18 +423,19 @@ void Mode3::Update(double dt)
             const Math::vec2  mouseWorld = camera->GetPosition()
                                          + Math::vec2{ ms.x, win.y - ms.y };
 
-            const Math::vec2 bulletPos = bashTarget->GetBulletPosition();
+            const Math::vec2 bulletPos = bashTarget->GetNearestBashableBulletPosition(player->GetPosition());
             Math::vec2 toMouse = mouseWorld - bulletPos;
             if (toMouse.LengthSquared() < 1.0) toMouse = { 1.0, 0.0 };
             const Math::vec2 bashDir = toMouse.Normalize();
 
-            const double dot       = bashTarget->GetBulletDirection().Dot(bashDir);
+            const Math::vec2 bulletDir = bashTarget->GetNearestBashableBulletDirection(player->GetPosition());
+            const double dot       = bulletDir.Dot(bashDir);
             const double forceMult = 1.0 - 0.5 * dot;
             constexpr double BASE_FORCE = 950.0;
             const Math::vec2 impulse = -bashDir * (BASE_FORCE * forceMult);
 
-            bashTarget->BashBullet(bashDir);
-            player->ApplyBashImpulse(impulse);
+            if (bashTarget->BashNearestBullet(player->GetPosition(), bashDir, BASH_RADIUS * BASH_RADIUS))
+                player->ApplyBashImpulse(impulse);
 
             bashReady       = false;
             bashTarget      = nullptr;
@@ -384,6 +451,129 @@ void Mode3::Update(double dt)
         timeScale       = 1.0;
         timeScaleTarget = 1.0;
         bashWindowTimer = 0.0;
+    }
+
+    // ── Hardcoded parry tutorial ─────────────────────────────────────────────
+    if (player && parryTut.state != ParryTutState::Done)
+    {
+        switch (parryTut.state)
+        {
+        case ParryTutState::Idle:
+            if (player->GetPosition().x >= 2500.0)
+                parryTut.state = ParryTutState::Braking;
+            break;
+
+        case ParryTutState::Braking:
+        {
+            const double px   = player->GetPosition().x;
+            const double py   = player->GetPosition().y;
+            const double dist = 2800.0 - px;
+            player->autoMoveActive = false;
+
+            if (dist < 8.0)
+            {
+                player->SetPosition({ 2800.0, py });
+                player->SetVelocityX(0.0);
+                player->inputLocked = true;
+                parryTut.state      = ParryTutState::Waiting;
+                parryTut.waitTimer  = 0.0;
+            }
+            else
+            {
+                // Player can still move freely, just cap rightward speed
+                static constexpr double BRAKE_SPEED = 280.0;
+                if (player->GetVelocity().x > BRAKE_SPEED)
+                    player->SetVelocityX(BRAKE_SPEED);
+            }
+            break;
+        }
+
+        case ParryTutState::Waiting:
+            player->inputLocked = true;
+            parryTut.waitTimer += dt;
+            if (parryTut.waitTimer >= 2.0)
+            {
+                parryTut.state = ParryTutState::Moving;
+                player->SetAutoMove(Math::vec2{ 3200.0, player->GetPosition().y });
+            }
+            break;
+
+        case ParryTutState::Moving:
+            if (!player->autoMoveActive)
+                parryTut.state = ParryTutState::WaitBash;
+            break;
+
+        case ParryTutState::WaitBash:
+            if (bashReady)
+                parryTut.state = ParryTutState::Frozen;
+            break;
+
+        case ParryTutState::Frozen:
+            if (!bashReady)
+            {
+                parryTut.state = ParryTutState::Done;
+                if (tutorialOverlay) tutorialOverlay->Clear();
+            }
+            else if (tutorialOverlay && tutorialOverlay->IsIdle())
+                tutorialOverlay->Show("Left Click to Parry!", 3.0, { 0.5, 0.6 });
+            break;
+
+        default: break;
+        }
+    }
+
+    // ── Bull boss entrance sequence ──────────────────────────────────────────
+    if (player && bossSeq.state != BossSeqState::Done)
+    {
+        auto* gom = GetGSComponent<CS230::GameObjectManager>();
+        switch (bossSeq.state)
+        {
+        case BossSeqState::Idle:
+            if (player->GetPosition().x >= 16200.0)
+            {
+                BreakableWall* entranceWall = nullptr;
+                for (auto* obj : gom->GetObjects())
+                {
+                    if (obj && obj->Type() == GameObjectTypes::BreakableWall)
+                    {
+                        auto* bw = static_cast<BreakableWall*>(obj);
+                        if (bw->GetName() == "BOSS_ENTRANCE")
+                        {
+                            entranceWall = bw;
+                            break;
+                        }
+                    }
+                }
+                if (entranceWall)
+                {
+                    player->inputLocked    = true;
+                    player->autoMoveActive = false;
+                    player->SetVelocityX(0.0);
+
+                    // Spawn boss at user-specified position
+                    auto* boss = new BullBoss({ 18800.0, 2400.0 }, entranceWall, player);
+                    gom->Add(boss);
+                    bossSeq.boss  = boss;
+                    boss->TriggerEntrance();
+                    bossSeq.state = BossSeqState::BossEntrance;
+                }
+            }
+            break;
+
+        case BossSeqState::BossEntrance:
+            if (bossSeq.boss && bossSeq.boss->GetState() == BullBoss::State::Chasing)
+            {
+                player->inputLocked = false;
+                bossSeq.state       = BossSeqState::Chase;
+            }
+            break;
+
+        case BossSeqState::Chase:
+            break;
+
+        default:
+            break;
+        }
     }
 
     {
@@ -522,8 +712,20 @@ void Mode3::Update(double dt)
             postProcessor.SetBlackout(1.0f);
             if (!respawnDone)
             {
+                const Math::vec2 respawnPos = player->GetSavePoint();
+                spawnPos = respawnPos;
                 player->ResetState();
-                player->SetPosition(spawnPos);
+                player->SetPosition(respawnPos);
+                // Tutorial runs once: if it had started, skip it permanently
+                if (parryTut.state != ParryTutState::Idle &&
+                    parryTut.state != ParryTutState::Done)
+                    parryTut.state = ParryTutState::Done;
+                // Boss sequence runs once
+                if (bossSeq.state != BossSeqState::Idle)
+                    bossSeq.state = BossSeqState::Done;
+                bossSeq.boss = nullptr;
+                player->ClearAutoMove();
+                player->inputLocked = false;
 
                 // Reset broken water walls
                 for (auto* obj : GetGSComponent<CS230::GameObjectManager>()->GetObjects())
@@ -537,7 +739,7 @@ void Mode3::Update(double dt)
                     const double      zoom = camera->GetScale();
                     const double      visW = win.x / zoom;
                     const double      visH = win.y / zoom;
-                    Math::vec2 camSnap     = spawnPos - Math::vec2{ visW * 0.5, visH * 0.5 };
+                    Math::vec2 camSnap     = respawnPos - Math::vec2{ visW * 0.5, visH * 0.5 };
 
                     if (cameraBounds)
                     {
@@ -635,6 +837,35 @@ void Mode3::Draw()
     // if (shieldChargeShot != nullptr)
     //     shieldChargeShot->Draw(vp);
 
+    // Developer overlay: show the real bash interaction radius around turret bullets.
+    if (player && player->IsDeveloperMode() && player->bashEnabled)
+    {
+        auto* gom = GetGSComponent<CS230::GameObjectManager>();
+        if (gom)
+        {
+            for (auto* obj : gom->GetObjects())
+            {
+                if (obj->Type() != GameObjectTypes::LaserTurret)
+                    continue;
+
+                auto* turret = static_cast<LaserTurret*>(obj);
+                if (!turret->IsBulletActive() || turret->IsBulletBashed())
+                    continue;
+
+                for (const Math::vec2 bulletPos : turret->GetBashableBulletPositions())
+                {
+                    const double     dist      = std::sqrt((bulletPos - player->GetPosition()).LengthSquared());
+                    const bool       inRange   = dist <= BASH_RADIUS;
+                    const CS200::RGBA ringCol  = inRange ? 0x00FF88DDu : 0xFFCC4488u;
+
+                    const auto radiusMarker = Math::TranslationMatrix(bulletPos) *
+                        Math::ScaleMatrix({ BASH_RADIUS * 2.0, BASH_RADIUS * 2.0 });
+                    renderer.DrawCircle(radiusMarker, CS200::CLEAR, ringCol, inRange ? 3.0 : 2.0);
+                }
+            }
+        }
+    }
+
     // Bash aim indicator
     if (bashReady && bashTarget && player)
     {
@@ -644,7 +875,7 @@ void Mode3::Draw()
         const Math::ivec2 win  = Engine::GetWindow().GetSize();
         const Math::vec2  ms   = Engine::GetInput().GetMousePosition();
         const Math::vec2  mw   = camera->GetPosition() + Math::vec2{ ms.x, win.y - ms.y };
-        const Math::vec2  bPos = bashTarget->GetBulletPosition();
+        const Math::vec2  bPos = bashTarget->GetNearestBashableBulletPosition(player->GetPosition());
 
         const double progress = std::min(bashWindowTimer / BASH_WINDOW, 1.0);
 
@@ -825,6 +1056,7 @@ void Mode3::SaveGame()
     if (player)
     {
         const Math::vec2 sp = player->GetSavePoint();
+        spawnPos       = sp;
         data.spawnX    = sp.x;
         data.spawnY    = sp.y;
         data.hp        = player->GetHP();

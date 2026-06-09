@@ -24,7 +24,7 @@ struct EditorObject
     std::vector<Math::vec2> vertices;
     ObjectType              type   = ObjectType::Floor;
     bool                    isRect = false;
-    std::string             id;    // used by Turret: "LTRT_(dir)_(interval)"
+    std::string             id;    // used by Turret: "LTRT_(dir)_(interval)_(delay)" or "ATRT_(dir)_(interval)_(delay)"
 };
 
 // ---------------------------------------------------------------------------
@@ -68,6 +68,7 @@ private:
     void UpdateModeSwitch();
     void UpdateObjectCreation();
     void UpdateSelectionAndEdit();
+    bool UpdateSpawnEditing();
     void UpdateSaveLoad();
 
     // ---- SVG I/O ----
@@ -117,6 +118,10 @@ private:
     int        selectedIndex    { -1 };
     bool       isDraggingObject { false };
     Math::vec2 dragLastWorld    { 0.0, 0.0 };
+
+    // Spawn marker editing
+    bool placingSpawn    { false };
+    bool isDraggingSpawn { false };
 
     // Vertex edit
     int  draggedVertexIndex { -1 };

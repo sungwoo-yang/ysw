@@ -207,6 +207,7 @@ void Player::Update(double dt)
         {
             for (auto* obj : gom->GetObjects())
             {
+                if (!obj->IsActive()) continue;
                 if (obj->Type() == GameObjectTypes::Water)
                 {
                     auto* zone = static_cast<WaterZone*>(obj);
@@ -492,10 +493,10 @@ void Player::HandleInput(double dt)
     // if (shieldComponent)
     //     shieldComponent->HandleInput(dt);
 
-    if (input.KeyJustPressed(CS230::Input::Keys::P))
+    if (input.KeyJustPressed(CS230::Input::Keys::R) || input.KeyJustPressed(CS230::Input::Keys::P))
     {
         ResetState();
-        Engine::GetLogger().LogEvent("Event: Player Respawned (P)");
+        Engine::GetLogger().LogEvent("Event: Player Respawned");
         return;
     }
 
@@ -1958,6 +1959,22 @@ void Player::ApplyWaterRush(Math::vec2 dir, Math::vec2 wallPos)
     velocityY   = 350.0;
     isJumping   = true;
     coyoteTimer = 0.0;
+}
+
+void Player::SetVelocityX(double vx)
+{
+    SetVelocity({ vx, GetVelocity().y });
+}
+
+void Player::TryJump()
+{
+    if (!isJumping)
+    {
+        velocityY   = jumpStrength;
+        isJumping   = true;
+        coyoteTimer = 0.0;
+        SetVelocity({ GetVelocity().x, velocityY });
+    }
 }
 
 void Player::ApplyBashImpulse(Math::vec2 impulse)

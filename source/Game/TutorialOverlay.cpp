@@ -59,6 +59,15 @@ void TutorialOverlay::Show(const std::string& text, double duration, Math::vec2 
     queue.push_back({ text, duration, normPos });
 }
 
+void TutorialOverlay::Clear()
+{
+    queue.clear();
+    state   = State::Idle;
+    alpha   = 0.0f;
+    timer   = 0.0;
+    current = {};
+}
+
 // ── Draw ──────────────────────────────────────────────────────────────────────
 // Must be called inside a renderer.BeginScene(screen_matrix) / EndScene block
 // where screen_matrix = CS200::build_ndc_matrix(winSize).

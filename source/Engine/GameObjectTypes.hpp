@@ -30,6 +30,7 @@ enum class GameObjectTypes
     Staircase,
     Spike,
     Elevator,
+    BullBoss,
     Count,
     Background,
     Pillar

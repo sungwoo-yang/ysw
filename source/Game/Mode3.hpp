@@ -24,6 +24,7 @@ class CutscenePlayer;
 class ScriptManager;
 class InGameScriptEditor;
 class LevelStreamer;
+class BullBoss;
 
 namespace Boss
 {
@@ -114,6 +115,20 @@ private:
     double       timeScaleTarget  = 1.0;
     double       bashWindowTimer  = 0.0;   // 0 → BASH_WINDOW: slow-mo window
     static constexpr double BASH_WINDOW = 1.0;
+
+    // Bull boss entrance sequence
+    enum class BossSeqState : uint8_t { Idle, BossEntrance, Chase, Done };
+    struct {
+        BossSeqState state = BossSeqState::Idle;
+        BullBoss*    boss  = nullptr;
+    } bossSeq;
+
+    // Hardcoded parry tutorial
+    enum class ParryTutState : uint8_t { Idle, Braking, Waiting, Moving, WaitBash, Frozen, Done };
+    struct {
+        ParryTutState state     = ParryTutState::Idle;
+        double        waitTimer = 0.0;
+    } parryTut;
 
     static bool s_startInEditor;
 };

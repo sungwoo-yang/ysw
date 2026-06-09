@@ -61,10 +61,13 @@ public:
     void ApplyLaserDamage(double damageAmount);
     void ApplyBashImpulse(Math::vec2 impulse);
     void ApplyWaterRush(Math::vec2 dir, Math::vec2 wallPos);
+    void SetVelocityX(double vx);
+    void TryJump();
     bool IsInWaterRush() const { return waterRushTimer > 0.0; }
 
     bool   IsDead() const;
     double GetHP() const;
+    bool   IsDeveloperMode() const { return developerMode; }
 
     CS230::DashComponent  dashComponent;
     OriAnimation          oriAnim;

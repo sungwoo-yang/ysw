@@ -38,6 +38,7 @@ private:
     // Shared shader across all WaterZone instances
     static OpenGL::CompiledShader s_shader;
     static int                    s_refCount;
+    static GLint                  s_timeLoc;   // cached uniform location
 
     void EnsureGL();
 };

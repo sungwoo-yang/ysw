@@ -11,14 +11,16 @@
 #include "Engine/Matrix.hpp"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-LaserTurret::LaserTurret(Math::vec2 pos, Math::vec2 dir, double interval, Player* player)
+LaserTurret::LaserTurret(Math::vec2 pos, Math::vec2 dir, double interval, Player* player, bool requirePlayerInPath, double initialDelay)
     : Laser(pos, dir, player),
       fireInterval     (interval > 0.1 ? interval : 0.1),
-      fireTimer        (interval > 0.1 ? interval : 0.1),
-      originalDirection(dir.Normalize())
+      fireTimer        (initialDelay >= 0.0 ? initialDelay : (interval > 0.1 ? interval : 0.1)),
+      originalDirection(dir.Normalize()),
+      requirePlayerInPath(requirePlayerInPath)
 {
     color = 0xFFCC44FF;
     SetIsActive(false);
@@ -31,7 +33,7 @@ LaserTurret::LaserTurret(Math::vec2 pos, Math::vec2 dir, double interval, Player
 bool LaserTurret::IsBulletActive() const
 {
     for (const auto& b : _bullets)
-        if (b.active && !b.bashed) return true;
+        if (b.active && !b.bashed && !b.dying) return true;
     return false;
 }
 
@@ -52,34 +54,110 @@ Math::vec2 LaserTurret::GetBulletPosition() const
 Math::vec2 LaserTurret::GetBulletDirection() const
 {
     for (const auto& b : _bullets)
-        if (b.active && !b.bashed) return b.dir;
+        if (b.active && !b.bashed && !b.dying) return b.dir;
     return originalDirection;
+}
+
+std::vector<Math::vec2> LaserTurret::GetBashableBulletPositions() const
+{
+    std::vector<Math::vec2> positions;
+    for (const auto& b : _bullets)
+    {
+        if (b.active && !b.bashed && !b.dying && b.path.size() >= 2)
+            positions.push_back(b.path[0] + b.dir * b.t);
+    }
+    return positions;
+}
+
+Math::vec2 LaserTurret::GetNearestBashableBulletPosition(Math::vec2 from) const
+{
+    Math::vec2 bestPos  = GetPosition();
+    double     bestDist = std::numeric_limits<double>::max();
+
+    for (const auto& b : _bullets)
+    {
+        if (!b.active || b.bashed || b.dying || b.path.size() < 2)
+            continue;
+
+        const Math::vec2 pos = b.path[0] + b.dir * b.t;
+        const double     d2  = (pos - from).LengthSquared();
+        if (d2 < bestDist)
+        {
+            bestDist = d2;
+            bestPos  = pos;
+        }
+    }
+
+    return bestPos;
+}
+
+Math::vec2 LaserTurret::GetNearestBashableBulletDirection(Math::vec2 from) const
+{
+    Math::vec2 bestDir  = originalDirection;
+    double     bestDist = std::numeric_limits<double>::max();
+
+    for (const auto& b : _bullets)
+    {
+        if (!b.active || b.bashed || b.dying || b.path.size() < 2)
+            continue;
+
+        const Math::vec2 pos = b.path[0] + b.dir * b.t;
+        const double     d2  = (pos - from).LengthSquared();
+        if (d2 < bestDist)
+        {
+            bestDist = d2;
+            bestDir  = b.dir;
+        }
+    }
+
+    return bestDir;
+}
+
+bool LaserTurret::BashNearestBullet(Math::vec2 from, Math::vec2 newDir, double maxDistanceSquared)
+{
+    BulletState* bestBullet = nullptr;
+    Math::vec2   bestPos    = GetPosition();
+    double       bestDist   = maxDistanceSquared;
+
+    for (auto& b : _bullets)
+    {
+        if (!b.active || b.bashed || b.dying || b.path.size() < 2)
+            continue;
+
+        const Math::vec2 curPos = b.path[0] + b.dir * b.t;
+        const double     d2     = (curPos - from).LengthSquared();
+        if (d2 <= bestDist)
+        {
+            bestDist   = d2;
+            bestBullet = &b;
+            bestPos    = curPos;
+        }
+    }
+
+    if (bestBullet == nullptr)
+        return false;
+
+    bestBullet->dir    = newDir.Normalize();
+    bestBullet->bashed = true;
+
+    // Recalculate path from current bullet position in new direction.
+    startPos  = bestPos;
+    direction = bestBullet->dir;
+    CalculatePath(0, MAX_RANGE);
+
+    bestBullet->path = pathPoints;
+    bestBullet->t    = 0.0;
+    bestBullet->len  = (pathPoints.size() >= 2)
+        ? (pathPoints.back() - pathPoints[0]).Length()
+        : 0.0;
+    bestBullet->trail.clear();
+    bestBullet->trail.push_back(bestPos);
+    return true;
 }
 
 void LaserTurret::BashBullet(Math::vec2 newDir)
 {
-    for (auto& b : _bullets)
-    {
-        if (!b.active || b.bashed || b.dying || b.path.size() < 2) continue;
-
-        const Math::vec2 curPos = b.path[0] + b.dir * b.t;
-        b.dir    = newDir.Normalize();
-        b.bashed = true;
-
-        // Recalculate path from current bullet position in new direction
-        startPos  = curPos;
-        direction = b.dir;
-        CalculatePath(0, MAX_RANGE);
-
-        b.path = pathPoints;
-        b.t    = 0.0;
-        b.len  = (pathPoints.size() >= 2)
-               ? (pathPoints.back() - pathPoints[0]).Length()
-               : 0.0;
-        b.trail.clear();
-        b.trail.push_back(curPos);
-        return;
-    }
+    BashNearestBullet(GetPosition(), newDir, MAX_RANGE * MAX_RANGE);
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -235,7 +313,7 @@ void LaserTurret::Update(double dt)
     if (fireTimer <= 0.0)
     {
         fireTimer = fireInterval;
-        if (IsPlayerInPath())
+        if (!requirePlayerInPath || IsPlayerInPath())
             FireNewBullet();
     }
 }

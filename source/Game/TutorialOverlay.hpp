@@ -17,6 +17,9 @@ public:
     void Show(const std::string& text, double duration = 3.0,
               Math::vec2 normPos = { 0.5, 0.16 });
 
+    // Instantly dismiss current text and clear queue.
+    void Clear();
+
     bool IsIdle() const;
 
 private:

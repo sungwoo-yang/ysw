@@ -20,10 +20,10 @@ bool LevelStreamer::AreNSEWAdjacent(const Math::rect& a, const Math::rect& b) co
     const double xOvlp = std::min(a.Right(), b.Right()) - std::max(a.Left(),   b.Left());
     const double yOvlp = std::min(a.Top(),   b.Top())   - std::max(a.Bottom(), b.Bottom());
 
-    // East / West: aligned vertically, small or zero horizontal gap
-    if (xGap <= ADJACENCY_GAP && yOvlp > -100.0) return true;
-    // North / South: aligned horizontally, small or zero vertical gap
-    if (yGap <= ADJACENCY_GAP && xOvlp > -100.0) return true;
+    // East / West: rooms side by side — must share vertical extent (no diagonals)
+    if (xGap <= ADJACENCY_GAP && yOvlp > 0.0) return true;
+    // North / South: rooms stacked — must share horizontal extent (no diagonals)
+    if (yGap <= ADJACENCY_GAP && xOvlp > 0.0) return true;
 
     return false;
 }
@@ -91,6 +91,9 @@ void LevelStreamer::Init(const std::vector<Math::rect>&       rooms,
             if (i != j && AreNSEWAdjacent(rooms_[i].rect, rooms_[j].rect))
                 rooms_[i].neighbors.push_back(j);
 
+    shouldActive_.assign(rooms_.size(), false);
+    shouldFloor_ .assign(rooms_.size(), false);
+
     // Assign each object to its room
     for (CS230::GameObject* obj : objects)
     {
@@ -129,36 +132,36 @@ void LevelStreamer::Update(Math::vec2 playerPos, double dt)
     // 2. Mark which rooms "should" be active this frame
     //    Current + 1-ring neighbors → active
     //    Floor objects also get 2-ring (neighbors' neighbors)
-    std::vector<bool> shouldActive(rooms_.size(), false);
-    std::vector<bool> shouldFloor (rooms_.size(), false);
+    std::fill(shouldActive_.begin(), shouldActive_.end(), false);
+    std::fill(shouldFloor_ .begin(), shouldFloor_ .end(), false);
 
     if (curIdx >= 0)
     {
-        shouldActive[curIdx] = true;
-        shouldFloor [curIdx] = true;
+        shouldActive_[curIdx] = true;
+        shouldFloor_ [curIdx] = true;
 
         for (int n1 : rooms_[curIdx].neighbors)
         {
-            shouldActive[n1] = true;
-            shouldFloor [n1] = true;
+            shouldActive_[n1] = true;
+            shouldFloor_ [n1] = true;
 
             // 2nd ring — only for floors
             for (int n2 : rooms_[n1].neighbors)
-                shouldFloor[n2] = true;
+                shouldFloor_[n2] = true;
         }
     }
     else
     {
         // Player not in any room → keep everything active
-        std::fill(shouldActive.begin(), shouldActive.end(), true);
-        std::fill(shouldFloor .begin(), shouldFloor .end(), true);
+        std::fill(shouldActive_.begin(), shouldActive_.end(), true);
+        std::fill(shouldFloor_ .begin(), shouldFloor_ .end(), true);
     }
 
     // 3. Update per-room deactivation timers
     for (int i = 0; i < static_cast<int>(rooms_.size()); ++i)
     {
         auto& rs = rooms_[i];
-        if (shouldActive[i])
+        if (shouldActive_[i])
         {
             // Activate immediately, reset timer
             rs.active        = true;
@@ -195,7 +198,7 @@ void LevelStreamer::Update(Math::vec2 playerPos, double dt)
         // Floors get the wider 2-ring buffer (immediate activation, delayed deactivation).
         // Others use the 1-ring buffer with the room's delayed-deactivation state.
         const bool roomOn = rec.isFloor
-            ? (shouldFloor[rec.roomIdx] || rooms_[rec.roomIdx].active)
+            ? (shouldFloor_[rec.roomIdx] || rooms_[rec.roomIdx].active)
             : rooms_[rec.roomIdx].active;
 
         rec.obj->SetIsActive(roomOn);

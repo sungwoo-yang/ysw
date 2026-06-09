@@ -9,7 +9,7 @@
 
 class LaserTurret : public Laser {
 public:
-    LaserTurret(Math::vec2 pos, Math::vec2 dir, double interval, Player* player);
+    LaserTurret(Math::vec2 pos, Math::vec2 dir, double interval, Player* player, bool requirePlayerInPath = true, double initialDelay = -1.0);
 
     void Update(double dt) override;
     void Draw(const Math::TransformationMatrix& camera_matrix) override;
@@ -25,7 +25,11 @@ public:
     bool       IsBulletBashed()   const;
     Math::vec2 GetBulletPosition() const;
     Math::vec2 GetBulletDirection() const;
+    std::vector<Math::vec2> GetBashableBulletPositions() const;
+    Math::vec2 GetNearestBashableBulletPosition(Math::vec2 from) const;
+    Math::vec2 GetNearestBashableBulletDirection(Math::vec2 from) const;
     void       BashBullet(Math::vec2 newDir);
+    bool       BashNearestBullet(Math::vec2 from, Math::vec2 newDir, double maxDistanceSquared);
 
 private:
     static constexpr double BULLET_SPEED   = 650.0;
@@ -34,7 +38,7 @@ private:
     static constexpr double DAMAGE_PER_SEC = 5.0;
     static constexpr double FADE_DURATION  = 0.18;
     static constexpr int    TRAIL_LEN      = 10;
-    static constexpr int    MAX_BULLETS    = 4;
+    static constexpr int    MAX_BULLETS    = 10;
 
     struct BulletState {
         bool       active = false;
@@ -54,6 +58,7 @@ private:
     double     fireInterval;
     double     fireTimer;
     Math::vec2 originalDirection;
+    bool       requirePlayerInPath;
 
     bool IsPlayerInPath() const;  // true if player is in the laser's line of fire
 

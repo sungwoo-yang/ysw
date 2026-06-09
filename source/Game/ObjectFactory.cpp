@@ -493,18 +493,26 @@ namespace ObjectFactory
                 return CreateLaserStar(pos, player, id);
             }
 
-            // LaserTurret: #ff6600, id format LTRT_(dir)_(interval)  e.g. LTRT_S_2
+            // LaserTurret: #ff6600
+            //   LTRT_(dir)_(cooldown)_(delay) = fires only when player is in line
+            //   ATRT_(dir)_(cooldown)_(delay) = fires after delay, then waits cooldown between shots
+            // delay is optional; without it, the first shot/check waits one cooldown.
             if (color == "#ff6600")
             {
                 auto   parts    = SplitID(id, '_');
                 Math::vec2 dir  = { 0.0, -1.0 }; // default South
                 double interval = 2.0;
-                if (parts.size() >= 3 && parts[0] == "LTRT")
+                double initialDelay = -1.0;
+                bool requirePlayerInPath = true;
+                if (parts.size() >= 3 && (parts[0] == "LTRT" || parts[0] == "ATRT"))
                 {
+                    requirePlayerInPath = parts[0] != "ATRT";
                     dir = DirectionFromIDToken(parts[1]);
                     try { interval = std::stod(parts[2]); } catch (...) {}
+                    if (parts.size() >= 4)
+                        try { initialDelay = std::max(0.0, std::stod(parts[3])); } catch (...) {}
                 }
-                auto* turret = new LaserTurret(pos, dir, interval, player);
+                auto* turret = new LaserTurret(pos, dir, interval, player, requirePlayerInPath, initialDelay);
                 turret->SetName(id);
                 return turret;
             }

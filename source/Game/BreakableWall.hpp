@@ -20,9 +20,9 @@ public:
     std::string     TypeName() override { return "BreakableWall"; }
 
     void Break();
-    bool        IsBroken()    const { return state != State::Intact; }
-    bool        IsWaterWall() const { return waterWall; }
-    void        ResetIfWater();     // called by Mode3 on respawn
+    bool               IsBroken()    const { return state != State::Intact; }
+    bool               IsWaterWall() const { return waterWall; }
+    void               ResetIfWater();     // called by Mode3 on respawn
     Math::rect  GetWorldBounds() const
     {
         const Math::vec2 p = GetPosition();

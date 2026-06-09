@@ -9,6 +9,7 @@
 // ── Shared resources ─────────────────────────────────────────────────────────
 OpenGL::CompiledShader WaterZone::s_shader   = {};
 int                    WaterZone::s_refCount = 0;
+GLint                  WaterZone::s_timeLoc  = -1;
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,7 @@ void WaterZone::EnsureGL()
         s_shader = OpenGL::CreateShader(
             fs::path("Assets/shaders/water.vert"),
             fs::path("Assets/shaders/water.frag"));
+        s_timeLoc = GL::GetUniformLocation(s_shader.Shader, "u_time");
     }
     ++s_refCount;
 
@@ -111,9 +113,8 @@ void WaterZone::Draw(const Math::TransformationMatrix& camera_matrix)
     // Draw
     GL::UseProgram(s_shader.Shader);
 
-    GLint timeLoc = GL::GetUniformLocation(s_shader.Shader, "u_time");
-    if (timeLoc >= 0)
-        GL::Uniform1f(timeLoc, static_cast<float>(waveTime));
+    if (s_timeLoc >= 0)
+        GL::Uniform1f(s_timeLoc, static_cast<float>(waveTime));
 
     GL::Enable(GL_BLEND);
     GL::BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg">
   <path style="fill:#00ffff;" d="M -760,560 L 1640,560 L 1640,40 L -760,40 Z"/>
-  <rect style="fill:#ffffff;" x="-761.773" y="-800" width="2400" height="1360"/>
   <rect style="fill:#ffffff;" x="1638.03" y="-799.482" width="2400" height="1360"/>
   <path style="fill:#00ffff;" d="M -760,-480 L 600,-480 L 600,-800 L -760,-800 Z"/>
   <path style="fill:#00ffff;" d="M 1280,-480 L 2240,-480 L 2240,-800 L 1280,-800 Z"/>
@@ -23,7 +22,7 @@
   <path style="fill:#ff6600;" d="M 3955.29,40 L 4035.29,40 L 4035.29,-40 L 3955.29,-40 Z" id="LTRT_W_1.2"/>
   <path style="fill:#00ffff;" d="M 2780.65,38.5436 L 2980.65,38.5436 L 2980.65,-81.4564 L 2780.65,-81.4564 Z"/>
   <path style="fill:#00cc00;" d="M 3600,-400 L 3640,-400 L 3640,-640 L 3600,-640 Z"/>
-  <rect style="fill:#ffffff;" x="6440" y="-800" width="2400" height="1360"/>
+  <rect style="fill:#ffffff;" x="6444.15" y="-797.08" width="2400" height="1360"/>
   <path style="fill:#00ffff;" d="M 6440,560 L 8840,560 L 8840,-200 L 6440,-200 Z"/>
   <path style="fill:#0044cc;" d="M 6440,-200 L 8840,-200 L 8840,-240 L 6440,-240 Z"/>
   <path style="fill:#cc00cc;" d="M 3520,-280 L 3720,-280 L 3720,-400 L 3520,-400 Z"/>
@@ -65,7 +64,7 @@
   <path style="fill:#884400;" d="M 13640,-880 L 13800,-880 L 13800,-1120 L 13640,-1120 Z"/>
   <path style="fill:#00ffff;" d="M 13640,-1120 L 13800,-1120 L 13800,-2160 L 13640,-2160 Z"/>
   <path style="fill:#00ffff;" d="M 13640,-800 L 13800,-800 L 13800,-880 L 13640,-880 Z"/>
-  <rect style="fill:#ffffff;" x="13640" y="-3520" width="2400" height="1360"/>
+  <rect style="fill:#ffffff;" x="13635.9" y="-3522.05" width="2400" height="1360"/>
   <rect style="fill:#ffffff;" x="13640" y="-2160" width="2400" height="1360"/>
   <path style="fill:#00ffff;" d="M 13640,-2160 L 16040,-2160 L 16040,-2360 L 13640,-2360 Z"/>
   <path style="fill:#00ffff;" d="M 13800,-1840 L 16040,-1840 L 16040,-2160 L 13800,-2160 Z"/>
@@ -74,5 +73,20 @@
   <path style="fill:#0044cc;" d="M 11240,-240 L 13640,-240 L 13640,-800 L 11240,-800 Z"/>
   <path style="fill:#ff0000;" d="M 5040,-1160 L 5120,-1160 L 5120,-1240 L 5040,-1240 Z"/>
   <path style="fill:#00ffff;" d="M 11240,560 L 13800,560 L 13800,-240 L 11240,-240 Z"/>
-  <circle cx="-10" cy="-0" r="20" fill="#ff8800"/>
+  <path style="fill:#884400;" d="M 14400,-2360 L 14680,-2360 L 14680,-2480 L 14400,-2480 Z"/>
+  <path style="fill:#884400;" d="M 14680,-2360 L 14800,-2360 L 14800,-2520 L 14680,-2520 Z"/>
+  <path style="fill:#884400;" d="M 15000,-2360 L 15080,-2360 L 15080,-2600 L 15000,-2600 Z"/>
+  <path style="fill:#884400;" d="M 15640,-2360 L 15720,-2360 L 15720,-2600 L 15640,-2600 Z"/>
+  <rect style="fill:#ffffff;" x="16038.5" y="-3520.66" width="2400" height="1360"/>
+  <path style="fill:#00ffff;" d="M 16040,-2160 L 18440,-2160 L 18440,-2360 L 16040,-2360 Z"/>
+  <path style="fill:#00ffff;" d="M 16040,-1840 L 18440,-1840 L 18440,-2160 L 16040,-2160 Z"/>
+  <path style="fill:#884400;" d="M 18200,-2360 L 18440,-2360 L 18440,-3200 L 18200,-3200 Z" id="BOSS_ENTRANCE"/>
+  <path style="fill:#884400;" d="M 15720,-2440 L 15800,-2440 L 15800,-2480 L 15720,-2480 Z"/>
+  <path style="fill:#884400;" d="M 14920,-2600 L 15720,-2600 L 15720,-2760 L 14920,-2760 Z"/>
+  <path style="fill:#884400;" d="M 16800,-2360 L 16960,-2360 L 16960,-2640 L 16800,-2640 Z"/>
+  <path style="fill:#884400;" d="M 16960,-2360 L 17000,-2360 L 17000,-2400 L 16960,-2400 Z"/>
+  <path style="fill:#884400;" d="M 16800,-2760 L 16960,-2760 L 16960,-3520 L 16800,-3520 Z"/>
+  <path style="fill:#00ffff;" d="M 16360,-2360 L 16560,-2360 L 16560,-2440 L 16360,-2440 Z"/>
+  <path style="fill:#00ffff;" d="M 18440,-1840 L 20360,-1840 L 20360,-2360 L 18440,-2360 Z"/>
+  <circle cx="80" cy="-0" r="20" fill="#ff8800" id="PlayerSpawn"/>
 </svg>

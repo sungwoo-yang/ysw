@@ -48,6 +48,10 @@ private:
     std::vector<RoomState> rooms_;
     std::vector<ObjRecord> objs_;
 
+    // Pre-allocated working buffers — reused each Update() to avoid heap allocation
+    std::vector<bool> shouldActive_;
+    std::vector<bool> shouldFloor_;
+
     bool AreNSEWAdjacent(const Math::rect& a, const Math::rect& b) const;
     int  FindRoom(Math::vec2 pos) const;
     void SetRoomActive(int idx, bool active);

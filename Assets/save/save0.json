@@ -1,9 +1,0 @@
-{
-  "spawn_x": 5080,
-  "spawn_y": 1250,
-  "hp": 5,
-  "dash": false,
-  "wall_climb": false,
-  "bash": true,
-  "open_gates": []
-}

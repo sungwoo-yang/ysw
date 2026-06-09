@@ -69,6 +69,7 @@ set(SOURCE_CODE
     Game/Door.hpp Game/Door.cpp
     Game/DoorActionHandler.hpp Game/DoorActionHandler.cpp
     Game/BreakableWall.hpp Game/BreakableWall.cpp
+    Game/BullBoss.hpp Game/BullBoss.cpp
     Game/Spike.hpp Game/Spike.cpp
     Game/Staircase.hpp Game/Staircase.cpp
     Game/Ramp.hpp Game/Ramp.cpp
