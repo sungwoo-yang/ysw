@@ -144,7 +144,8 @@ private:
         BullBoss*    boss  = nullptr;
     } bossSeq;
 
-    SimpleBossStar* simpleBossStar = nullptr;
+    std::vector<SimpleBossStar*> simpleBossStars;
+    SimpleBossStar*              bashBossTarget = nullptr;
 
     // Hardcoded parry tutorial
     enum class ParryTutState : uint8_t

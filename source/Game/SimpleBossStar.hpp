@@ -32,6 +32,11 @@ public:
 
     bool IsCleared() const;
 
+    const Math::rect& GetRoomBounds() const
+    {
+        return roomBounds;
+    }
+
     bool       HasBashableShot() const;
     Math::vec2 GetNearestBashableShotPosition(Math::vec2 from) const;
     Math::vec2 GetNearestBashableShotDirection(Math::vec2 from) const;

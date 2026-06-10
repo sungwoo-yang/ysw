@@ -45,6 +45,7 @@ namespace
     constexpr CS200::RGBA COL_ROOMBOUNDS = 0xFFFFFFFF;
     constexpr CS200::RGBA COL_TARGETSTAR = 0xFFD700FF;
     constexpr CS200::RGBA COL_LASERSTAR  = 0x39FF14FF;
+    constexpr CS200::RGBA COL_BOSSSTAR   = 0xFF44AAFF;
     constexpr CS200::RGBA COL_TURRET     = 0xFF6600FF;
     constexpr CS200::RGBA COL_BLOCK      = 0xCC00CCFF;
     constexpr CS200::RGBA COL_ROPE       = 0x00CC00FF;
@@ -64,6 +65,7 @@ namespace
             case ObjectType::RoomBounds: return COL_ROOMBOUNDS;
             case ObjectType::TargetStar: return COL_TARGETSTAR;
             case ObjectType::LaserStar: return COL_LASERSTAR;
+            case ObjectType::BossStar: return COL_BOSSSTAR;
             case ObjectType::Turret: return COL_TURRET;
             case ObjectType::Block: return COL_BLOCK;
             case ObjectType::Rope: return COL_ROPE;
@@ -94,7 +96,8 @@ namespace
         return inside;
     }
 
-    const char* TypeNames[] = { "Floor", "Platform", "Special", "RoomBounds", "TargetStar", "LaserStar", "Turret", "Block", "Rope", "Water", "BreakableWall", "Staircase", "Spike", "Elevator" };
+    const char* TypeNames[] = { "Floor", "Platform", "Special", "RoomBounds",    "TargetStar", "LaserStar", "BossStar", "Turret",
+                                "Block", "Rope",     "Water",   "BreakableWall", "Staircase",  "Spike",     "Elevator" };
 
     std::string MakeDefaultObjectId(ObjectType type, int index)
     {
@@ -103,6 +106,8 @@ namespace
             case ObjectType::TargetStar: return "TS_BOSS_" + std::to_string(index);
 
             case ObjectType::LaserStar: return "LS_Y_SHOT_TRACK_E_BOSS";
+
+            case ObjectType::BossStar: return "BS_BOSS";
 
             default: return "";
         }
@@ -141,6 +146,7 @@ namespace
             case ObjectType::RoomBounds: return "#ffffff";
             case ObjectType::TargetStar: return "#ffd700";
             case ObjectType::LaserStar: return "#39ff14";
+            case ObjectType::BossStar: return "#ff44aa";
             case ObjectType::Turret: return "#ff6600";
             case ObjectType::Block: return "#cc00cc";
             case ObjectType::Rope: return "#00cc00";
@@ -167,6 +173,8 @@ namespace
             return ObjectType::TargetStar;
         if (fill == "#39ff14" || fill == "#39FF14")
             return ObjectType::LaserStar;
+        if (fill == "#ff44aa" || fill == "#FF44AA")
+            return ObjectType::BossStar;
         if (fill == "#ff6600" || fill == "#FF6600")
             return ObjectType::Turret;
         if (fill == "#cc00cc" || fill == "#CC00CC")

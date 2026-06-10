@@ -497,6 +497,13 @@ namespace ObjectFactory
                 return CreateLaserStar(pos, player, id);
             }
 
+            if (color == "#ff44aa" || StartsWith(id, "BS_"))
+            {
+                // Editor-only BossStar marker.
+                // Mode3 reads this marker and creates SimpleBossStar manually.
+                return nullptr;
+            }
+
             // LaserTurret: #ff6600
             //   LTRT_(dir)_(cooldown)_(delay) = fires only when player is in line
             //   ATRT_(dir)_(cooldown)_(delay) = fires after delay, then waits cooldown between shots

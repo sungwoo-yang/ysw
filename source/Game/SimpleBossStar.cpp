@@ -252,6 +252,7 @@ void SimpleBossStar::UpdateState(double dt)
             break;
 
         case State::Warning:
+
             timer -= dt;
             if (timer <= 0.0)
             {

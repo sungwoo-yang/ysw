@@ -28,6 +28,7 @@ enum class ObjectType
     RoomBounds,
     TargetStar,
     LaserStar,
+    BossStar,
     Turret,
     Block,
     Rope,
