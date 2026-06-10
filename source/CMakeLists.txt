@@ -94,6 +94,7 @@ set(SOURCE_CODE
     Game/ShieldEnergy.hpp Game/ShieldEnergy.cpp
     Game/ShieldChargeShot.hpp Game/ShieldChargeShot.cpp
     Game/Sign.hpp Game/Sign.cpp
+    Game/SimpleBossStar.hpp Game/SimpleBossStar.cpp
     Game/Splash.hpp Game/Splash.cpp
     Game/Star.hpp Game/Star.cpp
     Game/TargetStar.hpp Game/TargetStar.cpp 

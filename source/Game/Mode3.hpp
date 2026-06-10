@@ -25,6 +25,7 @@ class ScriptManager;
 class InGameScriptEditor;
 class LevelStreamer;
 class BullBoss;
+class SimpleBossStar;
 
 namespace Boss
 {
@@ -50,7 +51,7 @@ public:
     void Draw() override;
     void DrawImGui() override;
 
-    void SaveGame();    // collect all persistent state and write to disk
+    void SaveGame();                      // collect all persistent state and write to disk
     void ApplySave(const SaveData& data); // restore state after a load
 
     gsl::czstring GetName() const override
@@ -61,6 +62,10 @@ public:
 private:
     void InitGame();
     bool CanPause() const override;
+
+    void InitSimpleBossFight(CS230::GameObjectManager* gom);
+    bool GetCurrentBashTargetInfo(Math::vec2& outPos, Math::vec2& outDir) const;
+    bool BashCurrentTarget(Math::vec2 newDir);
 
     static std::optional<Math::vec2> pendingReturnPosition;
 
@@ -75,12 +80,12 @@ private:
     CS230::Camera*                     camera           = nullptr;
     Player*                            player           = nullptr;
     CS230::MapManager*                 mapManager       = nullptr;
-    WorldTextManager*                  worldTextManager  = nullptr;
-    TutorialOverlay*                   tutorialOverlay   = nullptr;
-    CutscenePlayer*                    cutscenePlayer    = nullptr;
-    ScriptManager*                     scriptManager     = nullptr;
-    InGameScriptEditor*                scriptEditorIG    = nullptr;
-    LevelStreamer*                     levelStreamer      = nullptr;
+    WorldTextManager*                  worldTextManager = nullptr;
+    TutorialOverlay*                   tutorialOverlay  = nullptr;
+    CutscenePlayer*                    cutscenePlayer   = nullptr;
+    ScriptManager*                     scriptManager    = nullptr;
+    InGameScriptEditor*                scriptEditorIG   = nullptr;
+    LevelStreamer*                     levelStreamer    = nullptr;
     MiniMap*                           miniMap          = nullptr;
     std::map<std::string, std::string> signTexts;
 
@@ -104,28 +109,57 @@ private:
     OriPostProcessor postProcessor;
 
     // Death / respawn
-    Math::vec2 spawnPos          = { -10.0, 0.0 };
-    double     deathTimer        = -1.0;   // -1 = alive
-    bool       respawnDone       = false;
+    Math::vec2 spawnPos    = { -10.0, 0.0 };
+    double     deathTimer  = -1.0; // -1 = alive
+    bool       respawnDone = false;
 
     // Bash system
-    LaserTurret* bashTarget       = nullptr;
-    bool         bashReady        = false;
-    double       timeScale        = 1.0;
-    double       timeScaleTarget  = 1.0;
-    double       bashWindowTimer  = 0.0;   // 0 → BASH_WINDOW: slow-mo window
-    static constexpr double BASH_WINDOW = 1.0;
+    enum class BashTargetKind
+    {
+        None,
+        LaserTurret,
+        SimpleBoss
+    };
+
+    LaserTurret*            bashTarget      = nullptr;
+    BashTargetKind          bashTargetKind  = BashTargetKind::None;
+    bool                    bashReady       = false;
+    double                  timeScale       = 1.0;
+    double                  timeScaleTarget = 1.0;
+    double                  bashWindowTimer = 0.0; // 0 → BASH_WINDOW: slow-mo window
+    static constexpr double BASH_WINDOW     = 1.0;
 
     // Bull boss entrance sequence
-    enum class BossSeqState : uint8_t { Idle, BossEntrance, Chase, Done };
-    struct {
+    enum class BossSeqState : uint8_t
+    {
+        Idle,
+        BossEntrance,
+        Chase,
+        Done
+    };
+
+    struct
+    {
         BossSeqState state = BossSeqState::Idle;
         BullBoss*    boss  = nullptr;
     } bossSeq;
 
+    BashTargetKind bashTargetKind = BashTargetKind::None;
+
     // Hardcoded parry tutorial
-    enum class ParryTutState : uint8_t { Idle, Braking, Waiting, Moving, WaitBash, Frozen, Done };
-    struct {
+    enum class ParryTutState : uint8_t
+    {
+        Idle,
+        Braking,
+        Waiting,
+        Moving,
+        WaitBash,
+        Frozen,
+        Done
+    };
+
+    struct
+    {
         ParryTutState state     = ParryTutState::Idle;
         double        waitTimer = 0.0;
     } parryTut;

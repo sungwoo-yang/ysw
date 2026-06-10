@@ -6,21 +6,23 @@
 #include "BossConfig.hpp"
 #include "BreakableWall.hpp"
 #include "BullBoss.hpp"
+#include "CutscenePlayer.hpp"
 #include "Door.hpp"
 #include "DoorActionHandler.hpp"
+#include "Gate.hpp"
+#include "InGameScriptEditor.hpp"
+#include "LevelStreamer.hpp"
 #include "LightOrb.hpp"
 #include "LightOrbManager.hpp"
 #include "MiniMap.hpp"
 #include "ObjectFactory.hpp"
 #include "Player.hpp"
-#include "ShieldChargeShot.hpp"
-#include "ShieldEnergy.hpp"
-#include "CutscenePlayer.hpp"
-#include "Gate.hpp"
-#include "InGameScriptEditor.hpp"
-#include "LevelStreamer.hpp"
 #include "SaveManager.hpp"
 #include "ScriptManager.hpp"
+#include "ShieldChargeShot.hpp"
+#include "ShieldEnergy.hpp"
+#include "SimpleBossStar.hpp"
+#include "TargetStar.hpp"
 #include "TutorialOverlay.hpp"
 #include "WorldTextManager.hpp"
 
@@ -28,9 +30,9 @@
 #include "CS200/NDC.hpp"
 
 #include "Engine/AudioManager.hpp"
-#include "Engine/SettingsManager.hpp"
 #include "Engine/BackgroundElement.hpp"
 #include "Engine/Camera.hpp"
+#include "Engine/Collision.hpp"
 #include "Engine/Engine.hpp"
 #include "Engine/Font.hpp"
 #include "Engine/GameObjectManager.hpp"
@@ -38,10 +40,10 @@
 #include "Engine/GameStateManager.hpp"
 #include "Engine/Input.hpp"
 #include "Engine/Logger.hpp"
-#include "Engine/Path.hpp"
-#include "Engine/Collision.hpp"
 #include "Engine/MapElement.h"
 #include "Engine/MapManager.h"
+#include "Engine/Path.hpp"
+#include "Engine/SettingsManager.hpp"
 #include "Engine/ShowCollision.hpp"
 #include "Engine/TextureManager.hpp"
 #include "Engine/Window.hpp"
@@ -60,7 +62,7 @@
 #include <vector>
 
 std::optional<Math::vec2> Mode3::pendingReturnPosition = std::nullopt;
-bool                      Mode3::s_startInEditor        = false;
+bool                      Mode3::s_startInEditor       = false;
 
 namespace
 {
@@ -83,8 +85,7 @@ namespace
         if (!f.is_open())
             return std::nullopt;
 
-        std::string content((std::istreambuf_iterator<char>(f)),
-                             std::istreambuf_iterator<char>());
+        std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
         std::replace(content.begin(), content.end(), '\n', ' ');
         std::replace(content.begin(), content.end(), '\r', ' ');
 
@@ -153,8 +154,8 @@ void Mode3::Load()
             spawnPos = { sd->spawnX, sd->spawnY };
     }
     Math::vec2 spawnPosition = spawnPos;
-    deathTimer   = -1.0;
-    respawnDone  = false;
+    deathTimer               = -1.0;
+    respawnDone              = false;
 
     player = new Player(spawnPosition);
 
@@ -223,7 +224,8 @@ void Mode3::Load()
 
 bool Mode3::CanPause() const
 {
-    if (miniMap && miniMap->IsVisible()) return false;
+    if (miniMap && miniMap->IsVisible())
+        return false;
     return currentState == State::Playing;
 }
 
@@ -248,8 +250,7 @@ void Mode3::InitGame()
     AddGSComponent(tutorialOverlay);
 
     cutscenePlayer = new CutscenePlayer();
-    cutscenePlayer->SetRefs(player, tutorialOverlay, camera,
-                            Engine::GetWindow().GetSize());
+    cutscenePlayer->SetRefs(player, tutorialOverlay, camera, Engine::GetWindow().GetSize());
     AddGSComponent(cutscenePlayer);
 
     scriptManager = new ScriptManager();
@@ -258,8 +259,7 @@ void Mode3::InitGame()
     AddGSComponent(scriptManager);
 
     scriptEditorIG = new InGameScriptEditor();
-    scriptEditorIG->SetRefs(camera, cutscenePlayer, scriptManager,
-                            Engine::GetWindow().GetSize());
+    scriptEditorIG->SetRefs(camera, cutscenePlayer, scriptManager, Engine::GetWindow().GetSize());
     scriptEditorIG->LoadTriggers();
 
     // Room bounds: global union for minimap + per-room clamping for camera
@@ -267,14 +267,19 @@ void Mode3::InitGame()
         const auto& rooms = mapManager->GetAllRooms();
         if (!rooms.empty())
         {
-            double minX = rooms[0].Left(),   maxX = rooms[0].Right();
+            double minX = rooms[0].Left(), maxX = rooms[0].Right();
             double minY = rooms[0].Bottom(), maxY = rooms[0].Top();
             for (const auto& r : rooms)
             {
-                minX = std::min(minX, r.Left());   maxX = std::max(maxX, r.Right());
-                minY = std::min(minY, r.Bottom()); maxY = std::max(maxY, r.Top());
+                minX = std::min(minX, r.Left());
+                maxX = std::max(maxX, r.Right());
+                minY = std::min(minY, r.Bottom());
+                maxY = std::max(maxY, r.Top());
             }
-            worldBounds  = Math::rect{{ minX, minY }, { maxX, maxY }};
+            worldBounds = Math::rect{
+                { minX, minY },
+                { maxX, maxY }
+            };
             cameraBounds = worldBounds;
         }
     }
@@ -295,6 +300,10 @@ void Mode3::InitGame()
         Math::ivec2 winSize = Engine::GetWindow().GetSize();
         camera->SetPosition(player->GetPosition() - Math::vec2{ winSize.x * 0.5, winSize.y * 0.5 });
     }
+
+    // Simple boss fight object must be added before LevelStreamer::Init
+    // so streaming can assign it to the boss room.
+    InitSimpleBossFight(gom);
 
     // Level streaming: assign objects to rooms, start with all active
     levelStreamer = new LevelStreamer();
@@ -330,7 +339,8 @@ void Mode3::Update(double dt)
 
     // Map open: lock player, handle ESC to close
     const bool mapVisible = miniMap && miniMap->IsVisible();
-    if (player) player->inputLocked = mapVisible;
+    if (player)
+        player->inputLocked = mapVisible;
 
     if (mapVisible)
     {
@@ -353,7 +363,7 @@ void Mode3::Update(double dt)
         const Uint8* sdlKeys = SDL_GetKeyboardState(nullptr);
         if (sdlKeys[SDL_SCANCODE_TAB])
         {
-            const Math::vec2 playerPos = player ? player->GetPosition() : Math::vec2{300.0, -3000.0};
+            const Math::vec2 playerPos = player ? player->GetPosition() : Math::vec2{ 300.0, -3000.0 };
             LevelEditor::SetGameObjects(GetGSComponent<CS230::GameObjectManager>());
             LevelEditor::SetSpawnPos(playerPos);
             LevelEditor::SetInitialCamera(playerPos, 1.0);
@@ -366,44 +376,64 @@ void Mode3::Update(double dt)
     // ---- Bash system ----
     if (player && player->bashEnabled)
     {
-        bool         foundTarget = false;
-        LaserTurret* nearest     = nullptr;
-        double       nearestDist = BASH_RADIUS * BASH_RADIUS;
+        bool           foundTarget   = false;
+        LaserTurret*   nearestTurret = nullptr;
+        BashTargetKind nearestKind   = BashTargetKind::None;
+        double         nearestDist   = BASH_RADIUS * BASH_RADIUS;
 
         for (auto* obj : GetGSComponent<CS230::GameObjectManager>()->GetObjects())
         {
-            if (obj->Type() != GameObjectTypes::LaserTurret) continue;
-            auto* t = static_cast<LaserTurret*>(obj);
+            if (obj->Type() != GameObjectTypes::LaserTurret)
+                continue;
 
-            for (const Math::vec2 bulletPos : t->GetBashableBulletPositions())
+            auto* turret = static_cast<LaserTurret*>(obj);
+
+            for (const Math::vec2 bulletPos : turret->GetBashableBulletPositions())
             {
                 const double d2 = (bulletPos - player->GetPosition()).LengthSquared();
                 if (d2 <= nearestDist)
                 {
-                    nearestDist  = d2;
-                    nearest      = t;
-                    foundTarget  = true;
+                    nearestDist   = d2;
+                    nearestTurret = turret;
+                    nearestKind   = BashTargetKind::LaserTurret;
+                    foundTarget   = true;
                 }
+            }
+        }
+
+        if (simpleBossStar != nullptr && simpleBossStar->HasBashableShot())
+        {
+            const Math::vec2 shotPos = simpleBossStar->GetNearestBashableShotPosition(player->GetPosition());
+
+            const double d2 = (shotPos - player->GetPosition()).LengthSquared();
+
+            if (d2 <= nearestDist)
+            {
+                nearestDist   = d2;
+                nearestTurret = nullptr;
+                nearestKind   = BashTargetKind::SimpleBoss;
+                foundTarget   = true;
             }
         }
 
         if (foundTarget)
         {
             // Reset window timer when acquiring a new target
-            if (!bashReady || bashTarget != nearest)
+            if (!bashReady || bashTargetKind != nearestKind || bashTarget != nearestTurret)
                 bashWindowTimer = 0.0;
 
-            bashWindowTimer += dt;   // real (unscaled) time
-            bashReady        = true;
-            bashTarget       = nearest;
+            bashWindowTimer += dt;
+            bashReady      = true;
+            bashTarget     = nearestTurret;
+            bashTargetKind = nearestKind;
 
-            // Slow-mo only within the 1-second window
             timeScaleTarget = (bashWindowTimer < BASH_WINDOW) ? BASH_SLOW_FACTOR : 1.0;
         }
         else
         {
             bashReady       = false;
             bashTarget      = nullptr;
+            bashTargetKind  = BashTargetKind::None;
             timeScaleTarget = 1.0;
             bashWindowTimer = 0.0;
         }
@@ -415,30 +445,34 @@ void Mode3::Update(double dt)
             timeScale += (timeScaleTarget - timeScale) * std::min(dt * 14.0, 1.0);
 
         // ---- Execute bash on left click ----
-        if (bashReady && bashTarget &&
-            Engine::GetInput().MouseButtonJustPressed(CS230::Input::MouseButton::Left))
+        if (bashReady && bashTarget && Engine::GetInput().MouseButtonJustPressed(CS230::Input::MouseButton::Left))
         {
-            const Math::ivec2 win = Engine::GetWindow().GetSize();
-            const Math::vec2  ms  = Engine::GetInput().GetMousePosition();
-            const Math::vec2  mouseWorld = camera->GetPosition()
-                                         + Math::vec2{ ms.x, win.y - ms.y };
+            const Math::ivec2 win        = Engine::GetWindow().GetSize();
+            const Math::vec2  ms         = Engine::GetInput().GetMousePosition();
+            const Math::vec2  mouseWorld = camera->GetPosition() + Math::vec2{ ms.x, win.y - ms.y };
 
-            const Math::vec2 bulletPos = bashTarget->GetNearestBashableBulletPosition(player->GetPosition());
+            Math::vec2 bulletPos;
+            Math::vec2 bulletDir;
+
+            if (!GetCurrentBashTargetInfo(bulletPos, bulletDir))
+                return;
+
             Math::vec2 toMouse = mouseWorld - bulletPos;
-            if (toMouse.LengthSquared() < 1.0) toMouse = { 1.0, 0.0 };
+            if (toMouse.LengthSquared() < 1.0)
+                toMouse = { 1.0, 0.0 };
             const Math::vec2 bashDir = toMouse.Normalize();
 
-            const Math::vec2 bulletDir = bashTarget->GetNearestBashableBulletDirection(player->GetPosition());
-            const double dot       = bulletDir.Dot(bashDir);
-            const double forceMult = 1.0 - 0.5 * dot;
+            const double     dot        = bulletDir.Dot(bashDir);
+            const double     forceMult  = 1.0 - 0.5 * dot;
             constexpr double BASE_FORCE = 950.0;
-            const Math::vec2 impulse = -bashDir * (BASE_FORCE * forceMult);
+            const Math::vec2 impulse    = -bashDir * (BASE_FORCE * forceMult);
 
-            if (bashTarget->BashNearestBullet(player->GetPosition(), bashDir, BASH_RADIUS * BASH_RADIUS))
+            if (BashCurrentTarget(bashDir))
                 player->ApplyBashImpulse(impulse);
 
             bashReady       = false;
             bashTarget      = nullptr;
+            bashTargetKind  = BashTargetKind::None;
             timeScale       = 1.0;
             timeScaleTarget = 1.0;
             bashWindowTimer = 0.0;
@@ -458,67 +492,68 @@ void Mode3::Update(double dt)
     {
         switch (parryTut.state)
         {
-        case ParryTutState::Idle:
-            if (player->GetPosition().x >= 2500.0)
-                parryTut.state = ParryTutState::Braking;
-            break;
+            case ParryTutState::Idle:
+                if (player->GetPosition().x >= 2500.0)
+                    parryTut.state = ParryTutState::Braking;
+                break;
 
-        case ParryTutState::Braking:
-        {
-            const double px   = player->GetPosition().x;
-            const double py   = player->GetPosition().y;
-            const double dist = 2800.0 - px;
-            player->autoMoveActive = false;
+            case ParryTutState::Braking:
+                {
+                    const double px        = player->GetPosition().x;
+                    const double py        = player->GetPosition().y;
+                    const double dist      = 2800.0 - px;
+                    player->autoMoveActive = false;
 
-            if (dist < 8.0)
-            {
-                player->SetPosition({ 2800.0, py });
-                player->SetVelocityX(0.0);
+                    if (dist < 8.0)
+                    {
+                        player->SetPosition({ 2800.0, py });
+                        player->SetVelocityX(0.0);
+                        player->inputLocked = true;
+                        parryTut.state      = ParryTutState::Waiting;
+                        parryTut.waitTimer  = 0.0;
+                    }
+                    else
+                    {
+                        // Player can still move freely, just cap rightward speed
+                        static constexpr double BRAKE_SPEED = 280.0;
+                        if (player->GetVelocity().x > BRAKE_SPEED)
+                            player->SetVelocityX(BRAKE_SPEED);
+                    }
+                    break;
+                }
+
+            case ParryTutState::Waiting:
                 player->inputLocked = true;
-                parryTut.state      = ParryTutState::Waiting;
-                parryTut.waitTimer  = 0.0;
-            }
-            else
-            {
-                // Player can still move freely, just cap rightward speed
-                static constexpr double BRAKE_SPEED = 280.0;
-                if (player->GetVelocity().x > BRAKE_SPEED)
-                    player->SetVelocityX(BRAKE_SPEED);
-            }
-            break;
-        }
+                parryTut.waitTimer += dt;
+                if (parryTut.waitTimer >= 2.0)
+                {
+                    parryTut.state = ParryTutState::Moving;
+                    player->SetAutoMove(Math::vec2{ 3200.0, player->GetPosition().y });
+                }
+                break;
 
-        case ParryTutState::Waiting:
-            player->inputLocked = true;
-            parryTut.waitTimer += dt;
-            if (parryTut.waitTimer >= 2.0)
-            {
-                parryTut.state = ParryTutState::Moving;
-                player->SetAutoMove(Math::vec2{ 3200.0, player->GetPosition().y });
-            }
-            break;
+            case ParryTutState::Moving:
+                if (!player->autoMoveActive)
+                    parryTut.state = ParryTutState::WaitBash;
+                break;
 
-        case ParryTutState::Moving:
-            if (!player->autoMoveActive)
-                parryTut.state = ParryTutState::WaitBash;
-            break;
+            case ParryTutState::WaitBash:
+                if (bashReady)
+                    parryTut.state = ParryTutState::Frozen;
+                break;
 
-        case ParryTutState::WaitBash:
-            if (bashReady)
-                parryTut.state = ParryTutState::Frozen;
-            break;
+            case ParryTutState::Frozen:
+                if (!bashReady)
+                {
+                    parryTut.state = ParryTutState::Done;
+                    if (tutorialOverlay)
+                        tutorialOverlay->Clear();
+                }
+                else if (tutorialOverlay && tutorialOverlay->IsIdle())
+                    tutorialOverlay->Show("Left Click to Parry!", 3.0, { 0.5, 0.6 });
+                break;
 
-        case ParryTutState::Frozen:
-            if (!bashReady)
-            {
-                parryTut.state = ParryTutState::Done;
-                if (tutorialOverlay) tutorialOverlay->Clear();
-            }
-            else if (tutorialOverlay && tutorialOverlay->IsIdle())
-                tutorialOverlay->Show("Left Click to Parry!", 3.0, { 0.5, 0.6 });
-            break;
-
-        default: break;
+            default: break;
         }
     }
 
@@ -528,51 +563,49 @@ void Mode3::Update(double dt)
         auto* gom = GetGSComponent<CS230::GameObjectManager>();
         switch (bossSeq.state)
         {
-        case BossSeqState::Idle:
-            if (player->GetPosition().x >= 16200.0)
-            {
-                BreakableWall* entranceWall = nullptr;
-                for (auto* obj : gom->GetObjects())
+            case BossSeqState::Idle:
+                if (player->GetPosition().x >= 16200.0)
                 {
-                    if (obj && obj->Type() == GameObjectTypes::BreakableWall)
+                    BreakableWall* entranceWall = nullptr;
+                    for (auto* obj : gom->GetObjects())
                     {
-                        auto* bw = static_cast<BreakableWall*>(obj);
-                        if (bw->GetName() == "BOSS_ENTRANCE")
+                        if (obj && obj->Type() == GameObjectTypes::BreakableWall)
                         {
-                            entranceWall = bw;
-                            break;
+                            auto* bw = static_cast<BreakableWall*>(obj);
+                            if (bw->GetName() == "BOSS_ENTRANCE")
+                            {
+                                entranceWall = bw;
+                                break;
+                            }
                         }
                     }
+                    if (entranceWall)
+                    {
+                        player->inputLocked    = true;
+                        player->autoMoveActive = false;
+                        player->SetVelocityX(0.0);
+
+                        // Spawn boss at user-specified position
+                        auto* boss = new BullBoss({ 18800.0, 2400.0 }, entranceWall, player);
+                        gom->Add(boss);
+                        bossSeq.boss = boss;
+                        boss->TriggerEntrance();
+                        bossSeq.state = BossSeqState::BossEntrance;
+                    }
                 }
-                if (entranceWall)
+                break;
+
+            case BossSeqState::BossEntrance:
+                if (bossSeq.boss && bossSeq.boss->GetState() == BullBoss::State::Chasing)
                 {
-                    player->inputLocked    = true;
-                    player->autoMoveActive = false;
-                    player->SetVelocityX(0.0);
-
-                    // Spawn boss at user-specified position
-                    auto* boss = new BullBoss({ 18800.0, 2400.0 }, entranceWall, player);
-                    gom->Add(boss);
-                    bossSeq.boss  = boss;
-                    boss->TriggerEntrance();
-                    bossSeq.state = BossSeqState::BossEntrance;
+                    player->inputLocked = false;
+                    bossSeq.state       = BossSeqState::Chase;
                 }
-            }
-            break;
+                break;
 
-        case BossSeqState::BossEntrance:
-            if (bossSeq.boss && bossSeq.boss->GetState() == BullBoss::State::Chasing)
-            {
-                player->inputLocked = false;
-                bossSeq.state       = BossSeqState::Chase;
-            }
-            break;
+            case BossSeqState::Chase: break;
 
-        case BossSeqState::Chase:
-            break;
-
-        default:
-            break;
+            default: break;
         }
     }
 
@@ -601,7 +634,8 @@ void Mode3::Update(double dt)
         scriptManager->CheckTriggers(player->GetPosition());
 
     // 컷씬 플레이어 업데이트
-    if (cutscenePlayer) cutscenePlayer->Update(dt);
+    if (cutscenePlayer)
+        cutscenePlayer->Update(dt);
 
     // 인게임 스크립트 에디터 입력 처리
     if (scriptEditorIG && scriptEditorIG->active)
@@ -651,17 +685,17 @@ void Mode3::Update(double dt)
         const double camZoom = camera->GetScale();
         const double visW    = winW / camZoom;
         const double visH    = winH / camZoom;
-        Math::vec2 target = player->GetPosition() - Math::vec2{ visW * 0.5, visH * 0.5 };
+        Math::vec2   target  = player->GetPosition() - Math::vec2{ visW * 0.5, visH * 0.5 };
 
         if (cameraBounds && !(cutscenePlayer && cutscenePlayer->overridingCamera))
         {
-            const double bW = cameraBounds->Right()  - cameraBounds->Left();
-            const double bH = cameraBounds->Top()    - cameraBounds->Bottom();
+            const double bW = cameraBounds->Right() - cameraBounds->Left();
+            const double bH = cameraBounds->Top() - cameraBounds->Bottom();
 
             if (visW >= bW)
                 target.x = cameraBounds->Left() - (visW - bW) * 0.5;
             else
-                target.x = std::clamp(target.x, cameraBounds->Left(), cameraBounds->Right()  - visW);
+                target.x = std::clamp(target.x, cameraBounds->Left(), cameraBounds->Right() - visW);
 
             if (visH >= bH)
                 target.y = cameraBounds->Bottom() - (visH - bH) * 0.5;
@@ -676,7 +710,7 @@ void Mode3::Update(double dt)
 
         // Smooth lerp — no teleport
         constexpr double CAM_SPEED = 8.0;
-        const Math::vec2 cur = camera->GetPosition();
+        const Math::vec2 cur       = camera->GetPosition();
         camera->SetPosition(cur + (target - cur) * std::min(dt * CAM_SPEED, 1.0));
     }
 
@@ -692,13 +726,14 @@ void Mode3::Update(double dt)
     // ── Death → light-dissolve → respawn ────────────────────────────────────
     if (player && player->IsDead())
     {
-        if (deathTimer < 0.0) deathTimer = 0.0;
+        if (deathTimer < 0.0)
+            deathTimer = 0.0;
         deathTimer += dt;
 
         // Phase durations
-        constexpr double FADE_IN  = 1.0;  // 0→1 blackout (death → black)
-        constexpr double HOLD     = 0.5;  // full black (respawn happens here)
-        constexpr double FADE_OUT = 0.8;  // 1→0 blackout (black → normal)
+        constexpr double FADE_IN  = 1.0; // 0→1 blackout (death → black)
+        constexpr double HOLD     = 0.5; // full black (respawn happens here)
+        constexpr double FADE_OUT = 0.8; // 1→0 blackout (black → normal)
 
         player->UpdateDeathEffect(dt);
 
@@ -713,12 +748,11 @@ void Mode3::Update(double dt)
             if (!respawnDone)
             {
                 const Math::vec2 respawnPos = player->GetSavePoint();
-                spawnPos = respawnPos;
+                spawnPos                    = respawnPos;
                 player->ResetState();
                 player->SetPosition(respawnPos);
                 // Tutorial runs once: if it had started, skip it permanently
-                if (parryTut.state != ParryTutState::Idle &&
-                    parryTut.state != ParryTutState::Done)
+                if (parryTut.state != ParryTutState::Idle && parryTut.state != ParryTutState::Done)
                     parryTut.state = ParryTutState::Done;
                 // Boss sequence runs once
                 if (bossSeq.state != BossSeqState::Idle)
@@ -735,22 +769,18 @@ void Mode3::Update(double dt)
                 // Snap camera to spawn position while screen is black
                 if (camera)
                 {
-                    const Math::ivec2 win  = Engine::GetWindow().GetSize();
-                    const double      zoom = camera->GetScale();
-                    const double      visW = win.x / zoom;
-                    const double      visH = win.y / zoom;
-                    Math::vec2 camSnap     = respawnPos - Math::vec2{ visW * 0.5, visH * 0.5 };
+                    const Math::ivec2 win     = Engine::GetWindow().GetSize();
+                    const double      zoom    = camera->GetScale();
+                    const double      visW    = win.x / zoom;
+                    const double      visH    = win.y / zoom;
+                    Math::vec2        camSnap = respawnPos - Math::vec2{ visW * 0.5, visH * 0.5 };
 
                     if (cameraBounds)
                     {
-                        const double bW = cameraBounds->Right()  - cameraBounds->Left();
-                        const double bH = cameraBounds->Top()    - cameraBounds->Bottom();
-                        camSnap.x = (visW >= bW)
-                            ? cameraBounds->Left() - (visW - bW) * 0.5
-                            : std::clamp(camSnap.x, cameraBounds->Left(), cameraBounds->Right()  - visW);
-                        camSnap.y = (visH >= bH)
-                            ? cameraBounds->Bottom() - (visH - bH) * 0.5
-                            : std::clamp(camSnap.y, cameraBounds->Bottom(), cameraBounds->Top() - visH);
+                        const double bW = cameraBounds->Right() - cameraBounds->Left();
+                        const double bH = cameraBounds->Top() - cameraBounds->Bottom();
+                        camSnap.x       = (visW >= bW) ? cameraBounds->Left() - (visW - bW) * 0.5 : std::clamp(camSnap.x, cameraBounds->Left(), cameraBounds->Right() - visW);
+                        camSnap.y       = (visH >= bH) ? cameraBounds->Bottom() - (visH - bH) * 0.5 : std::clamp(camSnap.y, cameraBounds->Bottom(), cameraBounds->Top() - visH);
                     }
 
                     camera->SetPosition(camSnap);
@@ -777,8 +807,9 @@ void Mode3::Update(double dt)
         postProcessor.SetBlackout(0.0f);
     }
 
-    camera_update:
-    if (miniMap) miniMap->Update(dt);
+camera_update:
+    if (miniMap)
+        miniMap->Update(dt);
 }
 
 void Mode3::Draw()
@@ -807,24 +838,20 @@ void Mode3::Draw()
     }
 
     // Snap camera position to nearest pixel to eliminate sub-pixel jitter
-    const Math::vec2 rawCamPos  = camera->GetPosition();
-    const Math::vec2 snapCamPos = { std::round(rawCamPos.x), std::round(rawCamPos.y) };
-    Math::TransformationMatrix vp = CS200::build_ndc_matrix(display_size_int) *
-        (Math::ScaleMatrix({ camera->GetScale(), camera->GetScale() }) * Math::TranslationMatrix(-snapCamPos));
+    const Math::vec2           rawCamPos  = camera->GetPosition();
+    const Math::vec2           snapCamPos = { std::round(rawCamPos.x), std::round(rawCamPos.y) };
+    Math::TransformationMatrix vp         = CS200::build_ndc_matrix(display_size_int) * (Math::ScaleMatrix({ camera->GetScale(), camera->GetScale() }) * Math::TranslationMatrix(-snapCamPos));
 
     // Scene pass: background + all game objects
     postProcessor.BeginSceneRender();
     {
         GL::UseProgram(backgroundShader.Shader);
-        GL::Uniform2f(GL::GetUniformLocation(backgroundShader.Shader, "u_resolution"),
-                      static_cast<float>(display_size_int.x), static_cast<float>(display_size_int.y));
-        GL::Uniform1f(GL::GetUniformLocation(backgroundShader.Shader, "u_time"),
-                      static_cast<float>(shaderTime));
+        GL::Uniform2f(GL::GetUniformLocation(backgroundShader.Shader, "u_resolution"), static_cast<float>(display_size_int.x), static_cast<float>(display_size_int.y));
+        GL::Uniform1f(GL::GetUniformLocation(backgroundShader.Shader, "u_time"), static_cast<float>(shaderTime));
         if (camera)
         {
             const Math::vec2 cp = camera->GetPosition();
-            GL::Uniform2f(GL::GetUniformLocation(backgroundShader.Shader, "u_camPos"),
-                          static_cast<float>(cp.x), static_cast<float>(cp.y));
+            GL::Uniform2f(GL::GetUniformLocation(backgroundShader.Shader, "u_camPos"), static_cast<float>(cp.x), static_cast<float>(cp.y));
         }
         GL::Uniform1f(GL::GetUniformLocation(backgroundShader.Shader, "u_parallax"), 0.25f);
         GL::BindVertexArray(backgroundVAO);
@@ -854,12 +881,11 @@ void Mode3::Draw()
 
                 for (const Math::vec2 bulletPos : turret->GetBashableBulletPositions())
                 {
-                    const double     dist      = std::sqrt((bulletPos - player->GetPosition()).LengthSquared());
-                    const bool       inRange   = dist <= BASH_RADIUS;
-                    const CS200::RGBA ringCol  = inRange ? 0x00FF88DDu : 0xFFCC4488u;
+                    const double      dist    = std::sqrt((bulletPos - player->GetPosition()).LengthSquared());
+                    const bool        inRange = dist <= BASH_RADIUS;
+                    const CS200::RGBA ringCol = inRange ? 0x00FF88DDu : 0xFFCC4488u;
 
-                    const auto radiusMarker = Math::TranslationMatrix(bulletPos) *
-                        Math::ScaleMatrix({ BASH_RADIUS * 2.0, BASH_RADIUS * 2.0 });
+                    const auto radiusMarker = Math::TranslationMatrix(bulletPos) * Math::ScaleMatrix({ BASH_RADIUS * 2.0, BASH_RADIUS * 2.0 });
                     renderer.DrawCircle(radiusMarker, CS200::CLEAR, ringCol, inRange ? 3.0 : 2.0);
                 }
             }
@@ -867,73 +893,72 @@ void Mode3::Draw()
     }
 
     // Bash aim indicator
-    if (bashReady && bashTarget && player)
+    if (bashReady && player)
     {
+        Math::vec2 bPos;
+        Math::vec2 bDir;
+
+        if (!GetCurrentBashTargetInfo(bPos, bDir))
+            return;
+
         constexpr double kPI    = 3.14159265358979323846;
         constexpr double TWO_PI = kPI * 2.0;
 
-        const Math::ivec2 win  = Engine::GetWindow().GetSize();
-        const Math::vec2  ms   = Engine::GetInput().GetMousePosition();
-        const Math::vec2  mw   = camera->GetPosition() + Math::vec2{ ms.x, win.y - ms.y };
-        const Math::vec2  bPos = bashTarget->GetNearestBashableBulletPosition(player->GetPosition());
+        const Math::ivec2 win = Engine::GetWindow().GetSize();
+        const Math::vec2  ms  = Engine::GetInput().GetMousePosition();
+        const Math::vec2  mw  = camera->GetPosition() + Math::vec2{ ms.x, win.y - ms.y };
 
         const double progress = std::min(bashWindowTimer / BASH_WINDOW, 1.0);
 
         // ---- Aim line & arrow ----
         renderer.DrawLine(bPos, mw, 0xFFFFFF90u, 1.5);
-        const Math::vec2 toMouse = (mw - bPos).LengthSquared() > 1.0
-                                 ? (mw - bPos).Normalize() : Math::vec2{ 1.0, 0.0 };
-        constexpr double ARROW = 18.0;
+        const Math::vec2 toMouse   = (mw - bPos).LengthSquared() > 1.0 ? (mw - bPos).Normalize() : Math::vec2{ 1.0, 0.0 };
+        constexpr double ARROW     = 18.0;
         const Math::vec2 arrowLeft = { -toMouse.y, toMouse.x };
         renderer.DrawLine(mw, mw - toMouse * ARROW + arrowLeft * (ARROW * 0.5), 0xFFFFFF90u, 1.5);
         renderer.DrawLine(mw, mw - toMouse * ARROW - arrowLeft * (ARROW * 0.5), 0xFFFFFF90u, 1.5);
 
         // Player rebound direction
-        renderer.DrawLine(player->GetPosition(),
-                          player->GetPosition() + (-toMouse) * 80.0,
-                          0xFF8844FFu, 2.0);
+        renderer.DrawLine(player->GetPosition(), player->GetPosition() + (-toMouse) * 80.0, 0xFF8844FFu, 2.0);
 
         // ---- Circular light sweep ----
-        constexpr double RADIUS    = 55.0;         // smaller circle
-        constexpr double START_ANG = kPI * 0.5;    // 12 o'clock
+        constexpr double RADIUS    = 55.0;      // smaller circle
+        constexpr double START_ANG = kPI * 0.5; // 12 o'clock
         constexpr int    RING_SEGS = 72;
-        constexpr double BULGE_ANG = kPI / 5.0;    // ±36° glow spread
+        constexpr double BULGE_ANG = kPI / 5.0; // ±36° glow spread
 
         const double headAng = START_ANG - progress * TWO_PI;
 
         for (int i = 0; i < RING_SEGS; ++i)
         {
-            const double a0 = START_ANG - (double)i       / RING_SEGS * TWO_PI;
-            const double a1 = START_ANG - (double)(i + 1) / RING_SEGS * TWO_PI;
+            const double a0   = START_ANG - (double)i / RING_SEGS * TWO_PI;
+            const double a1   = START_ANG - (double)(i + 1) / RING_SEGS * TWO_PI;
             const double aMid = (a0 + a1) * 0.5;
 
             // Angular distance from head (wrap-safe via cos trick)
-            double dAng = std::acos(std::max(-1.0, std::min(1.0,
-                std::cos(aMid) * std::cos(headAng) + std::sin(aMid) * std::sin(headAng))));
+            double dAng = std::acos(std::max(-1.0, std::min(1.0, std::cos(aMid) * std::cos(headAng) + std::sin(aMid) * std::sin(headAng))));
 
             // Glow: 1 at head, 0 at BULGE_ANG away
-            const double glow = std::max(0.0, 1.0 - dAng / BULGE_ANG);
-            const double glowSmooth = glow * glow;  // quadratic falloff
+            const double glow       = std::max(0.0, 1.0 - dAng / BULGE_ANG);
+            const double glowSmooth = glow * glow; // quadratic falloff
 
             // Line width: thin normally, bulges at the light position
             const double lineW = 1.0 + glowSmooth * 7.0;
 
             // Color: dim grey ring → bright white-blue at glow
-            const uint32_t baseAlpha  = static_cast<uint32_t>(0x55 + glowSmooth * 0xAA);
-            const uint32_t rComp = static_cast<uint32_t>(0x55 + glowSmooth * 0xAA);
-            const uint32_t gComp = static_cast<uint32_t>(0x66 + glowSmooth * 0x99);
-            const uint32_t bComp = static_cast<uint32_t>(0x77 + glowSmooth * 0x88);
-            const uint32_t col = (rComp << 24) | (gComp << 16) | (bComp << 8) | baseAlpha;
+            const uint32_t baseAlpha = static_cast<uint32_t>(0x55 + glowSmooth * 0xAA);
+            const uint32_t rComp     = static_cast<uint32_t>(0x55 + glowSmooth * 0xAA);
+            const uint32_t gComp     = static_cast<uint32_t>(0x66 + glowSmooth * 0x99);
+            const uint32_t bComp     = static_cast<uint32_t>(0x77 + glowSmooth * 0x88);
+            const uint32_t col       = (rComp << 24) | (gComp << 16) | (bComp << 8) | baseAlpha;
 
-            renderer.DrawLine(
-                { bPos.x + RADIUS * std::cos(a0), bPos.y + RADIUS * std::sin(a0) },
-                { bPos.x + RADIUS * std::cos(a1), bPos.y + RADIUS * std::sin(a1) },
-                col, lineW);
+            renderer.DrawLine({ bPos.x + RADIUS * std::cos(a0), bPos.y + RADIUS * std::sin(a0) }, { bPos.x + RADIUS * std::cos(a1), bPos.y + RADIUS * std::sin(a1) }, col, lineW);
         }
     }
 
     // In-game script editor world overlay
-    if (scriptEditorIG) scriptEditorIG->DrawWorld(renderer);
+    if (scriptEditorIG)
+        scriptEditorIG->DrawWorld(renderer);
 
     renderer.EndScene();
 
@@ -988,11 +1013,9 @@ void Mode3::DrawImGui()
         for (int i = 0; i < maxHp; ++i)
         {
             const bool filled = (i < currentHp);
-            ImGui::TextColored(
-                filled ? ImVec4{ 1.0f, 0.2f, 0.2f, 1.0f }
-                       : ImVec4{ 0.4f, 0.1f, 0.1f, 1.0f },
-                filled ? "[*]" : "[ ]");
-            if (i < maxHp - 1) ImGui::SameLine();
+            ImGui::TextColored(filled ? ImVec4{ 1.0f, 0.2f, 0.2f, 1.0f } : ImVec4{ 0.4f, 0.1f, 0.1f, 1.0f }, filled ? "[*]" : "[ ]");
+            if (i < maxHp - 1)
+                ImGui::SameLine();
         }
         ImGui::Separator();
 
@@ -1023,10 +1046,12 @@ void Mode3::DrawImGui()
         {
             ImGui::SameLine();
             const bool igOn = scriptEditorIG->active;
-            if (igOn) ImGui::PushStyleColor(ImGuiCol_Button, { 0.2f, 0.7f, 0.3f, 1.0f });
+            if (igOn)
+                ImGui::PushStyleColor(ImGuiCol_Button, { 0.2f, 0.7f, 0.3f, 1.0f });
             if (ImGui::Button(igOn ? "ScriptEd [ON]" : "Script Ed", { 120.0f, 0.0f }))
                 scriptEditorIG->active = !scriptEditorIG->active;
-            if (igOn) ImGui::PopStyleColor();
+            if (igOn)
+                ImGui::PopStyleColor();
         }
     }
     ImGui::Separator();
@@ -1039,10 +1064,12 @@ void Mode3::DrawImGui()
         ImGui::TextDisabled("Streaming: %d rooms active", levelStreamer->ActiveRoomCount());
     ImGui::End();
 
-    if (scriptEditorIG) scriptEditorIG->DrawImGui();
+    if (scriptEditorIG)
+        scriptEditorIG->DrawImGui();
 #endif
 
-    if (miniMap) miniMap->DrawImGui();
+    if (miniMap)
+        miniMap->DrawImGui();
 }
 
 // ---------------------------------------------------------------------------
@@ -1056,13 +1083,13 @@ void Mode3::SaveGame()
     if (player)
     {
         const Math::vec2 sp = player->GetSavePoint();
-        spawnPos       = sp;
-        data.spawnX    = sp.x;
-        data.spawnY    = sp.y;
-        data.hp        = player->GetHP();
-        data.dash      = player->dashEnabled;
-        data.wallClimb = player->wallClimbEnabled;
-        data.bash      = player->bashEnabled;
+        spawnPos            = sp;
+        data.spawnX         = sp.x;
+        data.spawnY         = sp.y;
+        data.hp             = player->GetHP();
+        data.dash           = player->dashEnabled;
+        data.wallClimb      = player->wallClimbEnabled;
+        data.bash           = player->bashEnabled;
     }
 
     // Collect open-gate names (crack walls that have been destroyed)
@@ -1071,17 +1098,18 @@ void Mode3::SaveGame()
     {
         for (auto* obj : gom->GetObjects())
         {
-            if (obj->Type() != GameObjectTypes::Gate) continue;
+            if (obj->Type() != GameObjectTypes::Gate)
+                continue;
             auto* gate = static_cast<Gate*>(obj);
-            if (!gate->IsOpen()) continue;
+            if (!gate->IsOpen())
+                continue;
 
             // Use object name if set, otherwise fall back to "x,y" position key
             std::string id = gate->GetName();
             if (id.empty())
             {
                 const Math::vec2 p = gate->GetPosition();
-                id = std::to_string(static_cast<int>(p.x)) + ","
-                   + std::to_string(static_cast<int>(p.y));
+                id                 = std::to_string(static_cast<int>(p.x)) + "," + std::to_string(static_cast<int>(p.y));
             }
             data.openGates.push_back(id);
         }
@@ -1108,20 +1136,24 @@ void Mode3::ApplySave(const SaveData& data)
     {
         for (auto* obj : gom->GetObjects())
         {
-            if (obj->Type() != GameObjectTypes::Gate) continue;
+            if (obj->Type() != GameObjectTypes::Gate)
+                continue;
             auto* gate = static_cast<Gate*>(obj);
 
             std::string id = gate->GetName();
             if (id.empty())
             {
                 const Math::vec2 p = gate->GetPosition();
-                id = std::to_string(static_cast<int>(p.x)) + ","
-                   + std::to_string(static_cast<int>(p.y));
+                id                 = std::to_string(static_cast<int>(p.x)) + "," + std::to_string(static_cast<int>(p.y));
             }
 
             for (const auto& saved : data.openGates)
             {
-                if (saved == id) { gate->Open(); break; }
+                if (saved == id)
+                {
+                    gate->Open();
+                    break;
+                }
             }
         }
     }
@@ -1135,8 +1167,6 @@ void Mode3::Unload()
     GL::DeleteVertexArrays(1, &backgroundVAO);
     GL::DeleteBuffers(1, &backgroundVBO);
 
-    postProcessor.Shutdown();
-
     delete shieldChargeShot;
     shieldChargeShot = nullptr;
 
@@ -1144,6 +1174,11 @@ void Mode3::Unload()
     shieldEnergy = nullptr;
 
     ClearGSComponents();
+    postProcessor.Shutdown();
+
+    simpleBossStar = nullptr;
+    bashTargetKind = BashTargetKind::None;
+
     player           = nullptr;
     mapManager       = nullptr;
     worldTextManager = nullptr;
@@ -1156,4 +1191,75 @@ void Mode3::Unload()
 
     delete levelStreamer;
     levelStreamer = nullptr;
+}
+
+void Mode3::InitSimpleBossFight(CS230::GameObjectManager* gom)
+{
+    if (gom == nullptr || player == nullptr || simpleBossStar != nullptr)
+        return;
+
+    // SVG rect around x=8840~11240, y=-3520~-2160.
+    // Map parser flips Y, so game-space becomes y=2160~3520.
+    const Math::rect bossRoom{
+        {  8840.0, 2160.0 },
+        { 11240.0, 3520.0 }
+    };
+
+    const Math::vec2 bossCenter{ (bossRoom.Left() + bossRoom.Right()) * 0.5, (bossRoom.Bottom() + bossRoom.Top()) * 0.5 };
+
+    std::vector<TargetStar*> bossTargets;
+
+    for (auto* obj : gom->GetObjects())
+    {
+        if (obj == nullptr || obj->Type() != GameObjectTypes::Target)
+            continue;
+
+        auto*            target = static_cast<TargetStar*>(obj);
+        const Math::vec2 p      = target->GetPosition();
+
+        if (p.x >= bossRoom.Left() && p.x <= bossRoom.Right() && p.y >= bossRoom.Bottom() && p.y <= bossRoom.Top())
+        {
+            bossTargets.push_back(target);
+        }
+    }
+
+    simpleBossStar = new SimpleBossStar(bossCenter, bossRoom, player, bossTargets);
+    simpleBossStar->SetName("SIMPLE_BOSS_STAR");
+    gom->Add(simpleBossStar);
+
+    Engine::GetLogger().LogEvent("SimpleBossStar initialized. targets=" + std::to_string(bossTargets.size()));
+}
+
+bool Mode3::GetCurrentBashTargetInfo(Math::vec2& outPos, Math::vec2& outDir) const
+{
+    if (bashTargetKind == BashTargetKind::LaserTurret && bashTarget != nullptr)
+    {
+        outPos = bashTarget->GetNearestBashableBulletPosition(player->GetPosition());
+        outDir = bashTarget->GetNearestBashableBulletDirection(player->GetPosition());
+        return true;
+    }
+
+    if (bashTargetKind == BashTargetKind::SimpleBoss && simpleBossStar != nullptr)
+    {
+        outPos = simpleBossStar->GetNearestBashableShotPosition(player->GetPosition());
+        outDir = simpleBossStar->GetNearestBashableShotDirection(player->GetPosition());
+        return true;
+    }
+
+    return false;
+}
+
+bool Mode3::BashCurrentTarget(Math::vec2 newDir)
+{
+    if (bashTargetKind == BashTargetKind::LaserTurret && bashTarget != nullptr)
+    {
+        return bashTarget->BashNearestBullet(player->GetPosition(), newDir, BASH_RADIUS * BASH_RADIUS);
+    }
+
+    if (bashTargetKind == BashTargetKind::SimpleBoss && simpleBossStar != nullptr)
+    {
+        return simpleBossStar->BashNearestShot(player->GetPosition(), newDir, BASH_RADIUS * BASH_RADIUS);
+    }
+
+    return false;
 }
