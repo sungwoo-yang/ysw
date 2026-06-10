@@ -73,7 +73,7 @@ private:
 
     static constexpr double TrackingLaserLength  = 5000.0;
     static constexpr double TrackingDamageRadius = 30.0;
-    static constexpr double TrackingAimSpeed     = 1.0;
+    static constexpr double TrackingAimSpeed     = 300.0;
 
     static constexpr double ShotSpeed        = 650.0;
     static constexpr double ShotHitRadius    = 16.0;

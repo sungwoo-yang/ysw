@@ -88,6 +88,148 @@ namespace
         return p.x >= r.Left() && p.x <= r.Right() && p.y >= r.Bottom() && p.y <= r.Top();
     }
 
+    struct BossStarMarker
+    {
+        std::string group;
+        Math::vec2  position;
+    };
+
+    bool StartsWithLocal(const std::string& text, const std::string& prefix)
+    {
+        return text.rfind(prefix, 0) == 0;
+    }
+
+    std::optional<std::string> BossGroupFromId(const std::string& id)
+    {
+        if (StartsWithLocal(id, "BS_"))
+            return id.substr(3);
+
+        return std::nullopt;
+    }
+
+    std::optional<std::string> TargetGroupFromId(const std::string& id)
+    {
+        if (!StartsWithLocal(id, "TS_"))
+            return std::nullopt;
+
+        std::string body = id.substr(3);
+
+        const size_t lastUnderscore = body.rfind('_');
+        if (lastUnderscore == std::string::npos)
+            return body;
+
+        return body.substr(0, lastUnderscore);
+    }
+
+    Math::vec2 CenterOfSvgPathTag(const std::string& tag)
+    {
+        static const std::regex rD(R"xxx(\bd\s*=\s*"([^"]+)")xxx");
+        static const std::regex rCoord(R"xxx((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?))xxx");
+
+        std::smatch md;
+        if (!std::regex_search(tag, md, rD))
+            return { 0.0, 0.0 };
+
+        const std::string d = md[1].str();
+
+        bool   found = false;
+        double minX  = 0.0;
+        double maxX  = 0.0;
+        double minY  = 0.0;
+        double maxY  = 0.0;
+
+        auto cit  = std::sregex_iterator(d.begin(), d.end(), rCoord);
+        auto cend = std::sregex_iterator{};
+
+        for (; cit != cend; ++cit)
+        {
+            const double x = std::stod((*cit)[1].str());
+            const double y = std::stod((*cit)[2].str());
+
+            if (!found)
+            {
+                minX = maxX = x;
+                minY = maxY = y;
+                found       = true;
+            }
+            else
+            {
+                minX = std::min(minX, x);
+                maxX = std::max(maxX, x);
+                minY = std::min(minY, y);
+                maxY = std::max(maxY, y);
+            }
+        }
+
+        if (!found)
+            return { 0.0, 0.0 };
+
+        return { (minX + maxX) * 0.5, -(minY + maxY) * 0.5 };
+    }
+
+    std::vector<BossStarMarker> LoadBossStarMarkers()
+    {
+        std::vector<BossStarMarker> markers;
+
+        std::filesystem::path path;
+        try
+        {
+            path = assets::locate_asset("Assets/maps/editor_output.svg");
+        }
+        catch (...)
+        {
+            return markers;
+        }
+
+        std::ifstream f(path);
+        if (!f.is_open())
+            return markers;
+
+        std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        std::replace(content.begin(), content.end(), '\n', ' ');
+        std::replace(content.begin(), content.end(), '\r', ' ');
+
+        static const std::regex rPath(R"xxx(<path\s[^>]*>)xxx", std::regex::icase);
+        static const std::regex rId(R"xxx(\bid\s*=\s*"([^"]+)")xxx");
+        static const std::regex rBossFill(R"xxx(fill\s*=\s*"#ff44aa")xxx", std::regex::icase);
+
+        auto it  = std::sregex_iterator(content.begin(), content.end(), rPath);
+        auto end = std::sregex_iterator{};
+
+        for (; it != end; ++it)
+        {
+            const std::string tag = (*it)[0].str();
+
+            std::smatch       mid;
+            const bool        hasId = std::regex_search(tag, mid, rId);
+            const std::string id    = hasId ? mid[1].str() : "";
+
+            const bool isBossMarker = std::regex_search(tag, rBossFill) || StartsWithLocal(id, "BS_");
+
+            if (!isBossMarker)
+                continue;
+
+            auto group = BossGroupFromId(id);
+            if (!group.has_value() || group->empty())
+                group = "BOSS";
+
+            markers.push_back({ group.value(), CenterOfSvgPathTag(tag) });
+        }
+
+        return markers;
+    }
+
+    Math::rect FindRoomContainingPoint(Math::vec2 p, const std::vector<Math::rect>& rooms)
+    {
+        for (const Math::rect& room : rooms)
+        {
+            if (IsPointInRect(p, room))
+                return room;
+        }
+
+        return GetSimpleBossRoomBounds();
+    }
+
     std::optional<Math::vec2> LoadEditorSpawnMarker()
     {
         std::filesystem::path path;
@@ -420,16 +562,21 @@ void Mode3::Update(double dt)
             }
         }
 
-        if (simpleBossStar != nullptr && simpleBossStar->HasBashableShot())
-        {
-            const Math::vec2 shotPos = simpleBossStar->GetNearestBashableShotPosition(player->GetPosition());
+        SimpleBossStar* nearestBoss = nullptr;
 
-            const double d2 = (shotPos - player->GetPosition()).LengthSquared();
+        for (SimpleBossStar* boss : simpleBossStars)
+        {
+            if (boss == nullptr || !boss->HasBashableShot())
+                continue;
+
+            const Math::vec2 shotPos = boss->GetNearestBashableShotPosition(player->GetPosition());
+            const double     d2      = (shotPos - player->GetPosition()).LengthSquared();
 
             if (d2 <= nearestDist)
             {
                 nearestDist   = d2;
                 nearestTurret = nullptr;
+                nearestBoss   = boss;
                 nearestKind   = BashTargetKind::SimpleBoss;
                 foundTarget   = true;
             }
@@ -438,12 +585,15 @@ void Mode3::Update(double dt)
         if (foundTarget)
         {
             // Reset window timer when acquiring a new target
-            if (!bashReady || bashTargetKind != nearestKind || bashTarget != nearestTurret)
+            if (!bashReady || bashTargetKind != nearestKind || bashTarget != nearestTurret || bashBossTarget != nearestBoss)
+            {
                 bashWindowTimer = 0.0;
+            }
 
             bashWindowTimer += dt;
             bashReady      = true;
             bashTarget     = nearestTurret;
+            bashBossTarget = nearestBoss;
             bashTargetKind = nearestKind;
 
             timeScaleTarget = (bashWindowTimer < BASH_WINDOW) ? BASH_SLOW_FACTOR : 1.0;
@@ -452,6 +602,7 @@ void Mode3::Update(double dt)
         {
             bashReady       = false;
             bashTarget      = nullptr;
+            bashBossTarget  = nullptr;
             bashTargetKind  = BashTargetKind::None;
             timeScaleTarget = 1.0;
             bashWindowTimer = 0.0;
@@ -477,6 +628,7 @@ void Mode3::Update(double dt)
             {
                 bashReady       = false;
                 bashTarget      = nullptr;
+                bashBossTarget  = nullptr;
                 bashTargetKind  = BashTargetKind::None;
                 timeScale       = 1.0;
                 timeScaleTarget = 1.0;
@@ -500,6 +652,7 @@ void Mode3::Update(double dt)
 
                 bashReady       = false;
                 bashTarget      = nullptr;
+                bashBossTarget  = nullptr;
                 bashTargetKind  = BashTargetKind::None;
                 timeScale       = 1.0;
                 timeScaleTarget = 1.0;
@@ -511,6 +664,7 @@ void Mode3::Update(double dt)
     {
         bashReady       = false;
         bashTarget      = nullptr;
+        bashBossTarget  = nullptr;
         bashTargetKind  = BashTargetKind::None;
         timeScale       = 1.0;
         timeScaleTarget = 1.0;
@@ -1231,7 +1385,8 @@ void Mode3::Unload()
     ClearGSComponents();
     postProcessor.Shutdown();
 
-    simpleBossStar = nullptr;
+    simpleBossStars.clear();
+    bashBossTarget = nullptr;
     bashTargetKind = BashTargetKind::None;
 
     player           = nullptr;
@@ -1250,40 +1405,65 @@ void Mode3::Unload()
 
 void Mode3::InitSimpleBossFight(CS230::GameObjectManager* gom)
 {
-    if (gom == nullptr || player == nullptr || simpleBossStar != nullptr)
+    if (gom == nullptr || player == nullptr || !simpleBossStars.empty())
         return;
 
-    const Math::rect bossRoom = GetSimpleBossRoomBounds();
+    const std::vector<BossStarMarker> bossMarkers = LoadBossStarMarkers();
 
-    const Math::vec2 bossCenter{ (bossRoom.Left() + bossRoom.Right()) * 0.5, (bossRoom.Bottom() + bossRoom.Top()) * 0.5 };
+    if (bossMarkers.empty())
+    {
+        Engine::GetLogger().LogEvent("No BossStar markers found. Skipping constellation boss setup.");
+        return;
+    }
 
-    std::vector<TargetStar*> bossTargets;
+    std::vector<TargetStar*> allTargets;
 
     for (auto* obj : gom->GetObjects())
     {
         if (obj == nullptr || obj->Type() != GameObjectTypes::Target)
             continue;
 
-        auto*            target = static_cast<TargetStar*>(obj);
-        const Math::vec2 p      = target->GetPosition();
-
-        if (p.x >= bossRoom.Left() && p.x <= bossRoom.Right() && p.y >= bossRoom.Bottom() && p.y <= bossRoom.Top())
-        {
-            bossTargets.push_back(target);
-        }
+        auto* target = static_cast<TargetStar*>(obj);
+        allTargets.push_back(target);
     }
 
-    if (bossTargets.empty())
+    const std::vector<Math::rect>& rooms = mapManager->GetAllRooms();
+
+    for (const BossStarMarker& marker : bossMarkers)
     {
-        Engine::GetLogger().LogEvent("SimpleBossStar skipped: no TargetStar objects in boss room.");
-        return;
+        std::vector<TargetStar*> bossTargets;
+
+        for (TargetStar* target : allTargets)
+        {
+            if (target == nullptr)
+                continue;
+
+            const std::string targetId    = target->GetName();
+            const auto        targetGroup = TargetGroupFromId(targetId);
+
+            if (!targetGroup.has_value())
+                continue;
+
+            if (targetGroup.value() == marker.group)
+                bossTargets.push_back(target);
+        }
+
+        if (bossTargets.empty())
+        {
+            Engine::GetLogger().LogEvent("BossStar skipped. group=" + marker.group + " has no TargetStars.");
+            continue;
+        }
+
+        const Math::rect bossRoom = FindRoomContainingPoint(marker.position, rooms);
+
+        auto* boss = new SimpleBossStar(marker.position, bossRoom, player, bossTargets);
+        boss->SetName("BS_" + marker.group);
+
+        gom->Add(boss);
+        simpleBossStars.push_back(boss);
+
+        Engine::GetLogger().LogEvent("Constellation boss created. group=" + marker.group + " targets=" + std::to_string(bossTargets.size()));
     }
-
-    simpleBossStar = new SimpleBossStar(bossCenter, bossRoom, player, bossTargets);
-    simpleBossStar->SetName("SIMPLE_BOSS_STAR");
-    gom->Add(simpleBossStar);
-
-    Engine::GetLogger().LogEvent("SimpleBossStar initialized. targets=" + std::to_string(bossTargets.size()));
 }
 
 bool Mode3::GetCurrentBashTargetInfo(Math::vec2& outPos, Math::vec2& outDir) const
@@ -1298,10 +1478,10 @@ bool Mode3::GetCurrentBashTargetInfo(Math::vec2& outPos, Math::vec2& outDir) con
         return true;
     }
 
-    if (bashTargetKind == BashTargetKind::SimpleBoss && simpleBossStar != nullptr)
+    if (bashTargetKind == BashTargetKind::SimpleBoss && bashBossTarget != nullptr)
     {
-        outPos = simpleBossStar->GetNearestBashableShotPosition(player->GetPosition());
-        outDir = simpleBossStar->GetNearestBashableShotDirection(player->GetPosition());
+        outPos = bashBossTarget->GetNearestBashableShotPosition(player->GetPosition());
+        outDir = bashBossTarget->GetNearestBashableShotDirection(player->GetPosition());
         return true;
     }
 
@@ -1318,9 +1498,9 @@ bool Mode3::BashCurrentTarget(Math::vec2 newDir)
         return bashTarget->BashNearestBullet(player->GetPosition(), newDir, BASH_RADIUS * BASH_RADIUS);
     }
 
-    if (bashTargetKind == BashTargetKind::SimpleBoss && simpleBossStar != nullptr)
+    if (bashTargetKind == BashTargetKind::SimpleBoss && bashBossTarget != nullptr)
     {
-        return simpleBossStar->BashNearestShot(player->GetPosition(), newDir, BASH_RADIUS * BASH_RADIUS);
+        return bashBossTarget->BashNearestShot(player->GetPosition(), newDir, BASH_RADIUS * BASH_RADIUS);
     }
 
     return false;

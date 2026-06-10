@@ -113,6 +113,47 @@ namespace
         }
     }
 
+    std::string ExtractBossGroupFromId(const std::string& id)
+    {
+        if (id.rfind("BS_", 0) == 0)
+            return id.substr(3);
+
+        return "BOSS";
+    }
+
+    std::string ExtractTargetGroupFromId(const std::string& id)
+    {
+        if (id.rfind("TS_", 0) != 0)
+            return "BOSS";
+
+        std::string  body           = id.substr(3);
+        const size_t lastUnderscore = body.rfind('_');
+
+        if (lastUnderscore == std::string::npos)
+            return body;
+
+        return body.substr(0, lastUnderscore);
+    }
+
+    int ExtractTargetIndexFromId(const std::string& id)
+    {
+        if (id.rfind("TS_", 0) != 0)
+            return 0;
+
+        const size_t lastUnderscore = id.rfind('_');
+        if (lastUnderscore == std::string::npos)
+            return 0;
+
+        try
+        {
+            return std::max(0, std::stoi(id.substr(lastUnderscore + 1)));
+        }
+        catch (...)
+        {
+            return 0;
+        }
+    }
+
     const char* ModeName(int m)
     {
         switch (m)
@@ -1354,55 +1395,128 @@ void LevelEditor::DrawImGui()
         }
 
         // ---- Star settings: constellation IDs ----
-        if (selObj.type == ObjectType::TargetStar || selObj.type == ObjectType::LaserStar)
+        if (selObj.type == ObjectType::BossStar || selObj.type == ObjectType::TargetStar || selObj.type == ObjectType::LaserStar)
         {
             ImGui::Separator();
 
+            const bool isBossStar   = selObj.type == ObjectType::BossStar;
             const bool isTargetStar = selObj.type == ObjectType::TargetStar;
+            const bool isLaserStar  = selObj.type == ObjectType::LaserStar;
 
-            ImGui::TextColored(
-                isTargetStar ? ImVec4{ 1.0f, 0.84f, 0.0f, 1.0f } : ImVec4{ 0.22f, 1.0f, 0.08f, 1.0f }, isTargetStar ? "TargetStar ID: %s" : "LaserStar ID: %s",
-                selObj.id.empty() ? "(none)" : selObj.id.c_str());
+            ImVec4      titleColor = { 0.22f, 1.0f, 0.08f, 1.0f };
+            const char* title      = "LaserStar ID: %s";
 
-            static char starIdBuf[128] = {};
-            static int  lastStarIdx    = -1;
-
-            if (lastStarIdx != selectedIndex)
+            if (isBossStar)
             {
-                strncpy_s(starIdBuf, sizeof(starIdBuf), selObj.id.c_str(), _TRUNCATE);
-                lastStarIdx = selectedIndex;
+                titleColor = { 1.0f, 0.27f, 0.67f, 1.0f };
+                title      = "BossStar ID: %s";
+            }
+            else if (isTargetStar)
+            {
+                titleColor = { 1.0f, 0.84f, 0.0f, 1.0f };
+                title      = "TargetStar ID: %s";
             }
 
-            ImGui::SetNextItemWidth(240.0f);
-            if (ImGui::InputText("ID##starid", starIdBuf, sizeof(starIdBuf), ImGuiInputTextFlags_CharsNoBlank))
-            {
-                selObj.id = starIdBuf;
-            }
+            ImGui::TextColored(titleColor, title, selObj.id.empty() ? "(none)" : selObj.id.c_str());
 
-            if (ImGui::IsItemDeactivatedAfterEdit())
-                PushUndo();
+            static char       constellationGroupBuf[64] = {};
+            static int        targetIndexBuf            = 0;
+            static char       starIdBuf[128]            = {};
+            static int        lastStarIdx               = -1;
+            static ObjectType lastStarType              = ObjectType::Floor;
 
-            if (selObj.id.empty())
+            if (lastStarIdx != selectedIndex || lastStarType != selObj.type)
             {
-                if (ImGui::SmallButton(isTargetStar ? "Init Target ID##star" : "Init Laser ID##star"))
+                if (isBossStar)
                 {
-                    PushUndo();
-                    selObj.id = MakeDefaultObjectId(selObj.type, selectedIndex);
+                    const std::string group = ExtractBossGroupFromId(selObj.id);
+                    strncpy_s(constellationGroupBuf, sizeof(constellationGroupBuf), group.c_str(), _TRUNCATE);
+                }
+                else if (isTargetStar)
+                {
+                    const std::string group = ExtractTargetGroupFromId(selObj.id);
+                    strncpy_s(constellationGroupBuf, sizeof(constellationGroupBuf), group.c_str(), _TRUNCATE);
+                    targetIndexBuf = ExtractTargetIndexFromId(selObj.id);
+                }
+                else
+                {
                     strncpy_s(starIdBuf, sizeof(starIdBuf), selObj.id.c_str(), _TRUNCATE);
                 }
+
+                lastStarIdx  = selectedIndex;
+                lastStarType = selObj.type;
             }
 
-            if (isTargetStar)
+            if (isBossStar || isTargetStar)
             {
-                ImGui::TextDisabled("ex) TS_BOSS_0, TS_BOSS_1");
+                ImGui::SetNextItemWidth(160.0f);
+                bool changed = ImGui::InputText("Group##constellation_group", constellationGroupBuf, sizeof(constellationGroupBuf), ImGuiInputTextFlags_CharsNoBlank);
+
+                if (isTargetStar)
+                {
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(70.0f);
+                    changed |= ImGui::InputInt("Index##target_index", &targetIndexBuf, 1, 1);
+                    targetIndexBuf = std::max(0, targetIndexBuf);
+                }
+
+                if (changed)
+                {
+                    PushUndo();
+
+                    std::string group = constellationGroupBuf;
+                    if (group.empty())
+                        group = "BOSS";
+
+                    if (isBossStar)
+                    {
+                        selObj.id = "BS_" + group;
+                    }
+                    else
+                    {
+                        selObj.id = "TS_" + group + "_" + std::to_string(targetIndexBuf);
+                    }
+                }
+
+                if (isBossStar)
+                {
+                    ImGui::TextDisabled("BossStar: BS_<GROUP>");
+                    ImGui::TextDisabled("ex) BS_ORION");
+                }
+                else
+                {
+                    ImGui::TextDisabled("TargetStar: TS_<GROUP>_<INDEX>");
+                    ImGui::TextDisabled("ex) TS_ORION_0, TS_ORION_1");
+                }
+
+                ImGui::TextColored({ 0.7f, 0.9f, 1.0f, 1.0f }, "Set rule: BS_ORION matches TS_ORION_0, TS_ORION_1, ...");
             }
-            else
+            else if (isLaserStar)
             {
+                ImGui::SetNextItemWidth(240.0f);
+                if (ImGui::InputText("ID##laserstarid", starIdBuf, sizeof(starIdBuf), ImGuiInputTextFlags_CharsNoBlank))
+                {
+                    selObj.id = starIdBuf;
+                }
+
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                    PushUndo();
+
+                if (selObj.id.empty())
+                {
+                    if (ImGui::SmallButton("Init Laser ID##star"))
+                    {
+                        PushUndo();
+                        selObj.id = MakeDefaultObjectId(selObj.type, selectedIndex);
+                        strncpy_s(starIdBuf, sizeof(starIdBuf), selObj.id.c_str(), _TRUNCATE);
+                    }
+                }
+
                 ImGui::TextDisabled("ex) LS_Y_SHOT_TRACK_E_BOSS");
                 ImGui::TextDisabled("format: LS_(Y/R/W)_(CONT/SHOT)_(STATIC/ROTATE/BLINK/TRACK)_(N/S/E/W/NE/NW/SE/SW)_(Name)");
             }
         }
-
+        
         // ---- Turret settings (direction + interval) ----
         if (selObj.type == ObjectType::Turret)
         {
