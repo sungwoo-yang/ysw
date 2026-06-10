@@ -445,7 +445,7 @@ void Mode3::Update(double dt)
             timeScale += (timeScaleTarget - timeScale) * std::min(dt * 14.0, 1.0);
 
         // ---- Execute bash on left click ----
-        if (bashReady && bashTarget && Engine::GetInput().MouseButtonJustPressed(CS230::Input::MouseButton::Left))
+        if (bashReady && player && Engine::GetInput().MouseButtonJustPressed(CS230::Input::MouseButton::Left))
         {
             const Math::ivec2 win        = Engine::GetWindow().GetSize();
             const Math::vec2  ms         = Engine::GetInput().GetMousePosition();
@@ -455,33 +455,44 @@ void Mode3::Update(double dt)
             Math::vec2 bulletDir;
 
             if (!GetCurrentBashTargetInfo(bulletPos, bulletDir))
-                return;
+            {
+                bashReady       = false;
+                bashTarget      = nullptr;
+                bashTargetKind  = BashTargetKind::None;
+                timeScale       = 1.0;
+                timeScaleTarget = 1.0;
+                bashWindowTimer = 0.0;
+            }
+            else
+            {
+                Math::vec2 toMouse = mouseWorld - bulletPos;
 
-            Math::vec2 toMouse = mouseWorld - bulletPos;
-            if (toMouse.LengthSquared() < 1.0)
-                toMouse = { 1.0, 0.0 };
-            const Math::vec2 bashDir = toMouse.Normalize();
+                if (toMouse.LengthSquared() < 1.0)
+                    toMouse = { 1.0, 0.0 };
+                const Math::vec2 bashDir = toMouse.Normalize();
 
-            const double     dot        = bulletDir.Dot(bashDir);
-            const double     forceMult  = 1.0 - 0.5 * dot;
-            constexpr double BASE_FORCE = 950.0;
-            const Math::vec2 impulse    = -bashDir * (BASE_FORCE * forceMult);
+                const double     dot        = bulletDir.Dot(bashDir);
+                const double     forceMult  = 1.0 - 0.5 * dot;
+                constexpr double BASE_FORCE = 950.0;
+                const Math::vec2 impulse    = -bashDir * (BASE_FORCE * forceMult);
 
-            if (BashCurrentTarget(bashDir))
-                player->ApplyBashImpulse(impulse);
+                if (BashCurrentTarget(bashDir))
+                    player->ApplyBashImpulse(impulse);
 
-            bashReady       = false;
-            bashTarget      = nullptr;
-            bashTargetKind  = BashTargetKind::None;
-            timeScale       = 1.0;
-            timeScaleTarget = 1.0;
-            bashWindowTimer = 0.0;
+                bashReady       = false;
+                bashTarget      = nullptr;
+                bashTargetKind  = BashTargetKind::None;
+                timeScale       = 1.0;
+                timeScaleTarget = 1.0;
+                bashWindowTimer = 0.0;
+            }
         }
     }
     else
     {
         bashReady       = false;
         bashTarget      = nullptr;
+        bashTargetKind  = BashTargetKind::None;
         timeScale       = 1.0;
         timeScaleTarget = 1.0;
         bashWindowTimer = 0.0;
@@ -898,61 +909,60 @@ void Mode3::Draw()
         Math::vec2 bPos;
         Math::vec2 bDir;
 
-        if (!GetCurrentBashTargetInfo(bPos, bDir))
-            return;
-
-        constexpr double kPI    = 3.14159265358979323846;
-        constexpr double TWO_PI = kPI * 2.0;
-
-        const Math::ivec2 win = Engine::GetWindow().GetSize();
-        const Math::vec2  ms  = Engine::GetInput().GetMousePosition();
-        const Math::vec2  mw  = camera->GetPosition() + Math::vec2{ ms.x, win.y - ms.y };
-
-        const double progress = std::min(bashWindowTimer / BASH_WINDOW, 1.0);
-
-        // ---- Aim line & arrow ----
-        renderer.DrawLine(bPos, mw, 0xFFFFFF90u, 1.5);
-        const Math::vec2 toMouse   = (mw - bPos).LengthSquared() > 1.0 ? (mw - bPos).Normalize() : Math::vec2{ 1.0, 0.0 };
-        constexpr double ARROW     = 18.0;
-        const Math::vec2 arrowLeft = { -toMouse.y, toMouse.x };
-        renderer.DrawLine(mw, mw - toMouse * ARROW + arrowLeft * (ARROW * 0.5), 0xFFFFFF90u, 1.5);
-        renderer.DrawLine(mw, mw - toMouse * ARROW - arrowLeft * (ARROW * 0.5), 0xFFFFFF90u, 1.5);
-
-        // Player rebound direction
-        renderer.DrawLine(player->GetPosition(), player->GetPosition() + (-toMouse) * 80.0, 0xFF8844FFu, 2.0);
-
-        // ---- Circular light sweep ----
-        constexpr double RADIUS    = 55.0;      // smaller circle
-        constexpr double START_ANG = kPI * 0.5; // 12 o'clock
-        constexpr int    RING_SEGS = 72;
-        constexpr double BULGE_ANG = kPI / 5.0; // ±36° glow spread
-
-        const double headAng = START_ANG - progress * TWO_PI;
-
-        for (int i = 0; i < RING_SEGS; ++i)
+        if (GetCurrentBashTargetInfo(bPos, bDir))
         {
-            const double a0   = START_ANG - (double)i / RING_SEGS * TWO_PI;
-            const double a1   = START_ANG - (double)(i + 1) / RING_SEGS * TWO_PI;
-            const double aMid = (a0 + a1) * 0.5;
+            constexpr double kPI    = 3.14159265358979323846;
+            constexpr double TWO_PI = kPI * 2.0;
 
-            // Angular distance from head (wrap-safe via cos trick)
-            double dAng = std::acos(std::max(-1.0, std::min(1.0, std::cos(aMid) * std::cos(headAng) + std::sin(aMid) * std::sin(headAng))));
+            const Math::ivec2 win = Engine::GetWindow().GetSize();
+            const Math::vec2  ms  = Engine::GetInput().GetMousePosition();
+            const Math::vec2  mw  = camera->GetPosition() + Math::vec2{ ms.x, win.y - ms.y };
 
-            // Glow: 1 at head, 0 at BULGE_ANG away
-            const double glow       = std::max(0.0, 1.0 - dAng / BULGE_ANG);
-            const double glowSmooth = glow * glow; // quadratic falloff
+            const double progress = std::min(bashWindowTimer / BASH_WINDOW, 1.0);
 
-            // Line width: thin normally, bulges at the light position
-            const double lineW = 1.0 + glowSmooth * 7.0;
+            // ---- Aim line & arrow ----
+            renderer.DrawLine(bPos, mw, 0xFFFFFF90u, 1.5);
 
-            // Color: dim grey ring → bright white-blue at glow
-            const uint32_t baseAlpha = static_cast<uint32_t>(0x55 + glowSmooth * 0xAA);
-            const uint32_t rComp     = static_cast<uint32_t>(0x55 + glowSmooth * 0xAA);
-            const uint32_t gComp     = static_cast<uint32_t>(0x66 + glowSmooth * 0x99);
-            const uint32_t bComp     = static_cast<uint32_t>(0x77 + glowSmooth * 0x88);
-            const uint32_t col       = (rComp << 24) | (gComp << 16) | (bComp << 8) | baseAlpha;
+            const Math::vec2 toMouse = (mw - bPos).LengthSquared() > 1.0 ? (mw - bPos).Normalize() : Math::vec2{ 1.0, 0.0 };
 
-            renderer.DrawLine({ bPos.x + RADIUS * std::cos(a0), bPos.y + RADIUS * std::sin(a0) }, { bPos.x + RADIUS * std::cos(a1), bPos.y + RADIUS * std::sin(a1) }, col, lineW);
+            constexpr double ARROW     = 18.0;
+            const Math::vec2 arrowLeft = { -toMouse.y, toMouse.x };
+
+            renderer.DrawLine(mw, mw - toMouse * ARROW + arrowLeft * (ARROW * 0.5), 0xFFFFFF90u, 1.5);
+            renderer.DrawLine(mw, mw - toMouse * ARROW - arrowLeft * (ARROW * 0.5), 0xFFFFFF90u, 1.5);
+
+            // Player rebound direction
+            renderer.DrawLine(player->GetPosition(), player->GetPosition() + (-toMouse) * 80.0, 0xFF8844FFu, 2.0);
+
+            // ---- Circular light sweep ----
+            constexpr double RADIUS    = 55.0;
+            constexpr double START_ANG = kPI * 0.5;
+            constexpr int    RING_SEGS = 72;
+            constexpr double BULGE_ANG = kPI / 5.0;
+
+            const double headAng = START_ANG - progress * TWO_PI;
+
+            for (int i = 0; i < RING_SEGS; ++i)
+            {
+                const double a0   = START_ANG - static_cast<double>(i) / RING_SEGS * TWO_PI;
+                const double a1   = START_ANG - static_cast<double>(i + 1) / RING_SEGS * TWO_PI;
+                const double aMid = (a0 + a1) * 0.5;
+
+                const double dAng = std::acos(std::max(-1.0, std::min(1.0, std::cos(aMid) * std::cos(headAng) + std::sin(aMid) * std::sin(headAng))));
+
+                const double glow       = std::max(0.0, 1.0 - dAng / BULGE_ANG);
+                const double glowSmooth = glow * glow;
+
+                const double lineW = 1.0 + glowSmooth * 7.0;
+
+                const uint32_t baseAlpha = static_cast<uint32_t>(0x55 + glowSmooth * 0xAA);
+                const uint32_t rComp     = static_cast<uint32_t>(0x55 + glowSmooth * 0xAA);
+                const uint32_t gComp     = static_cast<uint32_t>(0x66 + glowSmooth * 0x99);
+                const uint32_t bComp     = static_cast<uint32_t>(0x77 + glowSmooth * 0x88);
+                const uint32_t col       = (rComp << 24) | (gComp << 16) | (bComp << 8) | baseAlpha;
+
+                renderer.DrawLine({ bPos.x + RADIUS * std::cos(a0), bPos.y + RADIUS * std::sin(a0) }, { bPos.x + RADIUS * std::cos(a1), bPos.y + RADIUS * std::sin(a1) }, col, lineW);
+            }
         }
     }
 
@@ -1223,6 +1233,12 @@ void Mode3::InitSimpleBossFight(CS230::GameObjectManager* gom)
         }
     }
 
+    if (bossTargets.empty())
+    {
+        Engine::GetLogger().LogEvent("SimpleBossStar skipped: no TargetStar objects in boss room.");
+        return;
+    }
+
     simpleBossStar = new SimpleBossStar(bossCenter, bossRoom, player, bossTargets);
     simpleBossStar->SetName("SIMPLE_BOSS_STAR");
     gom->Add(simpleBossStar);
@@ -1232,6 +1248,9 @@ void Mode3::InitSimpleBossFight(CS230::GameObjectManager* gom)
 
 bool Mode3::GetCurrentBashTargetInfo(Math::vec2& outPos, Math::vec2& outDir) const
 {
+    if (player == nullptr)
+        return false;
+
     if (bashTargetKind == BashTargetKind::LaserTurret && bashTarget != nullptr)
     {
         outPos = bashTarget->GetNearestBashableBulletPosition(player->GetPosition());
@@ -1251,6 +1270,9 @@ bool Mode3::GetCurrentBashTargetInfo(Math::vec2& outPos, Math::vec2& outDir) con
 
 bool Mode3::BashCurrentTarget(Math::vec2 newDir)
 {
+    if (player == nullptr)
+        return false;
+
     if (bashTargetKind == BashTargetKind::LaserTurret && bashTarget != nullptr)
     {
         return bashTarget->BashNearestBullet(player->GetPosition(), newDir, BASH_RADIUS * BASH_RADIUS);

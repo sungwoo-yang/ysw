@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 SimpleBossStar::SimpleBossStar(Math::vec2 pos,
                                Math::rect bossRoom,

@@ -144,7 +144,7 @@ private:
         BullBoss*    boss  = nullptr;
     } bossSeq;
 
-    BashTargetKind bashTargetKind = BashTargetKind::None;
+    SimpleBossStar* simpleBossStar = nullptr;
 
     // Hardcoded parry tutorial
     enum class ParryTutState : uint8_t
