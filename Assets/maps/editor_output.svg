@@ -88,5 +88,10 @@
   <path style="fill:#884400;" d="M 16800,-2760 L 16960,-2760 L 16960,-3520 L 16800,-3520 Z"/>
   <path style="fill:#00ffff;" d="M 16360,-2360 L 16560,-2360 L 16560,-2440 L 16360,-2440 Z"/>
   <path style="fill:#00ffff;" d="M 18440,-1840 L 20360,-1840 L 20360,-2360 L 18440,-2360 Z"/>
+  <path style="fill:#39ff14;" d="M 12280.2,-1486.71 L 12320.2,-1486.71 L 12320.2,-1526.71 L 12280.2,-1526.71 Z" id="LS_Y_SHOT_TRACK_E_BOSS"/>
+  <path style="fill:#ffd700;" d="M 11600,-1680 L 11640,-1680 L 11640,-1720 L 11600,-1720 Z" id="TS_BOSS_89"/>
+  <path style="fill:#ffd700;" d="M 12120,-1680 L 12160,-1680 L 12160,-1720 L 12120,-1720 Z" id="TS_BOSS_90"/>
+  <path style="fill:#ffd700;" d="M 12560,-1680 L 12600,-1680 L 12600,-1720 L 12560,-1720 Z" id="TS_BOSS_91"/>
+  <path style="fill:#ffd700;" d="M 12920,-1680 L 12960,-1680 L 12960,-1720 L 12920,-1720 Z" id="TS_BOSS_92"/>
   <circle cx="80" cy="-0" r="20" fill="#ff8800" id="PlayerSpawn"/>
 </svg>
