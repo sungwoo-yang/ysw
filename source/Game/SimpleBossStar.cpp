@@ -178,12 +178,6 @@ void SimpleBossStar::StartTrackingLaser()
 {
     state = State::TrackingLaser;
     timer = TrackingDuration;
-
-    if (player != nullptr)
-    {
-        trackingTargetPos = player->GetPosition();
-        attackDir         = SafeNormalize(trackingTargetPos - GetPosition(), attackDir);
-    }
 }
 
 void SimpleBossStar::MoveTrackingTarget(double dt)
@@ -258,9 +252,6 @@ void SimpleBossStar::UpdateState(double dt)
             break;
 
         case State::Warning:
-            trackingTargetPos = player->GetPosition();
-            attackDir         = SafeNormalize(trackingTargetPos - GetPosition(), attackDir);
-
             timer -= dt;
             if (timer <= 0.0)
             {

@@ -69,6 +69,25 @@ namespace
     constexpr double BASH_RADIUS      = 160.0;
     constexpr double BASH_SLOW_FACTOR = 0.12;
 
+    constexpr double SIMPLE_BOSS_ROOM_LEFT   = 8840.0;
+    constexpr double SIMPLE_BOSS_ROOM_RIGHT  = 11240.0;
+    constexpr double SIMPLE_BOSS_ROOM_BOTTOM = 2160.0;
+    constexpr double SIMPLE_BOSS_ROOM_TOP    = 3520.0;
+    constexpr double SIMPLE_BOSS_CAMERA_PAD  = 180.0;
+
+    Math::rect GetSimpleBossRoomBounds()
+    {
+        return Math::rect{
+            {  SIMPLE_BOSS_ROOM_LEFT, SIMPLE_BOSS_ROOM_BOTTOM },
+            { SIMPLE_BOSS_ROOM_RIGHT,    SIMPLE_BOSS_ROOM_TOP }
+        };
+    }
+
+    bool IsPointInRect(Math::vec2 p, const Math::rect& r)
+    {
+        return p.x >= r.Left() && p.x <= r.Right() && p.y >= r.Bottom() && p.y <= r.Top();
+    }
+
     std::optional<Math::vec2> LoadEditorSpawnMarker()
     {
         std::filesystem::path path;
@@ -686,19 +705,47 @@ void Mode3::Update(double dt)
         const double      winW    = winSize.x;
         const double      winH    = winSize.y;
 
-        // Zoom: cutscene overrides, otherwise default 1.0
-        if (cutscenePlayer && cutscenePlayer->overridingZoom)
-            camera->SetScale(cutscenePlayer->zoomTarget);
-        else
-            camera->SetScale(1.0);
+        const Math::rect bossRoom     = GetSimpleBossRoomBounds();
+        const bool       inBossRoom   = IsPointInRect(player->GetPosition(), bossRoom);
+        const bool       cutsceneZoom = cutscenePlayer && cutscenePlayer->overridingZoom;
+        const bool       cutsceneCam  = cutscenePlayer && cutscenePlayer->overridingCamera;
 
-        // Compute target: player-centered, clamped to cameraBounds
+        double desiredZoom = 1.0;
+
+        if (inBossRoom)
+        {
+            const double bossW = bossRoom.Right() - bossRoom.Left();
+            const double bossH = bossRoom.Top() - bossRoom.Bottom();
+
+            const double fitX = winW / (bossW + SIMPLE_BOSS_CAMERA_PAD * 2.0);
+            const double fitY = winH / (bossH + SIMPLE_BOSS_CAMERA_PAD * 2.0);
+
+            desiredZoom = std::clamp(std::min(fitX, fitY), 0.25, 1.0);
+        }
+
+        if (cutsceneZoom)
+            desiredZoom = cutscenePlayer->zoomTarget;
+
+        camera->SetScale(desiredZoom);
+
         const double camZoom = camera->GetScale();
         const double visW    = winW / camZoom;
         const double visH    = winH / camZoom;
-        Math::vec2   target  = player->GetPosition() - Math::vec2{ visW * 0.5, visH * 0.5 };
 
-        if (cameraBounds && !(cutscenePlayer && cutscenePlayer->overridingCamera))
+        Math::vec2 target;
+
+        if (inBossRoom && !cutsceneCam)
+        {
+            const Math::vec2 bossCenter{ (bossRoom.Left() + bossRoom.Right()) * 0.5, (bossRoom.Bottom() + bossRoom.Top()) * 0.5 };
+
+            target = bossCenter - Math::vec2{ visW * 0.5, visH * 0.5 };
+        }
+        else
+        {
+            target = player->GetPosition() - Math::vec2{ visW * 0.5, visH * 0.5 };
+        }
+
+        if (cameraBounds && !cutsceneCam)
         {
             const double bW = cameraBounds->Right() - cameraBounds->Left();
             const double bH = cameraBounds->Top() - cameraBounds->Bottom();
@@ -714,8 +761,6 @@ void Mode3::Update(double dt)
                 target.y = std::clamp(target.y, cameraBounds->Bottom(), cameraBounds->Top() - visH);
         }
 
-
-        // 씬 스크립트가 카메라를 제어 중이면 플레이어 추적 대신 컷씬 타겟 사용
         if (cutscenePlayer && cutscenePlayer->overridingCamera)
             target = cutscenePlayer->cameraTarget;
 
@@ -1208,12 +1253,7 @@ void Mode3::InitSimpleBossFight(CS230::GameObjectManager* gom)
     if (gom == nullptr || player == nullptr || simpleBossStar != nullptr)
         return;
 
-    // SVG rect around x=8840~11240, y=-3520~-2160.
-    // Map parser flips Y, so game-space becomes y=2160~3520.
-    const Math::rect bossRoom{
-        {  8840.0, 2160.0 },
-        { 11240.0, 3520.0 }
-    };
+    const Math::rect bossRoom = GetSimpleBossRoomBounds();
 
     const Math::vec2 bossCenter{ (bossRoom.Left() + bossRoom.Right()) * 0.5, (bossRoom.Bottom() + bossRoom.Top()) * 0.5 };
 

@@ -243,6 +243,13 @@ namespace
         auto* star = new LaserStar(pos, player, type, pattern, laserDir, mode, moveMode, moveDir, speed, distance);
         star->SetName(id);
 
+        if (id.find("BOSS") != std::string::npos)
+        {
+            // Boss room is about 2400 x 1360, diagonal is about 2758.
+            // These values let boss LaserStars activate anywhere inside the room.
+            star->SetDetectionRadii(3200.0, 3600.0);
+        }
+
         return star;
     }
 

@@ -37,7 +37,7 @@ void YellowLaser::Update([[maybe_unused]] double dt)
 
             if (!(shield && shield->IsGuardUp() && i == 0))
             {
-                player->ApplyLaserDamage(1.0);
+                player->ApplyLaserDamage(0.0);
             }
             break;
         }

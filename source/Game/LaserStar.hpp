@@ -63,6 +63,7 @@ public:
     void SetPattern(Pattern newPattern);
     void SetFireMode(FireMode newMode);
     void SetAimDirection(Math::vec2 newDir);
+    void SetDetectionRadii(double detection, double chase);
     void SetEnabled(bool enabled);
     bool IsMoveComplete() const;
     void ResetMovement();

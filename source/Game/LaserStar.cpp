@@ -423,6 +423,18 @@ void LaserStar::SetAimDirection(Math::vec2 newDir)
     }
 }
 
+void LaserStar::SetDetectionRadii(double detection, double chase)
+{
+    if (detection < 0.0)
+        detection = 0.0;
+
+    if (chase < detection)
+        chase = detection;
+
+    detectionRadius = detection;
+    chaseRadius     = chase;
+}
+
 void LaserStar::SetEnabled(bool enabled)
 {
     SetIsActive(enabled);
