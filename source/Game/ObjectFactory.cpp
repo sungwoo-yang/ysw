@@ -2,20 +2,20 @@
 
 #include "Bonfire.hpp"
 #include "BreakableWall.hpp"
-#include "Spike.hpp"
-#include "Ramp.hpp"
-#include "Elevator.hpp"
-#include "Staircase.hpp"
 #include "Door.hpp"
+#include "Elevator.hpp"
 #include "FallingBlock.hpp"
-#include "LaserTurret.hpp"
 #include "Gate.hpp"
 #include "LaserCutRope.hpp"
 #include "LaserStar.hpp"
+#include "LaserTurret.hpp"
 #include "Mirror.hpp"
 #include "Player.hpp"
 #include "PushableMirror.hpp"
+#include "Ramp.hpp"
 #include "Sign.hpp"
+#include "Spike.hpp"
+#include "Staircase.hpp"
 #include "TargetStar.hpp"
 #include "WaterZone.hpp"
 
@@ -405,8 +405,8 @@ namespace ObjectFactory
             #aa00ff = Static Mirror
             #8844ff = Pushable Mirror
 
-            #ffffff = TargetStar
-            #00ff00 = LaserStar
+            #ffd700 = TargetStar
+            #39ff14 = LaserStar
 
             #00cc00 = LaserCutRope
             #cc00cc = FallingBlock
@@ -437,11 +437,8 @@ namespace ObjectFactory
 
             if (color == "#ff0000")
             {
-                const Math::vec2 bbCenter{
-                    (bounds.Left() + bounds.Right()) * 0.5,
-                    (bounds.Bottom() + bounds.Top()) * 0.5
-                };
-                auto* bonfire = new Bonfire(pos + bbCenter, { 100.0, 100.0 });
+                const Math::vec2 bbCenter{ (bounds.Left() + bounds.Right()) * 0.5, (bounds.Bottom() + bounds.Top()) * 0.5 };
+                auto*            bonfire = new Bonfire(pos + bbCenter, { 100.0, 100.0 });
                 bonfire->SetName(id);
                 return bonfire;
             }
@@ -481,14 +478,14 @@ namespace ObjectFactory
                 return mirror;
             }
 
-            if (color == "#ffffff")
+            if (color == "#ffd700" || StartsWith(id, "TS_"))
             {
                 auto* target = new TargetStar(pos);
                 target->SetName(id);
                 return target;
             }
 
-            if (color == "#00ff00")
+            if (color == "#39ff14" || StartsWith(id, "LS_"))
             {
                 return CreateLaserStar(pos, player, id);
             }
@@ -499,18 +496,30 @@ namespace ObjectFactory
             // delay is optional; without it, the first shot/check waits one cooldown.
             if (color == "#ff6600")
             {
-                auto   parts    = SplitID(id, '_');
-                Math::vec2 dir  = { 0.0, -1.0 }; // default South
-                double interval = 2.0;
-                double initialDelay = -1.0;
-                bool requirePlayerInPath = true;
+                auto       parts               = SplitID(id, '_');
+                Math::vec2 dir                 = { 0.0, -1.0 }; // default South
+                double     interval            = 2.0;
+                double     initialDelay        = -1.0;
+                bool       requirePlayerInPath = true;
                 if (parts.size() >= 3 && (parts[0] == "LTRT" || parts[0] == "ATRT"))
                 {
                     requirePlayerInPath = parts[0] != "ATRT";
-                    dir = DirectionFromIDToken(parts[1]);
-                    try { interval = std::stod(parts[2]); } catch (...) {}
+                    dir                 = DirectionFromIDToken(parts[1]);
+                    try
+                    {
+                        interval = std::stod(parts[2]);
+                    }
+                    catch (...)
+                    {
+                    }
                     if (parts.size() >= 4)
-                        try { initialDelay = std::max(0.0, std::stod(parts[3])); } catch (...) {}
+                        try
+                        {
+                            initialDelay = std::max(0.0, std::stod(parts[3]));
+                        }
+                        catch (...)
+                        {
+                        }
                 }
                 auto* turret = new LaserTurret(pos, dir, interval, player, requirePlayerInPath, initialDelay);
                 turret->SetName(id);
@@ -519,26 +528,20 @@ namespace ObjectFactory
 
             if (color == "#884400")
             {
-                const Math::vec2 bbCenter{
-                    (bounds.Left() + bounds.Right()) * 0.5,
-                    (bounds.Bottom() + bounds.Top()) * 0.5
-                };
-                auto* wall = new BreakableWall(pos + bbCenter, svgSize, id);
+                const Math::vec2 bbCenter{ (bounds.Left() + bounds.Right()) * 0.5, (bounds.Bottom() + bounds.Top()) * 0.5 };
+                auto*            wall = new BreakableWall(pos + bbCenter, svgSize, id);
                 wall->SetName(id);
                 return wall;
             }
 
             if (color == "#aa6600")
             {
-                const Math::vec2 bbCenter{
-                    (bounds.Left() + bounds.Right()) * 0.5,
-                    (bounds.Bottom() + bounds.Top()) * 0.5
-                };
+                const Math::vec2 bbCenter{ (bounds.Left() + bounds.Right()) * 0.5, (bounds.Bottom() + bounds.Top()) * 0.5 };
                 const Math::vec2 center = pos + bbCenter;
 
                 // Detect RAMP vs STAIR from ID prefix
-                const auto   parts  = SplitID(id, '_');
-                const bool   isRamp = (!parts.empty() && parts[0] == "RAMP");
+                const auto parts  = SplitID(id, '_');
+                const bool isRamp = (!parts.empty() && parts[0] == "RAMP");
 
                 // Shared direction parse: last token R or L
                 Ramp::Dir rampDir = Ramp::Dir::UpRight;
@@ -555,13 +558,22 @@ namespace ObjectFactory
 
                     Polygon rampLocal;
                     if (rampDir == Ramp::Dir::UpRight)
-                        rampLocal.vertices = { { -hw, -hh }, { hw, -hh }, { hw, hh } };
+                        rampLocal.vertices = {
+                            { -hw, -hh },
+                            {  hw, -hh },
+                            {  hw,  hh }
+                        };
                     else
-                        rampLocal.vertices = { { -hw, -hh }, { hw, -hh }, { -hw, hh } };
+                        rampLocal.vertices = {
+                            { -hw, -hh },
+                            {  hw, -hh },
+                            { -hw,  hh }
+                        };
                     rampLocal.vertexCount = 3;
 
                     Polygon rampWorld = rampLocal;
-                    for (auto& v : rampWorld.vertices) v += center;
+                    for (auto& v : rampWorld.vertices)
+                        v += center;
                     mapMgr->AddPolygon(rampWorld);
 
                     auto* rampElem = new CS230::MapElement(center, rampLocal, GameObjectTypes::Floor);
@@ -579,12 +591,17 @@ namespace ObjectFactory
                 int stepCount = 5;
                 {
                     if (parts.size() >= 2 && parts[0] == "STAIR")
-                        try { stepCount = std::stoi(parts[1]); } catch (...) {}
+                        try
+                        {
+                            stepCount = std::stoi(parts[1]);
+                        }
+                        catch (...)
+                        {
+                        }
                 }
                 stepCount = std::max(2, std::min(20, stepCount));
 
-                const Staircase::Dir stairDir = (rampDir == Ramp::Dir::UpLeft)
-                    ? Staircase::Dir::UpLeft : Staircase::Dir::UpRight;
+                const Staircase::Dir stairDir = (rampDir == Ramp::Dir::UpLeft) ? Staircase::Dir::UpLeft : Staircase::Dir::UpRight;
 
                 auto* stair = new Staircase(center, svgSize, stepCount, stairDir);
                 stair->SetName(id);
@@ -593,15 +610,15 @@ namespace ObjectFactory
 
             if (color == "#cc2222")
             {
-                const Math::vec2 bbCenter{
-                    (bounds.Left() + bounds.Right()) * 0.5,
-                    (bounds.Bottom() + bounds.Top()) * 0.5
-                };
+                const Math::vec2 bbCenter{ (bounds.Left() + bounds.Right()) * 0.5, (bounds.Bottom() + bounds.Top()) * 0.5 };
 
                 Spike::Dir dir = Spike::Dir::Up;
-                if (id.find("_D") != std::string::npos) dir = Spike::Dir::Down;
-                else if (id.find("_L") != std::string::npos) dir = Spike::Dir::Left;
-                else if (id.find("_R") != std::string::npos) dir = Spike::Dir::Right;
+                if (id.find("_D") != std::string::npos)
+                    dir = Spike::Dir::Down;
+                else if (id.find("_L") != std::string::npos)
+                    dir = Spike::Dir::Left;
+                else if (id.find("_R") != std::string::npos)
+                    dir = Spike::Dir::Right;
 
                 auto* spike = new Spike(pos + bbCenter, svgSize, dir);
                 spike->SetName(id);
@@ -612,11 +629,8 @@ namespace ObjectFactory
             {
                 // parsePathData duplicates the first vertex when it reads the SVG "Z" close command,
                 // so FindCenter() (vertex average) is offset. Use the bounding-box centre instead.
-                const Math::vec2 bbOffset{
-                    (bounds.Left() + bounds.Right())   * 0.5,
-                    (bounds.Bottom() + bounds.Top()) * 0.5
-                };
-                auto* water = new WaterZone(pos + bbOffset, svgSize);
+                const Math::vec2 bbOffset{ (bounds.Left() + bounds.Right()) * 0.5, (bounds.Bottom() + bounds.Top()) * 0.5 };
+                auto*            water = new WaterZone(pos + bbOffset, svgSize);
                 water->SetName(id);
                 return water;
             }
@@ -631,15 +645,24 @@ namespace ObjectFactory
 
                 const auto parts = SplitID(id, '_');
                 if (parts.size() >= 2)
-                    try { travelDist = std::stod(parts[1]); } catch (...) {}
+                    try
+                    {
+                        travelDist = std::stod(parts[1]);
+                    }
+                    catch (...)
+                    {
+                    }
                 if (parts.size() >= 3)
-                    try { period     = std::stod(parts[2]); } catch (...) {}
+                    try
+                    {
+                        period = std::stod(parts[2]);
+                    }
+                    catch (...)
+                    {
+                    }
 
-                const Math::vec2 bbCenter{
-                    (bounds.Left() + bounds.Right()) * 0.5,
-                    (bounds.Bottom() + bounds.Top()) * 0.5
-                };
-                auto* elev = new Elevator(pos + bbCenter, svgSize, travelDist, period);
+                const Math::vec2 bbCenter{ (bounds.Left() + bounds.Right()) * 0.5, (bounds.Bottom() + bounds.Top()) * 0.5 };
+                auto*            elev = new Elevator(pos + bbCenter, svgSize, travelDist, period);
                 elev->SetName(id);
                 return elev;
             }
